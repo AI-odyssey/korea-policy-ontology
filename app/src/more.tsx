@@ -1,0 +1,242 @@
+// Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
+// Secondary screens: Reports, Activity log, Assistant run, Ontology.
+import { useState } from 'react';
+import { Button } from '@blueprintjs/core';
+import { ACTION_NAMES, LINK_TYPE_NAMES, OBJECT_TYPE_NAMES, ROLES, actionTypes, functionTypes, linkTypes, objectTypes } from '../../ontology/index.ts';
+import type { ActionTypeDef, AuditEntry, LinkTypeDef, ObjectTypeDef } from '../../ontology/index.ts';
+import { Empty, Markdown, MarkTag, Section, T, cap, md, nameOf, person, pretty, prose } from './ui.tsx';
+import type { App } from './ui.tsx';
+
+const KIND: Record<string, string> = { weekly_report: 'Weekly report', issue_brief: 'Issue brief', comment_letter: 'Comment letter', meeting_prep: 'Meeting notes' };
+const STATUS: Record<string, string> = { draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' };
+const WHO: Record<string, string> = { system: 'Collector', agent: 'Assistant', consultant: 'Consultant', principal: 'Engagement lead' };
+const clip = (s: string, n = 80) => (s.length <= n ? s : `${s.slice(0, n).replace(/\s+\S*$/, '')}...`);
+
+// ---------------- Reports ----------------
+export function Reports({ app }: { app: App }) {
+  const { view, clientId } = app;
+  const list = view.list('Deliverable', (d) => d.clientId === clientId).sort((a, b) => (a.status === 'in_review' ? 0 : 1) - (b.status === 'in_review' ? 0 : 1) || (b.id < a.id ? -1 : b.id > a.id ? 1 : 0));
+  // Fix the selection on first render so approving a report does not jump to another one.
+  const [sel, setSel] = useState<string | undefined>(() => (list.find((x) => x.status === 'in_review') ?? list[0])?.id);
+  const [busy, setBusy] = useState(false);
+  const d = view.get(sel ?? '') ?? list[0];
+  const thisWeek = list.some((x) => x.kind === 'weekly_report' && String(x.title).includes(view.baseDate));
+  const draft = async () => {
+    setBusy(true);
+    const run = await app.runAgent();
+    setBusy(false);
+    if (run?.deliverableId) setSel(run.deliverableId);
+  };
+
+  return (
+    <div className="page">
+      <h1 className="headline">Reports</h1>
+      {!thisWeek && <div className="row"><Button intent="primary" loading={busy} text="Prepare this week's report" onClick={draft} /></div>}
+      <div className="split reports">
+        <div className="split-side reports-list">
+          {list.map((x) => (
+            <button key={x.id} className={`report-row ${x.id === d?.id ? 'on' : ''}`} onClick={() => setSel(x.id)}>
+              <span className="report-title">{prose(x.title)}</span>
+              <span className="sub">{KIND[x.kind]} · {STATUS[x.status]}{x.sentAt ? ` ${md(x.sentAt)}` : ''}</span>
+            </button>
+          ))}
+        </div>
+        {d && (
+          <div className="split-main">
+            <div className="row">
+              <T tone={d.status === 'in_review' ? 'hi' : d.status === 'sent' ? 'op' : 'plain'}>{STATUS[d.status]}</T>
+              <span className="sub">Prepared by the {person(d.createdBy).toLowerCase()}{d.approvedBy ? `, approved by the ${person(d.approvedBy).toLowerCase()}` : ''}</span>
+              {d.markings.map((m) => <MarkTag key={m} m={m} app={app} />)}
+            </div>
+            <div className="row">
+              {d.status === 'draft' && <Button size="small" text="Send for review" onClick={() => app.act('submitForReview', { deliverableId: d.id }, 'In review.')} />}
+              {d.status === 'in_review' && <Button size="small" intent="primary" text="Approve" onClick={() => app.act('approveDeliverable', { deliverableId: d.id }, 'Approved. Ready to send.')} />}
+              {d.status === 'approved' && <Button size="small" intent="primary" text="Send to client" onClick={() => app.act('sendDeliverable', { deliverableId: d.id }, `Sent to ${app.client.name}.`)} />}
+            </div>
+            <article className="memo"><Markdown text={d.body} app={app} /></article>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Activity log ----------------
+const RESULT: Record<string, string> = { executed: 'Done', pending_approval: 'Waiting for approval', rejected: 'Declined', denied: 'Refused' };
+
+function describe(app: App, a: AuditEntry): string {
+  const p = a.params as Record<string, any>;
+  const n = (id?: string) => (id ? nameOf(app.view.get(id)) || 'a record' : '');
+  switch (a.action) {
+    case 'triageSignal': return p.dismiss ? `Set aside: ${n(p.signalId)}` : `Filed: ${n(p.signalId)}`;
+    case 'raiseDecision': return `Raised a decision: ${clip(String(p.question))}`;
+    case 'resolveDecision': return `${{ approve: 'Approved', alternative: 'Chose an alternative on', reject: 'Declined' }[p.resolution as string]} a decision: ${clip(n(p.decisionId))}`;
+    case 'draftDeliverable': return `Drafted: ${p.title}`;
+    case 'submitForReview': return `Sent for review: ${n(p.deliverableId)}`;
+    case 'approveDeliverable': return `Approved: ${n(p.deliverableId)}`;
+    case 'sendDeliverable': return `Sent to the client: ${n(p.deliverableId)}`;
+    case 'createTask': return `Added: ${p.title}`;
+    case 'completeTask': return `Completed: ${n(p.taskId)}`;
+    case 'setClientPosition': return `Set the client position on the ${n(p.targetId).charAt(0).toLowerCase()}${n(p.targetId).slice(1)} to ${p.stance}`;
+    case 'reopenSignal': return `Returned to the queue: ${n(p.signalId)}`;
+    case 'logInteraction': return `Logged a ${p.kind} with ${(p.participantIds as string[] ?? []).map(n).join(', ')}`;
+    case 'assessStakeholder': return `Updated the stance of ${n(p.subjectId)}: ${p.stance}`;
+    case 'addRiskOpportunity': return `${a.role === 'agent' ? 'Proposed' : 'Added'} a ${p.kind}: ${p.title}`;
+    case 'updateStrategy': return `Updated the strategy on ${n(p.issueId)}`;
+    case 'updateBillStage': return `Recorded a stage change on ${n(p.billId)}`;
+    case 'reviewEvidence': return `${p.verdict === 'accept' ? 'Accepted' : 'Rejected'} a source: ${n(p.evidenceId)}`;
+    case 'linkEvidence': return `Linked ${n(p.from)} to ${n(p.to)}`;
+    case 'updateMonitoringProfile': return `Updated the monitoring settings: ${Object.keys(p).filter((k) => k !== 'clientId').map((k) => (k === 'agencies' ? 'ministries and agencies' : k)).join(', ')}`;
+    case 'startPilot': return `Started a trial: ${p.title}`;
+    case 'setPilotCriteria': return `Changed the targets of ${n(p.pilotId)}`;
+    case 'addExpectedItem': return `Added to the must-catch list: ${p.title}`;
+    case 'markRelevance': return `Marked ${p.relevance}: ${n(p.signalId)}`;
+    case 'closePilot': return `Closed ${n(p.pilotId)}`;
+    default: return pretty(a.action);
+  }
+}
+
+export function ActivityLog({ app }: { app: App }) {
+  const entries = app.store.auditEntries(app.ctx).slice().reverse();
+  return (
+    <div className="page">
+      <h1 className="headline">Activity log</h1>
+      {!entries.length && <Empty>No activity yet.</Empty>}
+      <div className="table-wrap">
+        <table className="tbl log">
+          <thead><tr><th>When</th><th>Who</th><th>What</th><th>Result</th><th>Approved by</th></tr></thead>
+          <tbody>
+            {entries.map((a) => (
+              <tr key={a.id}>
+                <td className="nowrap sub">{md(a.at)} {a.at.slice(11, 16)}</td>
+                <td className="nowrap">{WHO[a.role]}</td>
+                <td>{prose(describe(app, a))}</td>
+                <td className="nowrap">{RESULT[a.status]}{a.error && <div className="sub">{a.error.replace(/^[A-Z_]+: /, '')}</div>}</td>
+                <td className="nowrap">{person(a.approvedBy)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Assistant run ----------------
+const STEP: Record<string, string> = {
+  'query.signals': 'Read new items', proposeTriage: 'Sort new items', triageSignal: 'File clear matches', whatChanged: 'Check what changed',
+  responseLevel: 'Rank followed bills', stageGates: 'Find who decides next', raiseDecision: 'Raise a decision', addRiskOpportunity: 'Propose a risk',
+  upcomingDeadlines: 'List deadlines', issueExposure: 'Rank issues', 'llm.complete': 'Summary', draftDeliverable: 'Draft the weekly report',
+  submitForReview: 'Send for review', stop: 'Stop for approval',
+};
+
+export function AssistantRun({ app }: { app: App }) {
+  const [busy, setBusy] = useState(false);
+  const run = app.runs[app.clientId];
+  const go = async () => {
+    setBusy(true);
+    await app.runAgent();
+    setBusy(false);
+  };
+  const pending = app.store.pendingApprovals(app.ctx);
+  const gateLabel = (g: { action: string; objectId: string }) => {
+    if (g.action === 'approveDeliverable') return app.view.get(g.objectId)?.status === 'in_review' ? <a onClick={() => app.go('reports')}>Approve the weekly report</a> : null;
+    if (g.action === 'resolveDecision') return app.view.get(g.objectId)?.status === 'open' ? <a onClick={() => app.go('week')}>Decide: {prose(clip(nameOf(app.view.get(g.objectId)), 110))}</a> : null;
+    const p = pending.find((x) => x.id === g.objectId);
+    return p ? <a onClick={() => app.go('week')}>Approve the new risk: {String(p.params.title)}</a> : null;
+  };
+  const open = run ? run.gates.map((g) => ({ g, label: gateLabel(g) })).filter((x) => x.label) : [];
+  return (
+    <div className="page">
+      <h1 className="headline">Assistant run</h1>
+      <div className="row"><Button intent="primary" loading={busy} text="Run the weekly assistant" onClick={go} /></div>
+      {!run && <Empty>No run yet for {app.client.name}.</Empty>}
+      {run && (
+        <>
+          <p className="lead">Week of {md(run.since)} to {md(run.asOf)}. The assistant took {run.steps.length} steps and stopped where your approval is needed.</p>
+          <Section title="Waiting for your approval">
+            {!open.length && <Empty>Nothing from this run is still waiting.</Empty>}
+            {open.map(({ g, label }) => <div key={g.objectId} className="item">{label}</div>)}
+          </Section>
+          <Section title="Steps">
+            <ol className="run">
+              {run.steps.map((s) => (
+                <li key={s.n} className={s.kind === 'gate' ? 'gate' : s.kind === 'action' ? 'action' : ''}>
+                  <div className="run-head"><b>{STEP[s.name] ?? cap(pretty(s.name))}</b></div>
+                  <div className="sub">{prose(s.output)}</div>
+                </li>
+              ))}
+            </ol>
+          </Section>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---------------- Ontology ----------------
+const ROLE: Record<string, string> = WHO;
+// The schema calls the approver 'principal'; on screen that person is the engagement lead.
+const lead = (s: string) => s.replace(/principal/g, 'engagement lead').replace(/Principal/g, 'Engagement lead');
+
+export function Ontology() {
+  const objs = OBJECT_TYPE_NAMES.map((n) => [n, objectTypes[n] as ObjectTypeDef] as const);
+  return (
+    <div className="page">
+      <h1 className="headline">Ontology</h1>
+      <p className="lead">{objs.length} object types, {LINK_TYPE_NAMES.length} link types, {ACTION_NAMES.length} action types, {functionTypes.length} functions.</p>
+      {(['public', 'client'] as const).map((layer) => (
+        <Section key={layer} title={layer === 'public' ? 'Public layer' : 'Confidential client layer'}>
+          <div className="types">
+            {objs.filter(([, d]) => d.layer === layer).map(([n, d]) => (
+              <div key={n} className="type">
+                <div className="type-name"><code>{n}</code></div>
+                <p className="sub">{lead(d.description)}</p>
+                <div className="props">{Object.keys(d.properties).join(' · ')}</div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      ))}
+      <Section title="Link types">
+        <div className="table-wrap">
+          <table className="tbl">
+            <thead><tr><th>Link</th><th>From</th><th>To</th><th>Evidence</th></tr></thead>
+            <tbody>
+              {LINK_TYPE_NAMES.map((n) => {
+                const d = linkTypes[n] as LinkTypeDef;
+                return <tr key={n}><td><code>{n}</code></td><td>{d.from.join(', ')}</td><td>{d.to.join(', ')}</td><td>{d.evidenceRequired ? 'Required' : 'Not required'}</td></tr>;
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+      <Section title="Action types">
+        <div className="table-wrap">
+          <table className="tbl">
+            <thead><tr><th>Action</th><th>What it does</th><th>Who can run it</th><th>Approval</th></tr></thead>
+            <tbody>
+              {ACTION_NAMES.map((n) => {
+                const d = actionTypes[n] as ActionTypeDef;
+                return (
+                  <tr key={n}>
+                    <td><code>{n}</code></td>
+                    <td>{lead(d.description)}</td>
+                    <td>{ROLES.filter((r) => d.allowedRoles.includes(r)).map((r) => ROLE[r]).join(', ')}</td>
+                    <td>{d.requiresApproval ? `${cap(ROLE[d.approverRole!])} approves` : ''}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+      <Section title="Functions">
+        {functionTypes.map((f) => (
+          <div key={f.name} className="item"><code>{f.signature}</code><p className="sub">{f.description}</p></div>
+        ))}
+      </Section>
+    </div>
+  );
+}
+

@@ -1,0 +1,12 @@
+{
+  "clientId": "cli-wren",
+  "keywords": [
+    { "term": "해외송금", "priority": "high", "synonyms": ["소액해외송금", "국경간 송금", "외화송금"], "exclude": ["원·달러 환율", "대북송금"] },
+    { "term": "전자금융거래법", "priority": "high", "synonyms": ["전자금융업"], "exclude": ["기소유예", "접근매체"] },
+    { "term": "선불충전금", "priority": "high", "synonyms": ["선불전자지급수단", "선불금"] },
+    { "term": "외국환거래법", "priority": "medium", "synonyms": ["외국환거래 규정", "외국환업무"], "exclude": ["혐의", "기소", "재심"] },
+    { "term": "간편결제", "priority": "low", "synonyms": ["전자지급결제대행"] }
+  ],
+  "committees": ["정무위원회", "재정경제기획위원회"],
+  "agencies": ["금융위원회", "금융감독원", "재정경제부"]
+}

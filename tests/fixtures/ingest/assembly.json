@@ -1,0 +1,25 @@
+{
+  "bills": [
+    { "BILL_ID": "PRC_99D9428DDDFF48CD8C7A497311FA46", "BILL_NO": "2222478", "BILL_NAME": "풍수해ㆍ지진재해보험법 일부개정법률안", "PROPOSER": "정부", "PROPOSER_KIND": "정부", "PROPOSE_DT": "2026-11-05", "CURR_COMMITTEE": "행정안전위원회", "LINK_URL": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_99D9428DDDFF48CD8C7A497311FA46" },
+    { "BILL_ID": "PRC_A0B6B0016E0647C58525C5E2207503", "BILL_NO": "2222101", "BILL_NAME": "지능형 로봇 개발 및 보급 촉진법 전부개정법률안", "PROPOSER": "의원 10인", "PROPOSER_KIND": "의원", "PROPOSE_DT": "2026-11-04", "CURR_COMMITTEE": null, "LINK_URL": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_A0B6B0016E0647C58525C5E2207503" },
+    { "BILL_ID": "PRC_OLD", "BILL_NO": "2210000", "BILL_NAME": "도로교통법 일부개정법률안", "PROPOSER": "의원 11인", "PROPOSER_KIND": "의원", "PROPOSE_DT": "2026-10-01", "CURR_COMMITTEE": "행정안전위원회", "LINK_URL": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_OLD" }
+  ],
+  "stages": [
+    { "BILL_ID": "PRC_C2J6K0I9J0H3I1G7O0P5N3N3L7N8L5", "BILL_NO": "2215000", "BILL_NAME": "지능형 로봇 개발 및 보급 촉진법 일부개정법률안", "PROPOSER": "의원 10인", "PROPOSER_KIND": "의원", "PROPOSE_DT": "2026-03-02", "CURR_COMMITTEE": "산업통상자원중소벤처기업위원회", "CMT_PRESENT_DT": "2026-11-13", "CMT_PROC_DT": null, "PROC_DT": null, "LINK_URL": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_C2J6K0I9J0H3I1G7O0P5N3N3L7N8L5" },
+    { "BILL_ID": "PRC_DONE", "BILL_NO": "2201000", "BILL_NAME": "도로교통법 일부개정법률안", "PROPOSER": "의원 12인", "PROPOSER_KIND": "의원", "PROPOSE_DT": "2025-01-10", "CURR_COMMITTEE": "행정안전위원회", "CMT_PRESENT_DT": "2025-06-01", "CMT_PROC_DT": "2026-11-10", "CMT_PROC_RESULT_CD": "대안반영폐기", "PROC_DT": null, "LINK_URL": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_DONE" }
+  ],
+  "minutes": [
+    { "CONF_ID": "N054700", "TITLE": "제22대 제439회 제6차 산업통상자원중소벤처기업위원회 (2026년 11월 09일)", "COMM_NAME": "산업통상자원중소벤처기업위원회", "CONF_DATE": "2026-11-09", "SUB_NAME": "1. 2027년도 예산안(의안번호 2221032)", "CONF_LINK_URL": "https://record.assembly.go.kr/assembly/viewer/minutes/xml.do?id=57701&type=summary" },
+    { "CONF_ID": "N054700", "TITLE": "제22대 제439회 제6차 산업통상자원중소벤처기업위원회 (2026년 11월 09일)", "COMM_NAME": "산업통상자원중소벤처기업위원회", "CONF_DATE": "2026-11-09", "SUB_NAME": "2. 2027년도 기금운용계획안(의안번호 2221033)", "CONF_LINK_URL": "https://record.assembly.go.kr/assembly/viewer/minutes/xml.do?id=57701&type=summary" },
+    { "CONF_ID": "N054802", "TITLE": "제22대 제439회 제10차 예산결산특별위원회 (2026년 11월 13일)", "COMM_NAME": "예산결산특별위원회", "CONF_DATE": "2026-11-13", "SUB_NAME": "1. 2027년도 예산안", "CONF_LINK_URL": "https://record.assembly.go.kr/assembly/viewer/minutes/xml.do?id=57756&type=summary" }
+  ],
+  "seminars": [
+    { "TITLE": "수입 개방 시대, 양봉산업의 생존 전략 모색을 위한 국회 정책 토론회", "SDATE": "2026-11-30", "STIME": "14:00", "NAME": "국회 OO포럼", "LOCATION": "의원회관 제1세미나실", "LINK": "https://ampos.nanet.go.kr:7443/seminarList.do#fromDate=20261130&endDate=20261130&searchGubun=search" },
+    { "TITLE": "제1회 국방운영혁신 세미나", "SDATE": "2026-12-09", "STIME": "10:00", "NAME": "국회 OO연구회", "LOCATION": "국회도서관 대강당", "LINK": "https://ampos.nanet.go.kr:7443/seminarList.do#fromDate=20261209&endDate=20261209&searchGubun=search" }
+  ],
+  "press": [
+    { "NUM": 5311407, "TITLE": "산자중기위, 소관 법률안 177건 상정", "WRITE_DATE": "2026-11-16", "CONTENT_URL": "https://www.assembly.go.kr/portal/bbs/B0000051/view.do?nttId=5311407&menuNo=600101" },
+    { "NUM": 5300229, "TITLE": "보건복지위, 2027년도 예산안 및 기금운용계획안 상정", "WRITE_DATE": "2026-11-10", "CONTENT_URL": "https://www.assembly.go.kr/portal/bbs/B0000051/view.do?nttId=5300229&menuNo=600101" },
+    { "NUM": 5296559, "TITLE": "법사위 예결소위, 법무부&middot;대법원 등 6개 기관 예산안 의결", "WRITE_DATE": "2026-11-09", "CONTENT_URL": "https://www.assembly.go.kr/portal/bbs/B0000051/view.do?nttId=5296559&menuNo=600101" }
+  ]
+}

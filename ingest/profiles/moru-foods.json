@@ -1,0 +1,12 @@
+{
+  "clientId": "cli-moru",
+  "keywords": [
+    { "term": "배양육", "priority": "high", "synonyms": ["세포배양식품", "세포배양 식품원료", "배양 단백질"] },
+    { "term": "대체단백질", "priority": "medium", "synonyms": ["대체육", "푸드테크산업"] },
+    { "term": "한시적 기준", "priority": "medium", "synonyms": ["신규 식품원료", "새로운 식품원료", "식품의 기준 및 규격"] },
+    { "term": "식품 표시", "priority": "low", "synonyms": ["식품등의 표시", "표시기준", "표시·광고"], "exclude": ["수출", "태국", "EU", "지식재산"] },
+    { "term": "식품위생법", "priority": "low" }
+  ],
+  "committees": ["보건복지위원회", "농림축산식품해양수산위원회"],
+  "agencies": ["식품의약품안전처", "농림축산식품부", "보건복지부"]
+}
