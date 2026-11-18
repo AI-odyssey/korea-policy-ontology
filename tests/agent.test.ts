@@ -21,7 +21,7 @@ describe('weekly agent (offline)', () => {
     const decision = v.get(run.decisionId!)!;
     expect(decision).toMatchObject({ status: 'open', subjectId: 'bill-001', clientId: 'cli-aster', dueDate: '2026-11-17' }); // two working days before the full committee, so one is left to act
     expect(decision.question).toBe('Meet Baek Siwoo, the lead sponsor, before the full committee votes on the sidewalk robot duties bill?');
-    expect(decision.recommendation).toMatch(/^Yes\. Baek Siwoo is the lead sponsor, whose agreement makes a wording change easiest to carry in committee, and supports the bill\. Aster Robotics /);
+    expect(decision.recommendation).toMatch(/^Meet Baek Siwoo before the Nov 19 full committee\. Baek Siwoo is the lead sponsor, whose agreement makes a wording change easiest to carry in committee, and supports the bill\. Aster Robotics /);
     expect(decision.alternatives).toEqual(["Send Aster Robotics' proposed wording to Baek Siwoo's office instead of meeting", 'Accept the bill as it stands and press for the point in a committee supplementary resolution (부대의견) or in the enforcement decree']);
     const [source] = v.targets(decision.id, 'raised_by');
     expect(source).toMatchObject({ type: 'Signal' });
@@ -212,7 +212,7 @@ describe('weekly report', () => {
     for (const t of internal) expect(body).not.toContain(t);
     for (const d of v.list('Decision', (x) => x.status === 'open')) expect(body).not.toContain(d.question);
     expect(body).not.toMatch(/\bsignals?\b/i);
-    expect(brief.timeline.every((t) => !t.id.startsWith('task-'))).toBe(true);
+    expect(brief.timeline.every((t) => !t.internal)).toBe(true);
     for (const t of v.list('Task', (x) => x.clientId === 'cli-aster' && x.owner === 'client' && x.status === 'open')) expect(body).toContain(t.title);
 
     // Every footnote is a source document, not a bill.

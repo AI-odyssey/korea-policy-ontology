@@ -129,7 +129,7 @@ describe('decisions notice when their premise changes', () => {
     await runWeeklyAgent(s, { clientId: 'cli-wren', applyTriage: true });
     const c = lead('cli-wren');
     const d = s.as(c).list('Decision', (x) => x.status === 'open' && x.targetId === 'per-018')[0]; // chair of the subcommittee that reviews the local presence bill
-    expect(d.recommendation).toMatch(/^Yes\. Hong Jiwan chairs the subcommittee that writes the text and has not taken a public position/);
+    expect(d.recommendation).toMatch(/^Meet Hong Jiwan before the Nov 20 bill review subcommittee\. Hong Jiwan chairs the subcommittee that writes the text and has not taken a public position/);
     expect(decisionStale(s.as(c), d)).toBeUndefined();
     s.applyAction(c, 'assessStakeholder', { clientId: 'cli-wren', subjectId: 'per-018', issueId: 'iss-08', stance: 'supportive', influence: 'high', relevance: 'high', basisIds: ['int-wren-3'] });
     expect(decisionStale(s.as(c), s.as(c).get(d.id)!)).toBe('stance changed');

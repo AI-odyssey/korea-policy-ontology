@@ -36,7 +36,7 @@ Objects become screens, actions become buttons, and approvals become entries in 
 | **Waiting for your approval** | Pending requests (`addRiskOpportunity` from the assistant, `setClientPosition` or `updateStrategy` from a consultant, each with its requester) and reports in review. The Assistant run screen shows the same list |
 | **Decisions needed**: **Approve**, **Choose an alternative**, **Decline**, **Source** | Open `Decision` objects and the meeting notice they were raised from; `resolveDecision`, which creates a short follow-up `Task` due before the meeting. A decision whose premise changed (the stance of the person it names) is marked **Out of date** and can be regenerated |
 | **Risks** and **Opportunities** | `RiskOpportunity`, tagged high or medium impact and imminent, in progress or ongoing, in the order of the bills they concern |
-| **Timeline and actions** | `upcomingDeadlines`: open `Task`s (our team, the assistant) and scheduled `Event`s |
+| **Timeline and actions** | Everything dated from the as-of date through the next 30 days, none cut: scheduled `Event`s, open `Task`s (the team's, the assistant's and the client's) and the due date of each open `Decision`. The report's Coming up lists the same window and leaves out the team's own work and open decisions |
 | **Stakeholder moves** | What assessed people and organizations said or did this week: the subject of a confirmed item, a speaker in the minutes, a remark on record at a meeting, or an `Interaction` |
 | **Asks of the client**, **Mark received** | `Task` with owner `client`; `completeTask` |
 | **New items to confirm**, **Confirm**, **Not relevant** | The assistant's triage proposals below 0.8 confidence for this client; `triageSignal` writes a `SignalTriage` in the client's layer and never edits the shared item, so one client's filing does not change another client's queue. Items waiting here feed no report, move or decision |
@@ -59,7 +59,7 @@ A bill carries a response level (**Act now**, **Engage**, **Monitor**, **Watch**
 
 ## How the assistant picks a decision
 
-For each followed bill at Act now, the assistant looks at the bill's next meeting, takes the people who control that agenda from `stageGates`, and picks one the client rates high influence whose stance is opposed or unconfirmed. It skips anyone an open plan step already covers. For Aster this week that is Jang Sora, a secretary of the Public Administration and Security Committee with no public position on the sidewalk robot duties bill; the chair and the other secretary are supportive and already have meetings planned. The decision names her, says why, states what Aster wants, offers the trade of accepting the bill as it stands, and is due the day before the committee meets.
+For each followed bill at Act now, the assistant looks at the bill's next meeting, takes the people who control that agenda from `stageGates`, and picks one the client rates high influence whose stance is opposed or unconfirmed. It skips anyone an open plan step already covers. For Aster this week that is Baek Siwoo, the lead sponsor of the sidewalk robot duties bill; the committee chair and the subcommittee chair already have plan steps (a briefing on timing, a briefing on the wording). The decision names him, says why, states what Aster wants, offers the trade of accepting the bill as it stands, and is due two working days before the committee meets, or today when the meeting is too close.
 
 ## Live data
 

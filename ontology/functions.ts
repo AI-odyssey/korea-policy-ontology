@@ -416,8 +416,9 @@ export function stageGates(view: View, billId: string): StageGate[] {
     const body = bodies[key];
     const cleared = hist.find((h) => h.stage === GATE_CLEARED[key]);
     const done = !closed && order(bill.stage) >= order(GATE_CLEARED[key]);
+    // Only sittings count: a hearing at the committee is not the committee's meeting on the bill.
     const meeting = body && view.sources(billId, 'agenda_item')
-      .filter((e) => e.institutionId === body.id && e.status === 'scheduled' && e.date >= view.baseDate)
+      .filter((e) => SLOT_KINDS.includes(e.kind) && e.institutionId === body.id && e.status === 'scheduled' && e.date >= view.baseDate)
       .sort((a, b) => cmp(a.date, b.date))[0];
     const status: StageGate['status'] = closed ? 'closed' : done ? 'done' : nextSeen ? 'later' : 'next';
     if (status === 'next') nextSeen = true;

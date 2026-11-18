@@ -79,7 +79,7 @@ A step is a meeting with the bill on the agenda or the close of an open legislat
 | Coverage by weight class bill (22-S0357) | in subcommittee review | Engage | no move; subcommittee Nov 23, in 7 days; stance amend; impact medium |
 | Pedestrian priority zones bill (22-S0315) | on the committee agenda | Engage | no move; subcommittee Nov 26, in 10 days; no stance; impact high |
 | Robot pilot zones bill (22-S0378) | on the committee agenda | Monitor | no move; subcommittee Nov 23, in 7 days; stance support; impact medium |
-| Robot insurance committee alternative (22-S0518) | in Legislation and Judiciary review | Monitor | no move; wording review Nov 23, in 7 days; stance monitor; impact medium. The text is settled, so Aster only tracks wording and delay risk and presses the coverage point on the weight-class bill |
+| Robot insurance committee alternative (22-S0518) | in Legislation and Judiciary review | Monitor | no move; wording review Nov 23, in 7 days; stance monitor; impact medium. The text is settled, so Aster only tracks wording and delay risk. It leaves coverage amounts out, and Aster presses those on the weight-class bill, a separate text that adds its own article |
 | Government bill on sidewalk operation standards (no number yet) | legislative notice | Monitor | no move; notice period closes 12-07, in 21 days; no stance yet; impact high |
 
 The government bill has no number because the Assembly assigns one only when the government submits it. That comes months after the 40-day notice closes, once regulatory review, the Ministry of Government Legislation, the Cabinet and presidential approval are done, and the text can still change in any of them.
@@ -98,13 +98,13 @@ The score rose by 4.8 in the week the bill most needed action.
 
 ## The decision the assistant raised
 
-The rule: for a followed bill at Act now, take the people who can change its text at the next subcommittee review or full committee vote (the subcommittee chair, then the lead sponsor, then the committee chair; the other secretary only agrees the agenda and can delay, so is never picked), and pick the first one the client rates high influence whose stance fits (opposed or unconfirmed when the client opposes; any stance when it wants amendments, since a supporter can carry the wording), unless an open plan step already targets that person. For the full committee on Nov 19 those people are Seo Haeun (chair, supportive, already the subject of the open step "Meet Seo Haeun's office on the cargo class"), Ryu Taehwan (secretary, supportive, subject of "Brief Ryu Taehwan on the slow-and-yield wording") and Jang Sora (secretary, unconfirmed, high influence). That leaves the lead sponsor, Baek Siwoo. Jang Sora, the other secretary, is not offered: she can only delay.
+The rule: for a followed bill at Act now, take the people who can change its text at the next subcommittee review or full committee vote (the subcommittee chair, then the lead sponsor, then the committee chair; the other secretary only agrees the agenda and can delay, so is never picked), and pick the first one the client rates high influence whose stance fits (opposed or unconfirmed when the client opposes; any stance when it wants amendments, since a supporter can carry the wording), unless an open plan step already targets that person. For the full committee on Nov 19 those people are Ryu Taehwan (chaired the subcommittee that wrote the text, supportive, subject of the open step "Brief Ryu Taehwan on the slow-and-yield wording"), Baek Siwoo (lead sponsor) and Seo Haeun (committee chair, supportive, subject of the open step "Brief Seo Haeun's office on the timing of the committee vote", which is labelled for what it is: a briefing on timing, not a request to change the text). That leaves the lead sponsor, Baek Siwoo. Jang Sora, the other secretary, is never offered: she can only delay.
 
-`dec-r001`, marked `CLIENT:cli-aster`, linked by `raised_by` to `sig-135` (the meeting notice), due 2026-11-17, two working days before the vote:
+`dec-r001`, marked `CLIENT:cli-aster`, linked by `raised_by` to `sig-135` (the meeting notice), due 2026-11-17, two working days before the vote (never earlier than the working day after the as-of date; when a meeting is too close for that, the decision shows "Due today"):
 
 > **Question.** Meet Baek Siwoo, the lead sponsor, before the full committee votes on the sidewalk robot duties bill?
 >
-> **Recommended.** Yes. Baek Siwoo is the lead sponsor, whose agreement makes a wording change easiest to carry in committee, and supports the bill. Aster Robotics backs sidewalk access for cargo-class robots and wants the stop rule replaced by a duty to slow to walking pace and give way.
+> **Recommended.** Meet Baek Siwoo before the Nov 19 full committee. Baek Siwoo is the lead sponsor, whose agreement makes a wording change easiest to carry in committee, and supports the bill. Aster Robotics backs sidewalk access for cargo-class robots and wants the stop rule replaced by a duty to slow to walking pace and give way.
 >
 > **Alternatives.** 1) Send Aster Robotics' proposed wording to Baek Siwoo's office instead of meeting. 2) Accept the bill as it stands and press for the point in a committee supplementary resolution (부대의견) or in the enforcement decree.
 
@@ -127,7 +127,7 @@ The assistant also found that the coverage by weight class bill, which Aster wan
 
 `stakeholderNetwork(view, 'cli-aster', 'iss-01')` returns Aster's nine assessed stakeholders on the sidewalk issue and 19 edges between them (3 cosponsorships, 7 shared committees, 9 joint events involving an organization). Seven have a stance; two are unconfirmed. Jang Sora's panel shows stance **Unconfirmed**, influence High, and "Minority secretary of the committee. No public statement on the bill."
 
-The Strategy screen shows the plan for the issue: the outcome ("Aster Robotics runs cargo models on city sidewalks next year under a yield rule its robots already meet"), three messages, three people to persuade (Jang Sora, the Pedestrian Rights Network, Nam Eunbi), two allies, and six dated steps, one of them a meeting with the Pedestrian Rights Network, the only organization opposed.
+The Strategy screen shows the plan for the issue: the outcome ("Aster Robotics runs cargo models on city sidewalks next year under a yield rule its robots already meet"), three messages, four people to persuade (Baek Siwoo, Ryu Taehwan, the Pedestrian Rights Network, Nam Eunbi), two allies, and six dated steps, one of them a meeting with the Pedestrian Rights Network, the only organization opposed.
 
 ## The engagement lead works through the week
 

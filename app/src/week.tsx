@@ -5,6 +5,7 @@ import { Button, HTMLSelect } from '@blueprintjs/core';
 import { REVIEW_THRESHOLD, signalQueue } from '../../ontology/index.ts';
 import type { ObjectRecord } from '../../ontology/index.ts';
 import { decisionsLine, decisionStale, proposeTriage, regenerateDecision, triageParams, weeklyBrief } from '../../agent/index.ts';
+import { TIMELINE_DAYS } from '../../agent/index.ts';
 import type { TimelineItem } from '../../agent/index.ts';
 import { Empty, ObjLink, POSITION, Section, T, md, nameOf, person, prose, roleOf, wmd } from './ui.tsx';
 import type { App } from './ui.tsx';
@@ -81,7 +82,7 @@ function DecisionItem({ d, app }: { d: ObjectRecord; app: App }) {
     resolution === 'approve' ? 'Approved. A follow-up task is on the timeline.' : resolution === 'reject' ? 'Declined.' : `Going with: ${note}`);
   return (
     <div className="item">
-      <div className="item-title">{prose(d.question)} {stale ? <T tone="rust">Out of date: {stale}</T> : d.dueDate && <T tone="hi">Due {md(d.dueDate)}</T>}</div>
+      <div className="item-title">{prose(d.question)} {stale ? <T tone="rust">Out of date: {stale}</T> : d.dueDate && <T tone="hi">{d.dueDate === app.view.baseDate ? 'Due today' : `Due ${md(d.dueDate)}`}</T>}</div>
       <p className="sub"><b>Recommended:</b> {prose(d.recommendation)}</p>
       {alts.length > 0 && <p className="sub"><b>Alternatives:</b> {alts.map((a, i) => `${i + 1}) ${a}`).join('  ')}</p>}
       {stale ? (
@@ -132,11 +133,10 @@ function RoList({ app, items }: { app: App; items: ObjectRecord[] }) {
 }
 
 function Timeline({ app, items }: { app: App; items: TimelineItem[] }) {
-  const shown = items.slice(0, 6);
-  if (!shown.length) return <Empty>Nothing scheduled in the next 30 days.</Empty>;
+  if (!items.length) return <Empty>Nothing scheduled in the next {TIMELINE_DAYS} days.</Empty>;
   return (
     <ol className="tl">
-      {shown.map((x, i) => (
+      {items.map((x, i) => (
         <li key={x.id} className={i === 0 ? 'now' : ''}>
           <div className="tl-date">{wmd(x.date)}</div>
           <div className="tl-title"><ObjLink id={x.id} app={app} label={x.title} /></div>

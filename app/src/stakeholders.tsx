@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Checkbox, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import cytoscape from 'cytoscape';
 import { addDays, clientBills, stageGates, stakeholderNetwork } from '../../ontology/index.ts';
+import { subcommitteeName } from '../../agent/index.ts';
 import type { ObjectRecord } from '../../ontology/index.ts';
-import { Empty, LEVEL3, MemberOf, ObjLink, STANCE, Section, billName, kindOf, md, memberships, nameOf, roleOf } from './ui.tsx';
+import { Empty, LEVEL3, MemberOf, ObjLink, STANCE, Section, billName, cap, kindOf, md, memberships, nameOf, roleOf } from './ui.tsx';
 import type { App } from './ui.tsx';
 
 // Hue = stance, lightness = relevance (high, medium, low).
@@ -164,7 +165,7 @@ function Legend() {
   );
 }
 
-const GATE: Record<string, string> = { subcommittee: 'Bill review subcommittee', committee: 'Full committee', lj: 'Legislation and Judiciary', plenary: 'Plenary session' };
+const GATE: Record<string, string> = { subcommittee: 'Subcommittee', committee: 'Full committee', lj: 'Legislation and Judiciary', plenary: 'Plenary session' };
 const ROLE: Record<string, string> = { chair: 'Chair', secretary: 'Secretary' };
 
 function Lane({ app, issueId, onSelect }: { app: App; issueId: string; onSelect: (id: string) => void }) {
@@ -187,7 +188,7 @@ function Lane({ app, issueId, onSelect }: { app: App; issueId: string; onSelect:
       <div className="lane">
         {stageGates(view, bill.id).map((g) => (
           <div key={g.key} className={`gate gate-${g.status}`}>
-            <div className="gate-name">{GATE[g.key]}</div>
+            <div className="gate-name">{g.key === 'subcommittee' ? cap(subcommitteeName(view, g.institutionId)) : GATE[g.key]}</div>
             <div className="sub">{g.status === 'done' ? (g.date ? `Passed ${md(g.date)}` : 'Passed') : g.status === 'closed' ? 'Closed' : g.date ? md(g.date) : 'Not scheduled'}</div>
             <div className="chips">
               {g.key === 'plenary' && <span className="pp">Floor vote</span>}

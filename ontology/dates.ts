@@ -25,3 +25,5 @@ export function workdaysBefore(date: string, n: number): string {
 }
 /** The date moved forward to the next working day when it falls on a weekend (a notice period that ends on a weekend runs to Monday). */
 export const workdayOnOrAfter = (d: string): string => (dow(d) === 6 ? addDays(d, 2) : dow(d) === 0 ? addDays(d, 1) : d);
+/** The first working day after a date. */
+export const nextWorkday = (d: string): string => workdayOnOrAfter(addDays(d, 1));

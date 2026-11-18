@@ -7,12 +7,12 @@ import { ProviderGateError, defaultGate } from '../ontology/markings.ts';
 import { REVIEW_THRESHOLD } from '../ontology/schema.ts';
 import { clientBills, confirmedView, issueExposure, responseFacts, responseLevel, signalQueue, stageGates, stepKind, upcomingDeadlines, whatChanged, cmp } from '../ontology/functions.ts';
 import type { Decider, StageGate, StepKind } from '../ontology/functions.ts';
-import { addDays, monthDay, workdaysBefore } from '../ontology/dates.ts';
+import { addDays, monthDay, nextWorkday, workdaysBefore } from '../ontology/dates.ts';
 import { disabledLlm, guardedComplete, LlmDisabledError } from './llm.ts';
 import type { LlmAdapter } from './llm.ts';
 import { proposeTriage, triageParams } from './triage.ts';
 import type { TriageProposal } from './triage.ts';
-import { billName, countWord, forumOf, sourceFor, weeklyBrief } from './brief.ts';
+import { billName, countWord, forumOf, sourceFor, subcommitteeName, TIMELINE_DAYS, weeklyBrief } from './brief.ts';
 import type { Brief } from './brief.ts';
 
 export interface TraceStep {
@@ -126,7 +126,7 @@ function roleText(view: View, c: DecisionCandidate): string {
   if (reach === 'lead_sponsor') return 'the lead sponsor';
   const body = view.get(bodyId!)!;
   if (reach === 'committee_chair') return `chair of the ${body.name}`;
-  return `chair of the ${view.get(body.parentId)!.name}'s ${body.name.startsWith('Bill Review') ? 'bill review ' : ''}subcommittee`;
+  return `chair of the ${view.get(body.parentId)!.name}'s ${subcommitteeName(view, body.id)}`;
 }
 
 /** What the person can do to the text, in the words of the recommendation. */
@@ -136,6 +136,15 @@ function reachText(c: DecisionCandidate, forum: string, sponsor: boolean): strin
     case 'lead_sponsor': return 'is the lead sponsor, whose agreement makes a wording change easiest to carry in committee,';
     case 'committee_chair': return `sets the ${forum} agenda`;
   }
+}
+
+/**
+ * Two working days before the meeting, which leaves a working day to act, but never earlier than the working day after the as-of
+ * date. When the meeting is too close for that, the decision is due on the as-of date itself ("Due today").
+ */
+export function dueDateFor(asOf: string, meetingDate: string): string {
+  const due = [workdaysBefore(meetingDate, 2), nextWorkday(asOf)].sort()[1];
+  return due < meetingDate ? due : asOf;
 }
 
 export function decisionParams(view: View, clientId: string, c: DecisionCandidate, sourceId: string) {
@@ -151,7 +160,7 @@ export function decisionParams(view: View, clientId: string, c: DecisionCandidat
   return {
     clientId,
     question: `Meet ${d.name}, ${roleText(view, c)}, before ${subChair ? 'it' : `the ${forum}`} ${takes} the ${lower1(billName(c.bill))}?`,
-    recommendation: `Yes. ${d.name} ${reachText(c, forum, view.sources(c.bill.id, 'sponsors').some((p) => p.id === d.id))} and ${lean[a.stance]}. ${c.position.rationale}`,
+    recommendation: `Meet ${d.name} before the ${monthDay(c.meeting.date)} ${forum}. ${d.name} ${reachText(c, forum, view.sources(c.bill.id, 'sponsors').some((p) => p.id === d.id))} and ${lean[a.stance]}. ${c.position.rationale}`,
     alternatives: [
       `Send ${possessive(client.name)} proposed wording to ${possessive(d.name)} office instead of meeting`,
       amend ? 'Accept the bill as it stands and press for the point in a committee supplementary resolution (부대의견) or in the enforcement decree'
@@ -159,7 +168,7 @@ export function decisionParams(view: View, clientId: string, c: DecisionCandidat
     ],
     raisedById: sourceId,
     subjectId: c.bill.id,
-    dueDate: [workdaysBefore(c.meeting.date, 2), view.baseDate].sort()[1], // leaves a working day to act before the meeting
+    dueDate: dueDateFor(view.baseDate, c.meeting.date),
     followUp: `Meet ${d.name} before the ${monthDay(c.meeting.date)} ${forum}`,
     targetId: d.id,
     premiseStance: a.stance,
@@ -254,8 +263,8 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
     step('action', 'addRiskOpportunity', r.bill.id, `Proposed a risk: ${billName(r.bill)} at the ${forum}. It waits for your approval.`);
   }
 
-  const deadlines = upcomingDeadlines(view, clientId, 30);
-  step('tool', 'upcomingDeadlines', '30 days', `${Plural(deadlines.length, 'dated item')} in the next 30 days${deadlines[0] ? `; first: ${deadlines[0].title} (${monthDay(deadlines[0].date)})` : ''}.`);
+  const deadlines = upcomingDeadlines(view, clientId, TIMELINE_DAYS);
+  step('tool', 'upcomingDeadlines', `${TIMELINE_DAYS} days`, `${Plural(deadlines.length, 'dated item')} in the next ${TIMELINE_DAYS} days${deadlines[0] ? `; first: ${deadlines[0].title} (${monthDay(deadlines[0].date)})` : ''}.`);
   const exposure = issueExposure(view, clientId);
   step('tool', 'issueExposure', clientId, `Issues ranked by exposure, the risk of the worst open bill plus a little for each other open bill. This ranking ignores the priority numbers in the monitoring profile: ${exposure.slice(0, 3).map((e) => e.title).join('; ')}.`);
 
@@ -349,8 +358,8 @@ export function buildReport(view: View, clientId: string, b: Brief, title: strin
   ro(b.opportunities, 'Opportunities');
 
   L.push('## Coming up', '');
-  // Every item the screen lists, urgent ones (a bill at engage or above with a step within seven days) first.
-  for (const t of [...b.timeline.filter((x) => x.urgent), ...b.timeline.filter((x) => !x.urgent)]) L.push(`- ${monthDay(t.date)}: ${t.title} (${t.who}).${cite(sourceFor(view, t.id))}`);
+  // The same dated list the screen shows, without the team's own work and open decisions.
+  for (const t of b.timeline) L.push(`- ${monthDay(t.date)}: ${t.title} (${t.who}).${cite(sourceFor(view, t.id))}`);
   if (!b.timeline.length) L.push('- No sitting, notice deadline or hearing on the followed bills falls within the next thirty days.');
   L.push('');
 

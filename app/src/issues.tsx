@@ -4,14 +4,14 @@ import { useState } from 'react';
 import { Button, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { addDays, responseFacts, responseLevel, stageGates } from '../../ontology/index.ts';
 import type { ObjectRecord, ResponseFacts } from '../../ontology/index.ts';
-import { countWord, forumOf } from '../../agent/index.ts';
+import { countWord, forumOf, subcommitteeName } from '../../agent/index.ts';
 import { Empty, LEVEL, LEVEL3, ObjLink, POSITION, SOURCE, STAGE, Section, T, billName, cap, md } from './ui.tsx';
 import type { App } from './ui.tsx';
 import { PublicRecords } from './live.tsx';
 
 const LEVEL_TONE: Record<string, 'hi' | 'md' | 'plain'> = { act_now: 'hi', engage: 'md', monitor: 'plain', watch: 'plain' };
 const CLOSED = ['passed', 'merged_alternative', 'withdrawn'];
-const GATE: Record<string, string> = { subcommittee: 'Bill review subcommittee', committee: 'Full committee', lj: 'Legislation and Judiciary Committee', plenary: 'Plenary session' };
+const GATE: Record<string, string> = { subcommittee: 'Subcommittee', committee: 'Full committee', lj: 'Legislation and Judiciary Committee', plenary: 'Plenary session' };
 const TYPE: Record<string, string> = { lawmaker: 'Lawmaker bill', government: 'Government bill', committee_alternative: 'Committee alternative' };
 const WANTS: Record<string, string> = { amend: 'wants it amended', oppose: 'opposes it', support: 'supports it', monitor: 'has no position on it' };
 
@@ -106,7 +106,10 @@ function levelReasons(app: App, bill: ObjectRecord, f: ResponseFacts, level: str
   else down.push('No change in stage this week.');
   const near = (n?: number) => n !== undefined && n <= 30;
   if (near(f.daysToSlot)) up.push(`${cap(forumOf(view, f.slot!))} meets ${md(f.slot!.date)}, in ${days(f.daysToSlot!)}.`);
-  if (near(f.daysToNotice)) up.push(`The notice period for comments closes ${md(f.notice!.date)}, in ${days(f.daysToNotice!)}.`);
+  if (near(f.daysToNotice)) {
+    const agency = view.sources(bill.id, 'sponsors').find((x) => x.type === 'Institution')?.kind === 'ministry' ? 'ministry' : 'agency';
+    up.push(`The notice period for comments closes ${md(f.notice!.date)}, in ${days(f.daysToNotice!)}; after that the ${agency} finalizes the bill, which reaches the Assembly months later.`);
+  }
   if (!near(f.daysToSlot) && !near(f.daysToNotice)) down.push('No meeting or notice deadline in the next 30 days.');
   else if (level !== 'act_now' && Math.min(f.daysToSlot ?? 99, f.daysToNotice ?? 99) > 7) down.push('The next step is more than a week away.');
   const wants = pos && ['amend', 'oppose'].includes(pos.stance);
@@ -186,7 +189,7 @@ function BillProfile({ app, bill }: { app: App; bill: ObjectRecord }) {
           {history.map((h, i) => <li key={i} className="done"><span className="step-date">{md(h.date)}</span>{STAGE[h.stage]}</li>)}
           {gates.map((g) => (
             <li key={g.key} className={g.status}>
-              <span className="step-date">{g.date ? md(g.date) : 'Not scheduled'}</span>{GATE[g.key]}
+              <span className="step-date">{g.date ? md(g.date) : 'Not scheduled'}</span>{g.key === 'subcommittee' ? cap(subcommitteeName(view, g.institutionId)) : GATE[g.key]}
             </li>
           ))}
         </ol>

@@ -15,10 +15,12 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const lower1 = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
 export const billName = (b?: ObjectRecord) => (b ? String(b.shortTitle ?? b.billNo ?? b.title) : '');
+/** A subcommittee by its own name, in lower case: "bill review subcommittee", "economy and finance subcommittee". One body keeps one name on every screen. */
+export const subcommitteeName = (view: View, institutionId?: string): string => String(view.get(institutionId ?? '')?.name ?? 'subcommittee').split(',')[0].toLowerCase();
 /** The meeting's forum in words. The Legislation and Judiciary Committee meets as a full committee but readers know it by name. */
 export function forumOf(view: View, e: ObjectRecord): string {
   if (e.institutionId === 'inst-ljc') return 'Legislation and Judiciary Committee';
-  if (e.kind === 'subcommittee') return String(view.get(e.institutionId)?.name ?? '').startsWith('Bill Review') ? 'bill review subcommittee' : 'subcommittee';
+  if (e.kind === 'subcommittee') return subcommitteeName(view, e.institutionId);
   return ({ full_committee: 'full committee', plenary: 'plenary session' } as Record<string, string>)[e.kind] ?? 'committee';
 }
 
@@ -94,7 +96,10 @@ export function sourceFor(view: View, id: string): string | undefined {
 }
 const SLOT_KINDS = ['full_committee', 'subcommittee', 'plenary'];
 
-export interface TimelineItem { date: string; title: string; who: string; status: string; id: string; urgent?: boolean }
+/** The timeline and the report's Coming up list both cover this many days from the as-of date, that date included. */
+export const TIMELINE_DAYS = 30;
+/** internal: the team's own work and open decisions; client-facing output leaves them out. */
+export interface TimelineItem { date: string; title: string; who: string; status: string; id: string; urgent?: boolean; internal?: boolean }
 export const OWNER: Record<string, string> = { human: 'Our team', agent: 'Assistant', client: 'Client' };
 const STEP_NOTE: Record<string, string> = { introduction: 'introduction only, no vote', wording: 'wording review only', plenary: 'plenary vote on the settled text' };
 /** "Full committee: A, B; C (introduction only, no vote)". Bills whose step is a review or a vote are listed plainly. */
@@ -108,9 +113,9 @@ function meetingTitle(view: View, what: string, e: ObjectRecord, billIds: string
 }
 
 /**
- * Dated items in the next 30 days: meetings on any bill that affects the client and is followed or at engage or above, and the
- * team's tasks. An item is urgent when such a bill is at engage or above and its step falls within 7 days. Client-facing output
- * leaves out the team's own tasks; asks of the client are listed apart.
+ * Dated items from the as-of date through the next TIMELINE_DAYS days: meetings on any bill that affects the client and is followed
+ * or at engage or above, tasks (the team's and the client's), and open decisions. An item is urgent when such a bill is at engage
+ * or above and its step falls within 7 days. Client-facing output leaves out the team's own tasks and open decisions.
  */
 export function timeline(view: View, clientId: string, opts: { clientFacing?: boolean; since?: string } = {}): TimelineItem[] {
   const since = opts.since ?? addDays(view.baseDate, -7);
@@ -120,11 +125,13 @@ export function timeline(view: View, clientId: string, opts: { clientFacing?: bo
   const levelOf = (id: string) => levels.get(id) ?? levels.set(id, responseLevel(view, id, clientId, since).level).get(id)!;
   const pressing = (id: string) => LEVEL_RANK[levelOf(id)] <= LEVEL_RANK.engage;
   const items: TimelineItem[] = [];
-  for (const d of upcomingDeadlines(view, clientId, 30)) {
+  for (const x of view.list('Decision', (d) => d.clientId === clientId && d.status === 'open' && d.dueDate && d.dueDate <= addDays(view.baseDate, TIMELINE_DAYS))) {
+    items.push({ date: x.dueDate, title: `Decision due: ${String(x.followUp ?? x.question).replace(/\?$/, '')}`, who: 'Engagement lead', status: 'To decide', id: x.id, internal: true });
+  }
+  for (const d of upcomingDeadlines(view, clientId, TIMELINE_DAYS)) {
     const o = view.get(d.objectId)!;
     if (d.kind === 'task') {
-      if (o.owner === 'client' || opts.clientFacing) continue;
-      items.push({ date: d.date, title: o.title, who: OWNER[o.owner], status: 'To do', id: o.id });
+      items.push({ date: d.date, title: o.title, who: OWNER[o.owner], status: 'To do', id: o.id, ...(o.owner === 'client' ? {} : { internal: true }) });
       continue;
     }
     const bills = d.billIds.filter((b) => watched.has(b) || pressing(b));
@@ -137,7 +144,8 @@ export function timeline(view: View, clientId: string, opts: { clientFacing?: bo
       ...(d.daysLeft <= 7 && bills.some(pressing) ? { urgent: true } : {}),
     });
   }
-  return items;
+  // A stable sort by date: on one day the decisions come first, then meetings and tasks in record order.
+  return items.filter((x) => !(opts.clientFacing && x.internal)).sort((a, b) => cmp(a.date, b.date));
 }
 
 export interface Move { subject: ObjectRecord; stance: string; date: string; text: string; at?: string; sourceId?: string; issueTitle?: string }
