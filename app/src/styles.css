@@ -265,6 +265,8 @@ button.pp:hover { border-color: var(--ink-2); }
   .spacer { display: none; }
   .item.ask, .item.confirm { flex-wrap: wrap; }
   .kv > div { grid-template-columns: 84px minmax(0, 1fr); }
+  .nav-group:not(.nav-right) { gap: 16px; flex-wrap: nowrap; }
+  .nav-group:not(.nav-right) a { font-size: 14px; }
   .nav-right { gap: 10px; }
   .nav-right a { font-size: 13px; }
   .obj { flex-wrap: wrap; }
