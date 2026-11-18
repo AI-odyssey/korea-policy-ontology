@@ -18,7 +18,7 @@ The viewer is the engagement lead for one client at a time: Aster Robotics (side
 
 | This week | Issues & bills |
 |---|---|
-| ![This week: headline, requests waiting for approval, the decision needed](docs/img/this-week.png) | ![Issues and bills with response levels and next meetings](docs/img/issues-bills.png) |
+| ![This week: headline, requests waiting for approval, the decision needed](docs/img/this-week.png) | ![Issues and bills with response levels and next steps](docs/img/issues-bills.png) |
 
 | Stakeholders | Strategy |
 |---|---|

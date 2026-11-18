@@ -54,7 +54,7 @@ function IssueList({ app }: { app: App }) {
             <div className="row">
               <T tone={impact.get(issue.id) === 'high' ? 'hi' : 'md'}>{LEVEL3[impact.get(issue.id)!]} impact</T>
               <T tone="navy">Client position: {POSITION[pos.stance]}</T>
-              {pos.bill && <span className="sub nowrap">on the {billName(pos.bill).toLowerCase()}</span>}
+              {pos.bill && <span className="sub nowrap">Position set on the {billName(pos.bill).toLowerCase()}.</span>}
               <span className="sub">{issue.summary}</span>
             </div>
             <div className="table-wrap">
