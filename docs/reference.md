@@ -12,7 +12,7 @@ The viewer is the engagement lead for one client at a time: Aster Robotics (side
 
 | Stakeholders | Strategy |
 |---|---|
-| ![Stakeholder network and who decides at each stage, with Jang Sora selected](img/stakeholders.png) | ![Strategy for one issue: outcome, position, messages, who to persuade, allies, plan](img/strategy.png) |
+| ![Stakeholder network and who decides at each stage, with Baek Siwoo selected](img/stakeholders.png) | ![Strategy for one issue: outcome, position, messages, who to persuade, allies, plan](img/strategy.png) |
 
 | Ontology | This week at phone width |
 |---|---|
