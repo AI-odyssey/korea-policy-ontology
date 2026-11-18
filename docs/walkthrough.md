@@ -32,11 +32,11 @@ The engagement (`eng-aster`) follows those four issues and six bills.
 
 `whatChanged(view, '2026-11-09')` returns the week:
 
-- **Six stage changes**, two on Aster bills: `bill-005` (foreign test results) went into subcommittee review on 11-10, and `bill-001` passed the subcommittee on 11-12. The other four are Moru Foods' novel food bills and a government food bill.
+- **Six stage changes**, two on Aster bills: `bill-005` (foreign test results) went into subcommittee review on Nov 10, and `bill-001` passed the subcommittee on Nov 12. The other four are Moru Foods' novel food bills and a government food bill.
 - **48 items collected:** 15 news, 13 notices, 12 press releases, 6 bill tracker updates, 2 sets of minutes. All 48 were new before the assistant ran.
-- **Five meetings held and six in the next seven days**, including the Public Administration and Security Committee meeting on 11-19.
+- **Five meetings held and six in the next seven days**, including the Public Administration and Security Committee meeting on Nov 19.
 
-Two items carry the sidewalk bill's week: `sig-129`, the bill tracker update of 11-12 ("Bill 22-S0308 passed the bill review subcommittee"), and `sig-133`, the committee's meeting notice of 11-13 listing the bill for 11-19.
+Two items carry the sidewalk bill's week: `sig-129`, the bill tracker update of Nov 12 ("Bill 22-S0308 passed the bill review subcommittee"), and `sig-133`, the committee's meeting notice of Nov 13 listing the bill for Nov 19.
 
 ## The assistant's run
 
@@ -74,11 +74,11 @@ A step is a meeting with the bill on the agenda or the close of an open legislat
 
 | Followed bill | Stage | Level | Reasons |
 |---|---|---|---|
-| Sidewalk robot duties bill (22-S0308) | passed the subcommittee | Act now | moved 11-12; full committee 11-19, in 3 days; stance amend; impact high |
-| Robot insurance committee alternative (22-S0518) | in Legislation and Judiciary review | Engage | no move; LJC meeting 11-23, in 7 days; stance amend (on the issue); impact medium |
-| Foreign test results bill (22-S0336) | in subcommittee review | Monitor | moved 11-10; subcommittee 11-24, in 8 days; stance support (on the issue); impact high |
-| Pedestrian priority zones bill (22-S0315) | on the committee agenda | Monitor | no move; subcommittee 11-26, in 10 days; no stance; impact high |
-| Robot pilot zones bill (22-S0378) | on the committee agenda | Monitor | no move; subcommittee 11-24, in 8 days; stance support; impact medium |
+| Sidewalk robot duties bill (22-S0308) | passed the subcommittee | Act now | moved Nov 12; full committee Nov 19, in 3 days; stance amend; impact high |
+| Robot insurance committee alternative (22-S0518) | in Legislation and Judiciary review | Engage | no move; LJC meeting Nov 23, in 7 days; stance amend (on the issue); impact medium |
+| Foreign test results bill (22-S0336) | in subcommittee review | Monitor | moved Nov 10; subcommittee Nov 24, in 8 days; stance support (on the issue); impact high |
+| Pedestrian priority zones bill (22-S0315) | on the committee agenda | Monitor | no move; subcommittee Nov 26, in 10 days; no stance; impact high |
+| Robot pilot zones bill (22-S0378) | on the committee agenda | Monitor | no move; subcommittee Nov 24, in 8 days; stance support; impact medium |
 | Government bill on sidewalk operation standards (no number yet) | legislative notice | Monitor | no move; notice period closes 12-07, in 21 days; no stance yet; impact high |
 
 The government bill has no number because the Assembly assigns one only when the government submits it, after the 40-day notice.
@@ -97,7 +97,7 @@ The score rose by 4.8 in the week the bill most needed action.
 
 ## The decision the assistant raised
 
-The rule: for a followed bill at Act now, take the people who control the agenda of its next meeting (`stageGates`), and pick one the client rates high influence whose stance is opposed or unconfirmed, unless an open plan step already targets that person. For the full committee on 11-19 those people are Seo Haeun (chair, supportive, already the subject of the open step "Meet Seo Haeun's office on the cargo class"), Ryu Taehwan (secretary, supportive, subject of "Brief Ryu Taehwan on the slow-and-yield wording") and Jang Sora (secretary, unconfirmed, high influence). Jang Sora is the one left.
+The rule: for a followed bill at Act now, take the people who control the agenda of its next meeting (`stageGates`), and pick one the client rates high influence whose stance is opposed or unconfirmed, unless an open plan step already targets that person. For the full committee on Nov 19 those people are Seo Haeun (chair, supportive, already the subject of the open step "Meet Seo Haeun's office on the cargo class"), Ryu Taehwan (secretary, supportive, subject of "Brief Ryu Taehwan on the slow-and-yield wording") and Jang Sora (secretary, unconfirmed, high influence). Jang Sora is the one left.
 
 `dec-r001`, marked `CLIENT:cli-aster`, linked by `raised_by` to `sig-133` (the meeting notice), due 2026-11-18:
 
@@ -109,7 +109,7 @@ The rule: for a followed bill at Act now, take the people who control the agenda
 
 The second alternative is the trade the executive is really weighing: accept the stop rule to keep the cargo class. It is the only item under **Decisions needed** on This week, below the headline "The sidewalk robot duties bill goes to the full committee on Nov 19".
 
-The assistant also found that the robot insurance committee alternative, which Aster wants amended, goes to the Legislation and Judiciary Committee on 11-23 and has no risk on record, so it proposed one. Proposals from the assistant wait for the lead.
+The assistant also found that the robot insurance committee alternative, which Aster wants amended, goes to the Legislation and Judiciary Committee on Nov 23 and has no risk on record, so it proposed one. Proposals from the assistant wait for the lead.
 
 ## Who decides, and who matters
 
@@ -117,8 +117,8 @@ The assistant also found that the robot insurance committee alternative, which A
 
 | Stage | Status | Date | Deciders |
 |---|---|---|---|
-| Bill review subcommittee | done | passed 11-12 | Ryu Taehwan (chair; the majority secretary) |
-| Full committee | next | 11-19, scheduled | Seo Haeun (chair), Jang Sora, Ryu Taehwan (secretaries) |
+| Bill review subcommittee | done | passed Nov 12 | Ryu Taehwan (chair; the majority secretary) |
+| Full committee | next | Nov 19, scheduled | Seo Haeun (chair), Jang Sora, Ryu Taehwan (secretaries) |
 | Legislation and Judiciary Committee | later | not scheduled | Joo Hayul (chair), Na Yerin, Woo Dahyun (secretaries) |
 | Plenary | later | not scheduled | floor vote |
 
