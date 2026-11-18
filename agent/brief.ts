@@ -3,9 +3,8 @@
 // so the page and the report say the same things in the same order.
 import type { ObjectRecord, View } from '../ontology/runtime.ts';
 import { addDays, monthDay } from '../ontology/dates.ts';
-import { cmp, confirmedView, responseFacts, responseLevel, upcomingDeadlines } from '../ontology/functions.ts';
+import { cmp, confirmedSignals, confirmedView, daysToStep, responseFacts, responseLevel, upcomingDeadlines } from '../ontology/functions.ts';
 import type { ResponseFacts, ResponseLevel } from '../ontology/functions.ts';
-import { proposeTriage } from './triage.ts';
 
 export const LEVEL_RANK: Record<ResponseLevel, number> = { act_now: 0, engage: 1, monitor: 2, watch: 3 };
 const CLOSED = ['passed', 'merged_alternative', 'withdrawn'];
@@ -42,7 +41,7 @@ export function rankedBills(view: View, clientId: string, since: string): Ranked
   if (!eng) return [];
   return view.targets(eng.id, 'watches').filter((o) => o.type === 'Bill' && !CLOSED.includes(o.stage))
     .map((bill) => ({ bill, level: responseLevel(view, bill.id, clientId, since).level, facts: responseFacts(view, bill.id, clientId, since) }))
-    .sort((x, y) => LEVEL_RANK[x.level] - LEVEL_RANK[y.level] || (x.facts.daysToSlot ?? 99) - (y.facts.daysToSlot ?? 99) || cmp(x.bill.id, y.bill.id));
+    .sort((x, y) => LEVEL_RANK[x.level] - LEVEL_RANK[y.level] || (daysToStep(x.facts) ?? 99) - (daysToStep(y.facts) ?? 99) || cmp(x.bill.id, y.bill.id));
 }
 
 /** The week in one line and a sentence, written from the most pressing followed bill. */
@@ -72,18 +71,27 @@ export function orderedRiskOpportunities(view: View, clientId: string, since: st
     .sort((a, b) => rank(a) - rank(b) || (a.impact === 'high' ? 0 : 1) - (b.impact === 'high' ? 0 : 1) || urgency.indexOf(a.urgency) - urgency.indexOf(b.urgency) || cmp(a.id, b.id));
 }
 
-/** The document a fact comes from: the latest item naming the bill, or the notice for a meeting. */
+/**
+ * The document a fact comes from. A bill with a meeting ahead cites the notice for that meeting, since that is what the
+ * reader acts on; otherwise the latest record naming the bill. A meeting cites its own notice. Only confirmed items count:
+ * routed before this week, or filed for the client (see confirmedSignals).
+ */
 export function sourceFor(view: View, id: string): string | undefined {
   const o = view.get(id);
   if (!o) return undefined;
-  const sigs = view.list('Signal', (s) => s.status !== 'dismissed' && s.collectedAt.slice(0, 10) <= view.baseDate);
+  const sigs = confirmedSignals(view).filter((s) => s.collectedAt.slice(0, 10) <= view.baseDate);
   const latest = (xs: ObjectRecord[]) => xs.sort((a, b) => cmp(b.collectedAt, a.collectedAt) || cmp(b.id, a.id))[0]?.id;
-  if (o.type === 'Bill') return latest(sigs.filter((s) => ['bill_update', 'public_notice'].includes(s.sourceType) && (o.billNo ? s.rawText.includes(o.billNo) : s.rawText.includes(o.title))));
-  if (o.type === 'Event') return latest(sigs.filter((s) => s.rawText.includes(o.name) && s.rawText.includes(monthDay(o.date))))
-    ?? (o.kind === 'public_comment' ? view.targets(o.id, 'agenda_item').map((b) => sourceFor(view, b.id)).find(Boolean) : undefined);
+  const noticeOf = (e: ObjectRecord) => latest(sigs.filter((s) => s.rawText.includes(e.name) && s.rawText.includes(monthDay(e.date))));
+  if (o.type === 'Bill') {
+    const next = view.sources(o.id, 'agenda_item').filter((e) => SLOT_KINDS.includes(e.kind) && e.status === 'scheduled' && e.date >= view.baseDate)
+      .sort((a, b) => cmp(a.date, b.date) || cmp(a.id, b.id))[0];
+    return (next && noticeOf(next)) ?? latest(sigs.filter((s) => ['bill_update', 'public_notice'].includes(s.sourceType) && (o.billNo ? s.rawText.includes(o.billNo) : s.rawText.includes(o.title))));
+  }
+  if (o.type === 'Event') return noticeOf(o) ?? (o.kind === 'public_comment' ? view.targets(o.id, 'agenda_item').map((b) => sourceFor(view, b.id)).find(Boolean) : undefined);
   if (o.type === 'RiskOpportunity') return (o.subjectIds as string[]).map((s) => sourceFor(view, s)).find(Boolean);
   return undefined;
 }
+const SLOT_KINDS = ['full_committee', 'subcommittee', 'plenary'];
 
 export interface TimelineItem { date: string; title: string; who: string; status: string; id: string }
 export const OWNER: Record<string, string> = { human: 'Our team', agent: 'Assistant', client: 'Client' };
@@ -109,27 +117,33 @@ export function timeline(view: View, clientId: string, opts: { clientFacing?: bo
   return items;
 }
 
-export interface Move { subject: ObjectRecord; stance: string; date: string; text: string; sourceId?: string; issueTitle?: string }
-// The issue an item is about: its filed link, or the triage rule's guess while it waits.
-const issueOf = (view: View, sig: ObjectRecord): string | undefined => {
-  const id = view.targets(sig.id, 'about')[0]?.id ?? proposeTriage(view, sig).issueId;
-  return id ? view.get(id)?.title : undefined;
-};
-const sentenceWith = (text: string, name: string) => text.split(/(?<=\.)\s+/).find((x) => x.includes(name));
+export interface Move { subject: ObjectRecord; stance: string; date: string; text: string; at?: string; sourceId?: string; issueTitle?: string }
+const issueOf = (view: View, sig: ObjectRecord): string | undefined => view.targets(sig.id, 'about')[0]?.title;
+const sentences = (text: string) => text.split(/(?<=\.)\s+/);
+// What an item records someone doing: only where that person is its subject (named in the headline) or the speaker in an
+// official record (minutes). A remark quoted inside a story about someone else is not that person's move.
+const actBy = (sig: ObjectRecord, name: string) =>
+  sig.title.includes(name) || sig.sourceType === 'minutes' ? sentences(sig.rawText).find((x) => x.includes(name)) : undefined;
+// What someone said at a meeting: the record's own sentence about them, beyond the line that lists them as a speaker.
+const remarkAt = (view: View, subjectId: string, eventId: string, name: string) =>
+  view.links({ type: 'testifies_at', from: subjectId, to: eventId }).flatMap((l) => l.evidence.map((id) => String(view.get(id)?.excerpt ?? '')))
+    .flatMap(sentences).find((x) => x.startsWith(name) && !/ lists /.test(x));
 
-/** Assessed people and organizations who did something this week: named in an item, spoke at a meeting, met the team. */
+/** Assessed people and organizations who did something this week: the subject of a confirmed item, spoke at a meeting, met the team. */
 export function moves(view: View, clientId: string, since: string): Move[] {
   const inWeek = (d: string) => d.slice(0, 10) > since && d.slice(0, 10) <= view.baseDate;
-  const week = view.list('Signal', (x) => x.status !== 'dismissed' && inWeek(x.collectedAt));
+  const week = confirmedSignals(view).filter((x) => inWeek(x.collectedAt));
   const seen = new Set<string>();
   const out: Move[] = [];
   for (const a of view.list('StakeholderAssessment', (x) => x.clientId === clientId).sort((x, y) => cmp(x.id, y.id))) {
     if (seen.has(a.subjectId)) continue;
     const s = view.get(a.subjectId)!;
     const acts = [
-      // This week's items may not be filed yet, so a name in the text counts as well as a filed mention.
-      ...week.flatMap((x) => { const t = sentenceWith(x.rawText, s.name); return t ? [{ date: x.collectedAt.slice(0, 10), text: t, sourceId: x.id, issueTitle: issueOf(view, x) }] : []; }),
-      ...view.targets(s.id, 'testifies_at').filter((e) => e.status === 'held' && inWeek(e.date)).map((e) => ({ date: e.date, text: `Spoke at the ${e.name}.`, sourceId: sourceFor(view, e.id), issueTitle: view.targets(e.id, 'about')[0]?.title })),
+      ...week.flatMap((x) => { const t = actBy(x, s.name); return t ? [{ date: x.collectedAt.slice(0, 10), text: t, sourceId: x.id, issueTitle: issueOf(view, x) }] : []; }),
+      ...view.targets(s.id, 'testifies_at').filter((e) => e.status === 'held' && inWeek(e.date)).flatMap((e) => {
+        const said = remarkAt(view, s.id, e.id, s.name);
+        return said ? [{ date: e.date, text: said, at: e.name, sourceId: sourceFor(view, e.id), issueTitle: view.targets(e.id, 'about')[0]?.title }] : [];
+      }),
       ...view.list('Interaction', (x) => x.clientId === clientId && inWeek(x.date) && x.participantIds.includes(s.id)).map((x) => ({ date: x.date, text: x.summary, sourceId: undefined, issueTitle: undefined })),
     ].sort((x, y) => cmp(y.date, x.date));
     if (!acts.length) continue;

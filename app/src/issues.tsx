@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { addDays, responseFacts, responseLevel, stageGates } from '../../ontology/index.ts';
-import type { ObjectRecord } from '../../ontology/index.ts';
+import type { ObjectRecord, ResponseFacts } from '../../ontology/index.ts';
 import { countWord, forumOf } from '../../agent/index.ts';
 import { Empty, LEVEL, LEVEL3, ObjLink, POSITION, SOURCE, STAGE, Section, T, billName, cap, md } from './ui.tsx';
 import type { App } from './ui.tsx';
@@ -13,10 +13,20 @@ const LEVEL_TONE: Record<string, 'hi' | 'md' | 'plain'> = { act_now: 'hi', engag
 const CLOSED = ['passed', 'merged_alternative', 'withdrawn'];
 const GATE: Record<string, string> = { subcommittee: 'Bill review subcommittee', committee: 'Full committee', lj: 'Legislation and Judiciary Committee', plenary: 'Plenary session' };
 const TYPE: Record<string, string> = { lawmaker: 'Lawmaker bill', government: 'Government bill', committee_alternative: 'Committee alternative' };
-const WANTS: Record<string, string> = { amend: 'wants it amended', oppose: 'opposes it', support: 'supports it', monitor: 'is watching it' };
+const WANTS: Record<string, string> = { amend: 'wants it amended', oppose: 'opposes it', support: 'supports it', monitor: 'has no position on it' };
 
 const positionOn = (app: App, ...ids: string[]) =>
   ids.map((id) => app.view.list('ClientPosition', (p) => p.clientId === app.clientId && p.targetId === id)[0]).find(Boolean);
+
+/** The client's position on an issue: set on the issue itself, or else the position on the followed bill that matters most. */
+function issuePosition(app: App, issueId: string, bills: ObjectRecord[], watched: Set<string>): { stance: string; bill?: ObjectRecord } {
+  const own = positionOn(app, issueId);
+  if (own) return { stance: own.stance };
+  const rank = ['oppose', 'amend', 'support', 'monitor'];
+  const onBills = bills.filter((b) => watched.has(b.id) && !CLOSED.includes(b.stage)).map((b) => ({ b, p: positionOn(app, b.id) })).filter((x) => x.p)
+    .sort((x, y) => rank.indexOf(x.p!.stance) - rank.indexOf(y.p!.stance) || x.b.id.localeCompare(y.b.id));
+  return onBills[0] ? { stance: onBills[0].p!.stance, bill: onBills[0].b } : { stance: 'monitor' };
+}
 
 export function Issues({ app, billId }: { app: App; billId?: string }) {
   const bill = billId ? app.view.get(billId) : undefined;
@@ -36,20 +46,21 @@ function IssueList({ app }: { app: App }) {
       <h1 className="headline">Issues and bills</h1>
       <p className="lead">{countWord(issues.length)} issues affect {app.client.name}. We follow {countWord(watchedBills.size).toLowerCase()} bills closely.</p>
       {issues.map((issue) => {
-        const pos = positionOn(app, issue.id);
         const bills = view.sources(issue.id, 'about').filter((o) => o.type === 'Bill')
           .sort((a, b) => Number(watchedBills.has(b.id)) - Number(watchedBills.has(a.id)) || Number(CLOSED.includes(a.stage)) - Number(CLOSED.includes(b.stage)) || a.id.localeCompare(b.id));
+        const pos = issuePosition(app, issue.id, bills, watchedBills);
         return (
           <Section key={issue.id} title={issue.title} className="issue">
             <div className="row">
               <T tone={impact.get(issue.id) === 'high' ? 'hi' : 'md'}>{LEVEL3[impact.get(issue.id)!]} impact</T>
-              {pos && <T tone="navy">Client position: {POSITION[pos.stance]}</T>}
+              <T tone="navy">Client position: {POSITION[pos.stance]}</T>
+              {pos.bill && <span className="sub nowrap">on the {billName(pos.bill).toLowerCase()}</span>}
               <span className="sub">{issue.summary}</span>
             </div>
             <div className="table-wrap">
               <table className="tbl bills">
                 <colgroup><col className="c-bill" /><col className="c-stage" /><col className="c-resp" /><col className="c-next" /></colgroup>
-                <thead><tr><th>Bill</th><th>Stage</th><th>Response level</th><th>Next meeting</th></tr></thead>
+                <thead><tr><th>Bill</th><th>Stage</th><th>Response level</th><th>Next step</th></tr></thead>
                 <tbody>
                   {bills.map((b) => {
                     const closed = CLOSED.includes(b.stage);
@@ -57,10 +68,10 @@ function IssueList({ app }: { app: App }) {
                     const f = responseFacts(view, b.id, clientId, since);
                     return (
                       <tr key={b.id} className={closed ? 'closed' : ''}>
-                        <td><ObjLink id={b.id} app={app} label={billName(b)} /> <span className="sub nowrap">{b.billNo ?? 'In notice'}</span></td>
-                        <td>{STAGE[b.stage]}</td>
-                        <td>{closed ? '' : <T tone={LEVEL_TONE[level]}>{LEVEL[level]}</T>}</td>
-                        <td>{f.slot ? `${cap(forumOf(view, f.slot))}, ${md(f.slot.date)}` : ''}</td>
+                        <td data-label="Bill"><ObjLink id={b.id} app={app} label={billName(b)} /> <span className="sub nowrap">{b.billNo ?? 'In notice'}</span></td>
+                        <td data-label="Stage">{STAGE[b.stage]}</td>
+                        <td data-label="Response level">{closed ? '' : <T tone={LEVEL_TONE[level]}>{LEVEL[level]}</T>}</td>
+                        <td data-label="Next step">{nextStep(view, f)}</td>
                       </tr>
                     );
                   })}
@@ -73,6 +84,36 @@ function IssueList({ app }: { app: App }) {
       <PublicRecords app={app} limit={12} filters />
     </div>
   );
+}
+
+/** The next dated step on a bill: its next meeting, or the close of its notice period, whichever comes first. */
+function nextStep(view: App['view'], f: ResponseFacts): string {
+  const notice = f.notice && (!f.slot || f.notice.date < f.slot.date);
+  if (notice) return `Notice period closes, ${md(f.notice!.date)}`;
+  return f.slot ? `${cap(forumOf(view, f.slot))}, ${md(f.slot.date)}` : '';
+}
+
+const days = (n: number) => `${countWord(n).toLowerCase()} day${n === 1 ? '' : 's'}`;
+
+/** The facts behind the level, split into those that raise it and those that keep it from going higher. */
+function levelReasons(app: App, bill: ObjectRecord, f: ResponseFacts, level: string, pos?: ObjectRecord): { up: string[]; down: string[] } {
+  const { view, client } = app;
+  const up: string[] = [];
+  const down: string[] = [];
+  if (f.change) up.push(`${STAGE[f.change.to]} on ${md(f.change.date)}.`);
+  else down.push('No change in stage this week.');
+  const near = (n?: number) => n !== undefined && n <= 30;
+  if (near(f.daysToSlot)) up.push(`${cap(forumOf(view, f.slot!))} meets ${md(f.slot!.date)}, in ${days(f.daysToSlot!)}.`);
+  if (near(f.daysToNotice)) up.push(`The notice period for comments closes ${md(f.notice!.date)}, in ${days(f.daysToNotice!)}.`);
+  if (!near(f.daysToSlot) && !near(f.daysToNotice)) down.push('No meeting or notice deadline in the next 30 days.');
+  else if (level !== 'act_now' && Math.min(f.daysToSlot ?? 99, f.daysToNotice ?? 99) > 7) down.push('The next step is more than a week away.');
+  const wants = pos && ['amend', 'oppose'].includes(pos.stance);
+  const on = pos && pos.targetId !== bill.id ? ' (position on the issue)' : '';
+  if (wants) up.push(`${client.name} ${WANTS[pos!.stance]}${on}.`);
+  else down.push(pos ? `${client.name} ${WANTS[pos.stance]}${on}.` : `${client.name} has no position on this bill yet.`);
+  if (f.impact === 'high') up.push(`High impact on ${client.name}.`);
+  else down.push(f.impact ? `${cap(f.impact)} impact on ${client.name}.` : `No direct impact on ${client.name}.`);
+  return { up, down };
 }
 
 function BillProfile({ app, bill }: { app: App; bill: ObjectRecord }) {
@@ -91,12 +132,7 @@ function BillProfile({ app, bill }: { app: App; bill: ObjectRecord }) {
   const [stance, setStance] = useState(pos?.stance ?? 'monitor');
   const [why, setWhy] = useState('');
 
-  const reasons = [
-    f.change ? `${STAGE[f.change.to]} on ${md(f.change.date)}.` : 'No change in stage this week.',
-    f.slot ? `${cap(forumOf(view, f.slot))} meets ${md(f.slot.date)}, in ${countWord(f.daysToSlot!).toLowerCase()} day${f.daysToSlot === 1 ? '' : 's'}.` : 'No meeting scheduled in the next 30 days.',
-    pos ? `${client.name} ${WANTS[pos.stance]}${pos.targetId === bill.id ? '' : ' (position on the issue)'}.` : 'No client position set.',
-    f.impact ? `${cap(f.impact)} impact on ${client.name}.` : `No direct impact on ${client.name}.`,
-  ];
+  const reasons = levelReasons(app, bill, f, level, pos);
 
   return (
     <div className="page">
@@ -111,16 +147,25 @@ function BillProfile({ app, bill }: { app: App; bill: ObjectRecord }) {
       <p className="lead">{bill.summary}</p>
 
       <div className="g2">
-        <Section title={closed ? 'Status' : `Why ${LEVEL[level].toLowerCase()}`}>
-          {closed ? <p>{STAGE[bill.stage]}{bill.mergedInto ? <> into the <ObjLink id={bill.mergedInto} app={app} /></> : ''}.</p> : <ul className="plain">{reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
-        </Section>
+        {closed ? (
+          <Section title="Status"><p>{STAGE[bill.stage]}{bill.mergedInto ? <> into the <ObjLink id={bill.mergedInto} app={app} /></> : ''}.</p></Section>
+        ) : (
+          <Section title={`Response level: ${LEVEL[level]}`}>
+            <h3 className="label minor">Why it matters</h3>
+            {reasons.up.length ? <ul className="plain">{reasons.up.map((r) => <li key={r}>{r}</li>)}</ul> : <p className="sub">Nothing on this bill needs attention this week.</p>}
+            {level !== 'act_now' && reasons.down.length > 0 && <>
+              <h3 className="label minor">Why not higher</h3>
+              <ul className="plain">{reasons.down.map((r) => <li key={r}>{r}</li>)}</ul>
+            </>}
+          </Section>
+        )}
         <Section title="Client position">
           {pos ? (
             <div className="item">
-              <div className="item-title"><T tone="navy">{POSITION[pos.stance]}</T>{pos.targetId !== bill.id && <span className="sub">on the issue: {view.get(pos.targetId)?.title}</span>}</div>
+              <div className="item-title"><T tone="navy">{POSITION[pos.stance]}</T>{pos.targetId !== bill.id && <span className="sub">set on the issue: {view.get(pos.targetId)?.title}</span>}</div>
               <p className="sub">{pos.rationale}</p>
             </div>
-          ) : <Empty>No position set.</Empty>}
+          ) : <div className="item"><div className="item-title"><T tone="navy">No position</T></div></div>}
           {!editing ? <Button size="small" text="Change position" onClick={() => setEditing(true)} /> : (
             <div className="row">
               <HTMLSelect value={stance} onChange={(e) => setStance(e.target.value)} options={Object.entries(POSITION).map(([value, label]) => ({ value, label }))} aria-label="Position" />

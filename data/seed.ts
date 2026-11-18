@@ -209,7 +209,7 @@ const B: BillSpec[] = [
 
 const STAGE_LABEL: Record<string, string> = {
   public_comment: 'in legislative notice', submitted: 'submitted', committee_referred: 'referred to committee',
-  committee_review: 'placed on the committee agenda', subcommittee: 'under bill review subcommittee review', subcommittee_passed: 'passed the bill review subcommittee',
+  committee_review: 'placed on the committee agenda', subcommittee: 'in the bill review subcommittee', subcommittee_passed: 'passed the bill review subcommittee',
   committee_passed: 'passed the full committee', lj_review: 'in Legislation and Judiciary Committee review', plenary_pending: 'awaiting a plenary vote',
   passed: 'passed the plenary session', merged_alternative: 'folded into the committee alternative and discarded', withdrawn: 'withdrawn',
 };
@@ -255,6 +255,28 @@ const NEAR_MISS: [string, string, string][] = [
   ['Bank branch closures prompt customer funds complaints', 'Consumers filed complaints after a regional bank closed branches, citing difficulty withdrawing customer funds in cash.', 'iss-09'],
 ];
 
+// What the record says each speaker said, by speaker id and meeting date. Each sentence starts with the speaker's name.
+const REMARKS: Record<string, string> = {
+  'per-002|2026-10-21': 'Baek Siwoo described the cargo-class provisions of his bill and the 3 m sidewalk threshold.',
+  'per-004|2026-10-21': 'Ryu Taehwan said robots should give way to pedestrians at walking pace rather than stop dead.',
+  'per-022|2026-10-21': 'Choi Haneul asked whether recognizing foreign test results could shorten certification.',
+  'org-01|2026-10-21': 'Metro Robotics Industry Forum shared route data from pilot operations in three districts.',
+  'org-05|2026-10-21': 'Gyeolmaru Civic Safety Institute presented its draft test plan for operation safety certification.',
+  'per-001|2026-10-27': 'Seo Haeun said the committee wanted a sidewalk rule that pedestrians and operators could both accept this session.',
+  'per-003|2026-10-27': 'Nam Eunbi asked how police would enforce operator duties on sidewalks narrower than 3 m.',
+  'org-01|2026-10-27': 'Metro Robotics Industry Forum proposed a duty to slow and give way in place of a full stop.',
+  'org-02|2026-10-27': 'Pedestrian Rights Network asked that robots stop for any pedestrian nearby on every sidewalk.',
+  'per-030|2026-10-27': 'Yeo Sujin described how police check operator duties today and asked for clear robot classes.',
+  'per-031|2026-11-05': 'Bang Cheolmin said the agency was drafting a temporary standard for cell-cultured ingredients.',
+  'org-06|2026-11-05': 'Cultivated Protein Council presented safety data from approvals in other markets.',
+  'org-07|2026-11-05': 'Traditional Livestock Producers Federation asked that cultivated products be kept from using livestock names.',
+  'org-09|2026-11-05': 'Food Science Research Hub described how supervised sales trials could build a safety record.',
+  'org-06|2026-11-10': 'Cultivated Protein Council asked for a fixed review period for novel ingredients and offered its members\' safety data.',
+  'org-09|2026-11-10': 'Food Science Research Hub proposed supervised sales trials while ingredient review is pending.',
+  'per-009|2026-11-10': 'Oh Yeeun said she would seek a statutory review deadline when the full committee takes up her recognition procedure bill.',
+  'per-031|2026-11-12': 'Bang Cheolmin told the committee the agency could finish a novel ingredient review within 270 days if the law set a deadline.',
+};
+
 // ---- Generator ----
 export function generateWorld(): World {
   const rnd = mulberry32(SEED);
@@ -281,6 +303,7 @@ export function generateWorld(): World {
     return o;
   };
   const label = (id: string) => byId.get(id)?.name ?? byId.get(id)?.shortTitle ?? byId.get(id)?.title ?? id;
+  const said = (who: string, eventId: string) => { const r = REMARKS[`${who}|${byId.get(eventId)!.date}`]; return r ? ` ${r}` : ''; };
   const billRef = (id: string) => { const b = byId.get(id)!; return b.billNo ? `bill ${b.billNo}` : `the ${b.shortTitle}`; };
   const article = (p: string) => `${byId.get(p)!.article} of the ${byId.get(p)!.instrument}`;
 
@@ -512,7 +535,7 @@ export function generateWorld(): World {
     const e = newEvent(name, kind, date, { institutionId: inst });
     if (ns.length) agenda(e, ns, 'The hearing notice lists');
     else for (const i of AUDIT_ISSUES[inst]) link('about', e.id, i, undefined, { excerpt: `The audit agenda covers ${byId.get(i)!.title.toLowerCase()}.` });
-    for (const w of who) link('testifies_at', w, e.id, undefined, { excerpt: `The witness list names ${label(w)}.`, sourceType: 'public_notice' });
+    for (const w of who) link('testifies_at', w, e.id, undefined, { excerpt: `The witness list names ${label(w)}.${said(w, e.id)}`, sourceType: 'public_notice' });
   }
   const SEMINARS: [string, string, string[], string[]][] = [
     ['Seminar: Sidewalk robots and pedestrian safety', '2026-10-21', ['iss-01', 'iss-02'], ['org-01', 'org-05', 'per-045', 'per-049']],
@@ -523,13 +546,13 @@ export function generateWorld(): World {
   for (const [name, date, iss, who] of SEMINARS) {
     const e = newEvent(name, 'seminar', date);
     for (const i of iss) link('about', e.id, i, undefined, { excerpt: `The programme covers ${byId.get(i)!.title.toLowerCase()}.`, sourceType: 'public_notice' });
-    for (const w of who) link('testifies_at', w, e.id, undefined, { excerpt: `The programme lists ${label(w)} as a speaker.`, sourceType: 'public_notice' });
+    for (const w of who) link('testifies_at', w, e.id, undefined, { excerpt: `The programme lists ${label(w)} as a speaker.${said(w, e.id)}`, sourceType: 'public_notice' });
   }
   // The lead ministry's official attends full committee meetings that consider its bills.
   const LEAD_OFFICIAL: Record<string, number> = { pasc: 1, hwc: 2, pac: 3, tiec: 6, fepc: 0 };
   for (const e of [...events.values()].filter((x) => x.kind === 'full_committee' && x.institutionId !== 'inst-ljc')) {
     const o = officials[LEAD_OFFICIAL[String(e.institutionId).replace('inst-', '')]];
-    link('testifies_at', o.id, e.id, undefined, { excerpt: `The attendance record lists ${o.name} for the ministry.`, sourceType: 'public_notice' });
+    link('testifies_at', o.id, e.id, undefined, { excerpt: `The attendance record lists ${o.name} for the ministry.${said(o.id, e.id)}`, sourceType: 'public_notice' });
   }
 
   // ---- Signals ----
@@ -656,7 +679,7 @@ export function generateWorld(): World {
     ['per-034', 'Seminar: Cross-border data flows and payments', 'The programme lists Gu Taeyoon as a speaker.'],
     ['org-12', 'Seminar: Cross-border data flows and payments', 'The programme lists Small Merchants Federation as a speaker.'],
   ];
-  for (const [who, event, excerpt] of SPEAKERS) link('testifies_at', who, eventNamed(event), undefined, { excerpt, sourceType: 'public_notice', confidence: 0.97 });
+  for (const [who, event, excerpt] of SPEAKERS) link('testifies_at', who, eventNamed(event), undefined, { excerpt: `${excerpt}${said(who, eventNamed(event))}`, sourceType: 'public_notice', confidence: 0.97 });
 
   // ---- Client layer ----
   const CLIENTS: [string, string, string, string][] = [
@@ -716,13 +739,51 @@ export function generateWorld(): World {
     link('produced_for', `del-${key}-${n}`, `eng-${key}`, undefined, false, clientMarking(`cli-${key}`));
   };
   const sentExtra = { approvedBy: 'principal-1', sentAt: '2026-11-09T10:00:00Z' };
+  const md = (d: string) => monthDay(d);
+  const lastOf = (n: number) => hist.get(n)!.at(-1)!.date;
+  const ASTER_BRIEF = [
+    '# Issue brief: sidewalk rules for outdoor mobile robots', '',
+    '## Situation', '',
+    `Since November 2023, certified outdoor mobile robots of up to 500 kg and 15 km/h count as pedestrians and may use sidewalks. The sidewalk robot duties bill (${billNo(1)}) passed the Public Administration and Security bill review subcommittee on ${md(lastOf(1))} and goes to the full committee on Nov 19.`, '',
+    '## Client position', '',
+    'Aster Robotics backs sidewalk access for cargo-class robots and wants the stop rule replaced by a duty to slow to walking pace and give way.', '',
+    '## What changes', '',
+    'The subcommittee text lets cargo-class robots up to 1,000 mm wide use sidewalks at least 3 m wide, but makes them stop for any pedestrian within 2 m. On narrower sidewalks that would stall most of Aster Robotics\' city routes.', '',
+    '## Next steps', '',
+    'We meet the committee chair\'s office before the Nov 19 meeting and brief the subcommittee chair on the slow-and-yield wording. The industry forum is drafting a joint amendment that we will share with both offices.',
+  ].join('\n');
+  const ASTER_LETTER = [
+    '# Comments on the sidewalk operation standards notice', '',
+    'To the Traffic Safety Division, Korean National Police Agency', '',
+    `Aster Robotics welcomes the government bill on sidewalk operation standards for outdoor mobile robots, open for comment until ${md(B.find((b) => b.n === 4)!.noticeEnd!)}. Standards set by robot class will let operators and police apply the same rules on every sidewalk.`, '',
+    'We ask that the standards add a cargo class for certified robots up to 1,000 mm wide, with a duty to slow to walking pace and give way to pedestrians rather than to stop. Our pilot route logs show that robots meeting this duty keep sidewalks moving while protecting pedestrians.', '',
+    'We also ask that robots running inside a designated pilot zone be exempt from the width and speed limits for the length of the pilot, so cities can test new routes before national rules change. We would welcome the chance to share our route data with the Division.',
+  ].join('\n');
+  const MORU_NOTES = [
+    '# Meeting notes: health committee aide', '',
+    'The aide asked for evidence that shoppers understand descriptive terms on cultivated products. Talking points for the follow-up meeting:', '',
+    '- Lead with the label comprehension research Moru Foods is preparing (due Nov 17), in particular what it shows about the origin line on the front label.',
+    '- Moru Foods opposes a blanket ban on meat terms because it would block accurate descriptive labels; it supports a mandatory origin line instead.',
+    '- The bill review subcommittee takes up the meat terms restriction bill on Nov 18, so the research summary should reach the office before then.',
+  ].join('\n');
+  const WREN_BRIEF = [
+    '# Issue brief: prepaid balance safeguarding', '',
+    '## Situation', '',
+    `The Financial Services Commission has put a government bill on prepaid balance safeguarding out for legislative notice. Comments close on ${md(B.find((b) => b.n === 26)!.noticeEnd!)}, after which the bill goes to the National Assembly.`, '',
+    '## Client position', '',
+    'Wrenfield Pay already keeps prepaid funds in a segregated trust account and has no position on the bill until the final standard is known.', '',
+    '## What changes', '',
+    'The bill would require every prepaid issuer to hold customer funds apart from operating funds, through a trust account or a payment guarantee.', '',
+    '## Next steps', '',
+    'We file comments by Nov 26 asking that existing trust accounts count as compliant, and send the supervisory service the fund segregation procedure once Wrenfield Pay provides it.',
+  ].join('\n');
   D('aster', 1, 'weekly_report', 'Weekly report, week ending 2026-11-09', 'sent', '# Weekly report, week ending Nov 9: Aster Robotics\n\nThe sidewalk robot duties bill stayed in subcommittee review. The police agency notice on sidewalk operation standards is open until Dec 7.', sentExtra);
-  D('aster', 2, 'issue_brief', 'Issue brief: sidewalk rules for outdoor mobile robots', 'approved', 'Background on the 2023 rules, the main stakeholders and the amendment points under discussion.', { approvedBy: 'principal-1' });
-  D('aster', 3, 'comment_letter', 'Draft comments on the sidewalk operation standards notice', 'draft', 'Draft comments on the operation standards for outdoor mobile robots: robot classes, the cargo class and pilot zone exemptions.');
+  D('aster', 2, 'issue_brief', 'Issue brief: sidewalk rules for outdoor mobile robots', 'approved', ASTER_BRIEF, { approvedBy: 'principal-1' });
+  D('aster', 3, 'comment_letter', 'Draft comments on the sidewalk operation standards notice', 'draft', ASTER_LETTER);
   D('moru', 1, 'weekly_report', 'Weekly report, week ending 2026-11-09', 'sent', '# Weekly report, week ending Nov 9: Moru Foods\n\nThe novel ingredient bills were still in subcommittee. The meat terms bill was placed on the committee agenda.', sentExtra);
-  D('moru', 2, 'meeting_prep', 'Meeting notes: health committee aide', 'in_review', 'Talking points on label comprehension research and the descriptive use of cell-based terms.');
+  D('moru', 2, 'meeting_prep', 'Meeting notes: health committee aide', 'in_review', MORU_NOTES);
   D('wren', 1, 'weekly_report', 'Weekly report, week ending 2026-11-09', 'sent', '# Weekly report, week ending Nov 9: Wrenfield Pay\n\nThe local presence bill was referred to the Political Affairs Committee.', sentExtra);
-  D('wren', 2, 'issue_brief', 'Issue brief: prepaid balance safeguarding', 'draft', 'Outline of the government bill, the 40-day notice period and how segregation would apply.');
+  D('wren', 2, 'issue_brief', 'Issue brief: prepaid balance safeguarding', 'draft', WREN_BRIEF);
 
   const T = (key: string, n: number, title: string, due: string, owner: string, status: string, subject?: string) =>
     add('Task', `task-${key}-${n}`, { clientId: `cli-${key}`, title, dueDate: due, owner, status, ...(subject ? { subjectId: subject } : {}) });
@@ -922,7 +983,7 @@ export function generateWorld(): World {
   const sigUrl = (id: string) => { if (!caughtIds.includes(id)) throw new Error(`pilot: ${id} is not caught`); return byId.get(id)!.url as string; };
   const EXPECTED: [string, string, number, string?][] = [ // [client's title, caught signal (or source type when missed), days from publication to collection, missed url]
     ['Data transfer bill goes to subcommittee review', 'sig-020', 0],
-    ['Local presence bill under subcommittee review', 'sig-021', 1],
+    ['Capital requirement bill goes to subcommittee review', 'sig-021', 1],
     [byId.get('sig-022')!.title, 'sig-022', 0],
     ['FSC review of prepaid fund segregation', 'sig-034', 1],
     ['Legislative notice on prepaid safeguarding', 'sig-039', 2],
@@ -960,7 +1021,7 @@ export function generateWorld(): World {
   DEC('aster', 1, 'Join the industry forum joint statement on certification?', 'Join, with a footnote reserving the weight-class point.', ['Join as drafted', 'Decline and send a separate letter'], 'resolved', 'iss-02', 'task-aster-2',
     { openedAt: '2026-10-29T09:00:00Z', resolution: 'approve', resolutionNote: 'Join with the footnote.', resolvedBy: 'principal-1' });
   DEC('moru', 1, 'Sign the sandbox coalition letter on the food-tech bill?', 'Sign, and ask the coalition to add a review deadline for temporary permits.', ['Sign as drafted', 'Support in a separate letter', 'Stay out'], 'open', 'bill-021', 'task-moru-1',
-    { openedAt: '2026-11-13T09:00:00Z', dueDate: '2026-11-19' });
+    { openedAt: '2026-11-13T09:00:00Z', dueDate: '2026-11-19', followUp: 'Sign the sandbox coalition letter and ask for a permit review deadline' });
   DEC('wren', 1, 'Publish a comment on the data transfer bill?', 'Not yet. The bill is at an early stage and a public comment would fix the position too soon.', ['Publish a short comment'], 'resolved', 'iss-11', 'task-wren-3',
     { openedAt: '2026-10-28T09:00:00Z', resolution: 'approve', resolutionNote: 'Hold.', resolvedBy: 'principal-1' });
 

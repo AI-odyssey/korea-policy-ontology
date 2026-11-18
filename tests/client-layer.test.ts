@@ -139,7 +139,7 @@ describe('activity log markings for public objects touched in a client workspace
   it("triaging a signal for Aster is filed under Aster, so Moru's log never shows what Aster is watching", () => {
     const s = freshStore();
     const sig = s.as(principal).list('Signal', (x) => x.status === 'new')[0];
-    s.applyAction(asterConsultant, 'triageSignal', { signalId: sig.id, relevance: 0.9, issueId: 'iss-01' });
+    s.applyAction(asterConsultant, 'triageSignal', { clientId: 'cli-aster', signalId: sig.id, relevance: 0.9, issueId: 'iss-01' });
     const entry = s.auditEntries(principal).at(-1)!;
     expect(entry).toMatchObject({ action: 'triageSignal', status: 'executed', markings: ['CLIENT:cli-aster'] });
     expect(s.auditEntries(moruConsultant)).toEqual([]);

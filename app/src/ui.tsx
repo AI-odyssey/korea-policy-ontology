@@ -39,7 +39,8 @@ export const STAGE: Record<string, string> = {
   passed: 'Passed', merged_alternative: 'Merged into a committee alternative', withdrawn: 'Withdrawn',
 };
 export const LEVEL: Record<string, string> = { act_now: 'Act now', engage: 'Engage', monitor: 'Monitor', watch: 'Watch' };
-export const POSITION: Record<string, string> = { support: 'Support', oppose: 'Oppose', amend: 'Amend', monitor: 'Monitor' };
+/** The client's stance as readers see it. A watching brief (stored as monitor) reads as No position. */
+export const POSITION: Record<string, string> = { support: 'Support', amend: 'Amend', oppose: 'Oppose', monitor: 'No position' };
 export const STANCE: Record<string, string> = { supportive: 'Supportive', neutral: 'Neutral', opposed: 'Opposed', unconfirmed: 'Unconfirmed' };
 export const LEVEL3: Record<string, string> = { high: 'High', medium: 'Medium', low: 'Low' };
 export const SOURCE: Record<string, string> = { bill_update: 'Bill tracker', press_release: 'Press release', public_notice: 'Notice', news: 'News', minutes: 'Minutes', seminar: 'Seminar', ministry_press: 'Ministry press release', gazette: 'Official Gazette' };
@@ -69,6 +70,26 @@ export function roleOf(view: View, o: ObjectRecord): string {
   return `${inst.kind === 'subcommittee' ? `Subcommittee ${lower1(role)}` : role}, ${committee}`;
 }
 
+/** Current committee seats, each committee once with its subcommittees in brackets: "Health and Welfare Committee (Bill Review Subcommittee)". */
+export function memberships(view: View, personId: string): { id: string; subs: ObjectRecord[] }[] {
+  const out = new Map<string, ObjectRecord[]>();
+  for (const l of view.links({ type: 'member_of', from: personId })) {
+    if (l.props?.until && l.props.until < view.baseDate) continue;
+    const inst = view.get(l.to);
+    if (!inst) continue;
+    const top = inst.kind === 'subcommittee' && inst.parentId ? inst.parentId : inst.id;
+    out.set(top, [...(out.get(top) ?? []), ...(inst.id === top ? [] : [inst])]);
+  }
+  return [...out].map(([id, subs]) => ({ id, subs }));
+}
+export const MemberOf = ({ app, personId }: { app: App; personId: string }) => (
+  <>
+    {memberships(app.view, personId).map((m, i) => (
+      <span key={m.id}>{i ? ', ' : ''}<ObjLink id={m.id} app={app} />{m.subs.length > 0 && <> ({m.subs.map((x, j) => <span key={x.id}>{j ? ', ' : ''}<ObjLink id={x.id} app={app} label={String(x.name).split(',')[0]} /></span>)})</>}</span>
+    ))}
+  </>
+);
+
 export const kindOf = (o: ObjectRecord) =>
   o.type === 'StakeholderOrg' ? 'Organization' : ({ lawmaker: 'Lawmaker', official: 'Government official', staffer: 'Legislative aide', org_rep: 'Organization representative' } as Record<string, string>)[o.kind] ?? o.type;
 
@@ -76,9 +97,14 @@ export const kindOf = (o: ObjectRecord) =>
 export function MarkTag({ m, app }: { m: Marking; app: App }) {
   const id = m.slice('CLIENT:'.length);
   return m === 'PUBLIC'
-    ? <span className="chip chip-public">Public</span>
+    ? <span className="chip chip-public">Shared across clients</span>
     : <span className="chip chip-client">Confidential · {app.view.get(id)?.name ?? id}</span>;
 }
+/** Who can see a record, in words: fictional shared records are not public records, so they never carry a Public label. */
+export const visibility = (app: App, o: ObjectRecord) => {
+  const m = o.markings.find((x) => x !== 'PUBLIC');
+  return m ? `Confidential · ${app.view.get(m.slice('CLIENT:'.length))?.name ?? 'client'}` : 'Shared across clients';
+};
 
 /** Small square tag: tone picks the palette. */
 export const T = ({ children, tone = 'plain' }: { children: ReactNode; tone?: 'hi' | 'md' | 'plain' | 'op' | 'navy' | 'rust' }) =>
@@ -164,6 +190,7 @@ const strength = (n: number) => (n >= 0.8 ? 'High' : n >= 0.5 ? 'Medium' : 'Low'
 function value(app: App, k: string, v: unknown): ReactNode {
   if (ACTOR_KEYS.has(k)) return person(String(v));
   if (k === 'sourceType') return SOURCE[String(v)] ?? (v === 'official_record' ? 'Official record' : pretty(v));
+  if (k === 'owner') return ({ human: 'Our team', agent: 'Assistant', client: 'Client' } as Record<string, string>)[String(v)] ?? pretty(v);
   if ((k === 'confidence' || k === 'relevance') && typeof v === 'number') return strength(v);
   if (Array.isArray(v)) return v.every((x) => typeof x === 'string' && app.view.get(x))
     ? v.map((x, i) => <span key={x}>{i ? ', ' : ''}<ObjLink id={x} app={app} /></span>)
@@ -179,22 +206,25 @@ export function ObjectDrawer({ id, app, onClose }: { id?: string; app: App; onCl
   const out = o ? app.view.links({ from: o.id }) : [];
   const inc = o ? app.view.links({ to: o.id }) : [];
   const groups = new Map<string, string[]>();
-  for (const l of out) groups.set(LINK_LABEL[l.type]?.[0] ?? l.type, [...(groups.get(LINK_LABEL[l.type]?.[0] ?? l.type) ?? []), l.to]);
+  for (const l of out) if (l.type !== 'member_of') groups.set(LINK_LABEL[l.type]?.[0] ?? l.type, [...(groups.get(LINK_LABEL[l.type]?.[0] ?? l.type) ?? []), l.to]);
+  const seats = o ? memberships(app.view, o.id) : [];
   for (const l of inc) groups.set(LINK_LABEL[l.type]?.[1] ?? l.type, [...(groups.get(LINK_LABEL[l.type]?.[1] ?? l.type) ?? []), l.from]);
   return (
     <Drawer isOpen={!!o} onClose={onClose} title={o ? nameOf(o) : ''} size="min(520px, 100vw)">
       {o && (
         <div className="drawer-body">
-          <p className="row">{kindLabel(o)} {o.markings.map((m) => <MarkTag key={m} m={m} app={app} />)}</p>
+          <p className="row">{kindLabel(o)}</p>
           {o.type === 'Signal' && <p className="quote">{o.rawText}</p>}
           <h3 className="label">Properties</h3>
           <dl className="kv">
             {Object.entries(o).filter(([k, v]) => !HIDE.has(k) && v !== undefined && !(o.type === 'Signal' && ['rawText', 'title'].includes(k))).map(([k, v]) => (
               <div key={k}><dt>{human(k)}</dt><dd>{value(app, k, v)}</dd></div>
             ))}
+            <div><dt>Visibility</dt><dd>{visibility(app, o)}</dd></div>
           </dl>
-          {groups.size > 0 && <h3 className="label">Links</h3>}
+          {(groups.size > 0 || seats.length > 0) && <h3 className="label">Links</h3>}
           <dl className="kv">
+            {seats.length > 0 && <div><dt>Member of</dt><dd><MemberOf app={app} personId={o.id} /></dd></div>}
             {[...groups].map(([k, ids]) => (
               <div key={k}><dt>{k}</dt><dd>{[...new Set(ids)].slice(0, 12).map((x, i) => <span key={x}>{i ? ', ' : ''}<ObjLink id={x} app={app} /></span>)}{ids.length > 12 ? `, and ${ids.length - 12} more` : ''}</dd></div>
             ))}

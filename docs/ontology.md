@@ -119,7 +119,7 @@ Public layer. One collected raw item (bill update, press release, notice, gazett
 | `publishedAt` | date |  |  |
 | `collectedAt` | datetime | yes |  |
 | `rawText` | text | yes |  |
-| `status` | enum(new / triaged / dismissed) | yes |  |
+| `status` | enum(new / triaged / dismissed) | yes | Set by the collector only. How each client filed the item is a SignalTriage record in that client layer. |
 | `relevance` | number [0..1] |  |  |
 | `dismissReason` | string |  |  |
 
@@ -156,6 +156,21 @@ Client layer. The consulting engagement for one client: scope, team and what is 
 | `scope` | text | yes |  |
 | `team` | string[] | yes |  |
 | `startDate` | date | yes |  |
+
+### `SignalTriage`
+
+Client layer. One client's filing of a collected item: filed under an issue, set aside, or returned to the queue. The public Signal is never changed, so one client's triage does not touch another client's queue.
+
+| Property | Type | Required | Note |
+|---|---|---|---|
+| `clientId` | ref -> Client | yes |  |
+| `signalId` | ref -> Signal | yes |  |
+| `status` | enum(filed / set_aside / returned) | yes |  |
+| `issueId` | ref -> Issue |  |  |
+| `relevance` | number [0..1] | yes |  |
+| `reason` | string |  |  |
+| `evidenceIds` | ref[] -> Evidence |  | Evidence this filing created; returning the item rejects only these. |
+| `triagedBy` | string | yes |  |
 
 ### `ClientPosition`
 
@@ -212,8 +227,11 @@ Client layer. A judgment call that needs the principal: question, recommendation
 | `status` | enum(open / resolved) | yes |  |
 | `subjectId` | ref |  | The bill or issue the decision is about. |
 | `dueDate` | date |  | When the principal needs to decide. |
+| `followUp` | string |  | The short task title created if the principal approves. |
+| `targetId` | ref -> Person/StakeholderOrg |  | The person the recommendation is about. |
+| `premiseStance` | enum(supportive / neutral / opposed / unconfirmed) |  | The target's assessed stance when the decision was raised. A different stance now makes the decision out of date. |
 | `openedAt` | datetime | yes |  |
-| `resolution` | enum(approve / alternative / reject) |  |  |
+| `resolution` | enum(approve / alternative / reject / withdraw) |  | withdraw: the premise changed and the decision no longer applies. |
 | `resolutionNote` | text |  |  |
 | `resolvedBy` | string |  |  |
 
@@ -340,18 +358,19 @@ Actions are the only way to change state. Each call is checked for role, paramet
 
 ### `triageSignal`
 
-Link a new Signal to an Issue and/or Bill with a relevance score, or dismiss it as noise.
+File a new Signal for one client under an Issue and/or Bill with a relevance score, or set it aside for that client.
 
 - Allowed roles: `agent`, `consultant`, `principal`
 - Approval: not required
-- Precondition: `signalId`.status in [new] (Signal was already triaged or dismissed)
 - Rule: Unless dismiss is true, issueId or billId is required.
-- Effect: Signal.status becomes triaged or dismissed
+- Rule: The client must not have filed or set aside this Signal already.
+- Effect: Creates or updates the SignalTriage for this client and signal (CLIENT marking); the Signal itself is unchanged
 - Effect: Creates about / mentions links, each with an Evidence record (method rule for agent, human for consultant or principal)
 - Effect: Agent evidence below 0.8 confidence lands in the review queue
 
 | Property | Type | Required | Note |
 |---|---|---|---|
+| `clientId` | ref -> Client | yes |  |
 | `signalId` | ref -> Signal | yes |  |
 | `issueId` | ref -> Issue |  |  |
 | `billId` | ref -> Bill |  |  |
@@ -384,17 +403,18 @@ Create a public-layer link (if absent) and attach one Evidence record to it.
 
 ### `reopenSignal`
 
-Undo a triage: return a filed or dismissed Signal to the queue.
+Undo a client's triage: return a filed or set-aside Signal to that client's queue.
 
 - Allowed roles: `consultant`, `principal`
 - Approval: not required
-- Precondition: `signalId`.status in [triaged, dismissed] (Signal is not filed or dismissed)
-- Effect: Signal.status = new
-- Effect: Evidence drawn from the signal is marked rejected
+- Rule: The client must have filed or set aside this Signal.
+- Effect: SignalTriage.status = returned
+- Effect: Evidence that filing created is marked rejected
 - Effect: Links left without other support are removed
 
 | Property | Type | Required | Note |
 |---|---|---|---|
+| `clientId` | ref -> Client | yes |  |
 | `signalId` | ref -> Signal | yes |  |
 
 ### `reviewEvidence`
@@ -497,6 +517,22 @@ Move a draft into review.
 |---|---|---|---|
 | `deliverableId` | ref -> Deliverable | yes |  |
 
+### `redraftDeliverable`
+
+Replace the text of a deliverable that has not been sent, for example when the weekly report is rebuilt from current data.
+
+- Allowed roles: `agent`, `consultant`, `principal`
+- Approval: not required
+- Precondition: `deliverableId`.status in [draft, in_review, approved] (A sent deliverable cannot change)
+- Effect: Deliverable.body and sourceIds replaced
+- Effect: An approved deliverable goes back to in_review and its approval is cleared
+
+| Property | Type | Required | Note |
+|---|---|---|---|
+| `deliverableId` | ref -> Deliverable | yes |  |
+| `body` | text | yes |  |
+| `sourceIds` | ref[] |  |  |
+
 ### `approveDeliverable`
 
 Principal approves a deliverable that is in review.
@@ -541,6 +577,9 @@ Put a judgment call in front of the principal with a recommendation.
 | `raisedById` | ref -> Task/Deliverable/Signal | yes |  |
 | `subjectId` | ref |  |  |
 | `dueDate` | date |  |  |
+| `followUp` | string |  |  |
+| `targetId` | ref -> Person/StakeholderOrg |  |  |
+| `premiseStance` | enum(supportive / neutral / opposed / unconfirmed) |  |  |
 
 ### `resolveDecision`
 
@@ -550,12 +589,12 @@ Principal decides.
 - Approval: not required
 - Precondition: `decisionId`.status in [open] (Decision is already resolved)
 - Effect: Decision.status = resolved
-- Effect: approve creates a follow-up Task for a human, due in 3 days or by the decision due date, whichever is earlier
+- Effect: approve creates a follow-up Task for a human, titled with the decision followUp, due in 3 days or by the decision due date, whichever is earlier
 
 | Property | Type | Required | Note |
 |---|---|---|---|
 | `decisionId` | ref -> Decision | yes |  |
-| `resolution` | enum(approve / alternative / reject) | yes |  |
+| `resolution` | enum(approve / alternative / reject / withdraw) | yes |  |
 | `note` | text |  |  |
 
 ### `createTask`
@@ -768,6 +807,7 @@ yes = may run it; approval = may request it, the principal must approve; - = den
 | `logInteraction` | - | - | yes | yes |
 | `draftDeliverable` | - | yes | yes | yes |
 | `submitForReview` | - | yes | yes | yes |
+| `redraftDeliverable` | - | yes | yes | yes |
 | `approveDeliverable` | - | - | - | yes |
 | `sendDeliverable` | - | - | yes | yes |
 | `raiseDecision` | - | yes | yes | yes |
@@ -792,7 +832,7 @@ Deterministic and read-only. Each takes a `view`, the caller-filtered read handl
 |---|---|---|
 | `whatChanged` | `whatChanged(view, since, until?)` | Stage changes, new signals, events held and upcoming, and risk movements after the since date. |
 | `billRiskScore` | `billRiskScore(view, billId, clientId, asOf?)` | Weighted 0-100 score for one bill and one client, returned with every component. |
-| `responseLevel` | `responseLevel(view, billId, clientId, since?)` | act_now / engage / monitor / watch for one bill and one client, from explicit rules (stage moved this week, next meeting within 7 or 30 days, client stance, issue impact), with the reasons. An opposed, high-impact bill on an agenda within 7 days is act_now even if it did not move. |
+| `responseLevel` | `responseLevel(view, billId, clientId, since?)` | One of act_now, engage, monitor or watch for one bill and one client, from explicit rules (stage moved this week, next meeting or closing notice period within 7 or 30 days, client stance, issue impact), with the reasons that raise the level and those that keep it from going higher. An opposed, high-impact bill on an agenda within 7 days is act_now even if it did not move. |
 | `keyPeople` | `keyPeople(view, billId, limit?)` | Ranked people around a bill, each with the reasons for the rank. |
 | `upcomingDeadlines` | `upcomingDeadlines(view, clientId, days?)` | Open tasks and scheduled events for the client in the next N days. |
 | `issueExposure` | `issueExposure(view, clientId)` | Issues ranked by how much active legislative risk sits on them for the client. |

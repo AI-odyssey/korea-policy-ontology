@@ -216,7 +216,7 @@ function TrialResult({ app, pilot, m }: { app: App; pilot: ObjectRecord; m: Pilo
     <section className="sec">
       <div className="row">
         <h2 className="h2">{pilot.title}</h2>
-        <T tone={open ? 'md' : pilot.result === 'pass' ? 'op' : 'hi'}>{open ? 'In progress' : pilot.result === 'pass' ? 'Passed' : 'Did not pass'}</T>
+        <T tone={open ? 'md' : pilot.result === 'pass' ? 'op' : 'hi'}>{open ? (pilot.to < app.view.baseDate ? `Ended ${md(pilot.to)}, not closed` : 'In progress') : pilot.result === 'pass' ? 'Passed' : 'Did not pass'}</T>
       </div>
       <p className="sub">{md(pilot.from)} to {md(pilot.to)} · {count(m.expected, 'must-catch item')} · {count(m.caught, 'item')} caught</p>
       <p className="lead">{shortfall(m)}</p>
@@ -224,7 +224,7 @@ function TrialResult({ app, pilot, m }: { app: App; pilot: ObjectRecord; m: Pilo
         <div className="stat">
           <div className="stat-name">Sources reached</div>
           <div className="stat-value">{m.access.reached} of {m.access.total}</div>
-          <div className="sub">Target {pct(m.criteria.access)}{LIVE ? ` · checked ${md(LIVE.generatedAt)}` : ''}</div>
+          <div className="sub">Target {pct(m.criteria.access)}{LIVE ? ` · live sources checked for ${md(LIVE.from)} to ${md(LIVE.to)}` : ''}</div>
           {met(m.checks.access)}
         </div>
         <div className="stat">

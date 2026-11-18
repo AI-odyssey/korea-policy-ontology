@@ -5,7 +5,7 @@ import type { ObjectRecord, Store, View } from '../ontology/runtime.ts';
 import type { Ctx, GateConfig } from '../ontology/markings.ts';
 import { ProviderGateError, defaultGate } from '../ontology/markings.ts';
 import { REVIEW_THRESHOLD } from '../ontology/schema.ts';
-import { clientBills, cmp, confirmedView, issueExposure, responseFacts, responseLevel, stageGates, upcomingDeadlines, whatChanged } from '../ontology/functions.ts';
+import { clientBills, confirmedView, issueExposure, responseFacts, responseLevel, signalQueue, stageGates, upcomingDeadlines, whatChanged, cmp } from '../ontology/functions.ts';
 import type { Decider, StageGate } from '../ontology/functions.ts';
 import { addDays, monthDay } from '../ontology/dates.ts';
 import { disabledLlm, guardedComplete, LlmDisabledError } from './llm.ts';
@@ -52,6 +52,9 @@ export const agentContext = (clientId: string): Ctx => ({ actor: 'agent-1', role
 const possessive = (s: string) => (s.endsWith('s') ? `${s}'` : `${s}'s`);
 const lower1 = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 const plural = (n: number, one: string, many = `${one}s`) => `${countWord(n).toLowerCase()} ${n === 1 ? one : many}`;
+/** A count at the start of a sentence: "Seven new items", "One item". */
+const Plural = (n: number, one: string, many?: string) => cap(plural(n, one, many));
+const verb = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 // ---- Decision rule ----
 // A decision goes to the engagement lead for a followed bill at response level act_now, and it names one person to
@@ -79,6 +82,7 @@ export function decisionCandidates(view: View, clientId: string, since: string):
   for (const bill of view.targets(eng.id, 'watches').filter((o) => o.type === 'Bill').sort((a, b) => cmp(a.id, b.id))) {
     if (responseLevel(view, bill.id, clientId, since).level !== 'act_now') continue;
     const f = responseFacts(view, bill.id, clientId, since);
+    if (!f.slot) continue; // act now because a notice period closes: there is no agenda-setter to meet
     const gate = stageGates(view, bill.id).find((g) => g.institutionId === f.slot!.institutionId);
     if (!gate) continue;
     const issues = view.targets(bill.id, 'about').map((i) => i.id);
@@ -117,6 +121,9 @@ export function decisionParams(view: View, clientId: string, c: DecisionCandidat
     raisedById: sourceId,
     subjectId: c.bill.id,
     dueDate: [addDays(c.meeting.date, -1), view.baseDate].sort()[1],
+    followUp: `Meet ${d.name} before the ${monthDay(c.meeting.date)} ${forum}`,
+    targetId: d.id,
+    premiseStance: a.stance,
   };
 }
 
@@ -132,29 +139,29 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
     run.steps.push({ n: run.steps.length + 1, kind, name, input, output, ...(blocked ? { blocked } : {}) });
 
   // 1. New items
-  const inbox = view.list('Signal', (s) => s.status === 'new').sort((a, b) => cmp(a.collectedAt, b.collectedAt) || cmp(a.id, b.id));
-  step('tool', 'query.signals', "status = 'new'", `${plural(inbox.length, 'new item')} since the last report.`);
+  const inbox = signalQueue(view);
+  step('tool', 'query.signals', 'new items this client has not triaged', `${Plural(inbox.length, 'new item')} since the last report.`);
   run.proposals = inbox.map((s) => proposeTriage(view, s, clientId));
   const mine = run.proposals.filter((p) => p.action === 'link' && p.relevantToClient);
   const clear = mine.filter((p) => p.confidence >= REVIEW_THRESHOLD);
   const noise = run.proposals.filter((p) => p.action === 'dismiss');
   const unsure = mine.length - clear.length;
   const sorting = [
-    mine.length ? `${cap(plural(mine.length, 'item'))} concern ${client.name}: ${unsure ? `${plural(clear.length, 'clear match', 'clear matches')} and ${countWord(unsure).toLowerCase()} to confirm` : 'all clear matches'}.` : `Nothing new concerns ${client.name}.`,
-    noise.length ? `${cap(plural(noise.length, 'item'))} look unrelated to any tracked issue.` : '',
+    mine.length ? `${Plural(mine.length, 'item')} ${verb(mine.length, 'concerns', 'concern')} ${client.name}: ${unsure ? `${plural(clear.length, 'clear match', 'clear matches')} and ${countWord(unsure).toLowerCase()} to confirm` : mine.length === 1 ? 'a clear match' : 'all clear matches'}.` : `Nothing new concerns ${client.name}.`,
+    noise.length ? `${Plural(noise.length, 'item')} ${verb(noise.length, 'looks', 'look')} unrelated to any tracked issue.` : '',
   ];
   step('tool', 'proposeTriage', `${inbox.length} items`, sorting.filter(Boolean).join(' '));
 
   if (opts.applyTriage) {
     for (const p of [...clear, ...noise]) {
-      store.applyAction(ctx, 'triageSignal', triageParams(p));
+      store.applyAction(ctx, 'triageSignal', triageParams(p, clientId));
       run.appliedTriage.push(p.signalId);
     }
     const did = [clear.length ? `filed ${plural(clear.length, 'clear match', 'clear matches')}` : '', noise.length ? `set aside ${plural(noise.length, 'unrelated item')}` : ''].filter(Boolean);
     step('action', 'triageSignal', `${clear.length + noise.length} proposals`,
-      `${did.length ? cap(did.join(' and ')) : 'Filed nothing'}.${unsure ? ` ${cap(plural(unsure, 'item'))} ${unsure === 1 ? 'waits' : 'wait'} for you to confirm.` : ''}`);
+      `${did.length ? cap(did.join(' and ')) : 'Filed nothing'}.${unsure ? ` ${Plural(unsure, 'item')} ${verb(unsure, 'waits', 'wait')} for you to confirm.` : ''}`);
   } else {
-    step('note', 'triageSignal', 'applyTriage is off', `Filed nothing. ${cap(plural(mine.length + noise.length, 'item'))} wait for you.`);
+    step('note', 'triageSignal', 'applyTriage is off', `Filed nothing. ${Plural(mine.length + noise.length, 'item')} ${verb(mine.length + noise.length, 'waits', 'wait')} for you.`);
   }
 
   // 2. What changed
@@ -163,7 +170,7 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
   const mineBills = new Set(bills.map((b) => b.id));
   const moved = changed.stageChanges.filter((c) => mineBills.has(c.billId));
   step('tool', 'whatChanged', `since ${since}`,
-    `${cap(plural(moved.length, 'stage change'))} on bills that affect ${client.name}. Across the Assembly, ${plural(changed.eventsHeld.length, 'meeting')} held and ${countWord(changed.eventsUpcoming.length).toLowerCase()} in the next seven days.`);
+    `${Plural(moved.length, 'stage change')} on bills that affect ${client.name}. Across the Assembly, ${plural(changed.eventsHeld.length, 'meeting')} held and ${countWord(changed.eventsUpcoming.length).toLowerCase()} in the next seven days.`);
   const brief0 = weeklyBrief(view, clientId, { since });
   step('tool', 'responseLevel', `${brief0.bills.length} followed bills`,
     `Most pressing: ${brief0.bills.slice(0, 3).map((r) => `${billName(r.bill)} (${r.level.replace('_', ' ')})`).join('; ') || 'none'}.`);
@@ -174,13 +181,13 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
     candidates.map((c) => `${billName(c.bill)}: the ${forumOf(view, c.meeting)} meets on ${monthDay(c.meeting.date)}. ${c.target.decider.name} (${c.target.decider.role}, high influence) is ${c.target.assessment.stance === 'opposed' ? 'opposed' : 'unconfirmed'}.`).join(' ')
       || 'No followed bill at act now has an agenda-setter left to persuade.');
   for (const c of candidates) {
-    const earlier = view.list('Decision', (d) => d.subjectId === c.bill.id && (d.status === 'open' || String(d.openedAt).slice(0, 10) > since))[0];
+    const earlier = view.list('Decision', (d) => d.subjectId === c.bill.id && (d.status === 'open' || (String(d.openedAt).slice(0, 10) > since && d.resolution !== 'withdraw')))[0];
     if (earlier) {
       run.decisionId ??= earlier.status === 'open' ? earlier.id : undefined;
       step('note', 'raiseDecision', c.bill.id, `A decision on the ${lower1(billName(c.bill))} is already on record this week. No new one raised.`);
       continue;
     }
-    const src = sourceFor(view, c.bill.id);
+    const src = sourceFor(view, c.meeting.id) ?? sourceFor(view, c.bill.id);
     if (!src) {
       step('note', 'raiseDecision', c.bill.id, `No source document names the ${lower1(billName(c.bill))}. No decision raised.`);
       continue;
@@ -208,7 +215,7 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
   }
 
   const deadlines = upcomingDeadlines(view, clientId, 30);
-  step('tool', 'upcomingDeadlines', '30 days', `${cap(plural(deadlines.length, 'dated item'))} in the next 30 days${deadlines[0] ? `; first: ${deadlines[0].title} (${monthDay(deadlines[0].date)})` : ''}.`);
+  step('tool', 'upcomingDeadlines', '30 days', `${Plural(deadlines.length, 'dated item')} in the next 30 days${deadlines[0] ? `; first: ${deadlines[0].title} (${monthDay(deadlines[0].date)})` : ''}.`);
   const exposure = issueExposure(view, clientId);
   step('tool', 'issueExposure', clientId, `Issues with the most at stake: ${exposure.slice(0, 3).map((e) => e.title).join('; ')}.`);
 
@@ -219,13 +226,13 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
     narrative = await guardedComplete(llm, { instruction: 'Write two sentences summarizing the week for the client.', objects: [client, ...bills.slice(0, 3)] }, opts.gate ?? defaultGate);
     step('tool', 'llm.complete', llm.provider, `The approved model wrote a ${narrative.length}-character summary.`);
   } catch (e) {
-    if (e instanceof LlmDisabledError) step('note', 'llm.complete', llm.provider, 'No language model is used. The report is built from the template.');
-    else if (e instanceof ProviderGateError) step('gate', 'llm.complete', llm.provider, `Blocked: the model provider is not approved for client data. The report is built from the template.`, true);
+    if (e instanceof LlmDisabledError) step('note', 'llm.complete', llm.provider, "The summary is written from this week's records, without a language model.");
+    else if (e instanceof ProviderGateError) step('gate', 'llm.complete', llm.provider, "Blocked: the model provider is not approved for client data. The summary is written from this week's records instead.", true);
     else throw e;
   }
 
   // 6. Draft the report, send it to review, and stop.
-  const title = `Weekly report, week ending ${asOf}`;
+  const title = reportTitle(asOf);
   const existing = view.list('Deliverable', (d) => d.title === title && d.clientId === clientId)[0];
   if (existing) {
     run.deliverableId = existing.id;
@@ -245,9 +252,22 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
   if (d && d.status === 'in_review') run.gates.push({ action: 'approveDeliverable', by: 'principal', objectId: d.id, reason: 'Only the engagement lead approves; sending stays blocked until then.' });
   if (run.decisionId && view.get(run.decisionId)?.status === 'open') run.gates.push({ action: 'resolveDecision', by: 'principal', objectId: run.decisionId, reason: 'Judgment calls belong to the engagement lead.' });
   for (const id of run.riskRequests) run.gates.push({ action: 'addRiskOpportunity', by: 'principal', objectId: id, reason: 'New risks shown to the client need approval.' });
-  step('gate', 'stop', run.gates.map((g) => `${g.action}(${g.objectId})`).join(', ') || 'nothing pending',
-    run.gates.length ? `Stopped. ${cap(plural(run.gates.length, 'item'))} wait for your approval; the assistant cannot approve or send.` : 'Stopped. Nothing waits for approval.');
+  step('gate', 'stop', run.gates.map((g) => `${g.action}(${g.objectId})`).join(', ') || 'nothing pending', stopLine(run.gates));
   return run;
+}
+
+/** "Stopped. The weekly report and one new risk wait for your approval, and one decision waits for your call." */
+export function stopLine(gates: AgentRun['gates']): string {
+  const report = gates.some((g) => g.action === 'approveDeliverable');
+  const risks = gates.filter((g) => g.action === 'addRiskOpportunity').length;
+  const decisions = gates.filter((g) => g.action === 'resolveDecision').length;
+  const approvals = [report ? 'the weekly report' : '', risks ? plural(risks, 'new risk') : ''].filter(Boolean);
+  const parts = [
+    approvals.length ? `${approvals.join(' and ')} ${verb(Number(report) + risks, 'waits', 'wait')} for your approval` : '',
+    decisions ? `${plural(decisions, 'decision')} ${verb(decisions, 'waits', 'wait')} for your call` : '',
+  ].filter(Boolean);
+  if (!parts.length) return 'Stopped. Nothing waits for you.';
+  return `Stopped. ${cap(parts.join(', and '))}. The assistant cannot approve or send.`;
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -267,10 +287,13 @@ export function buildReport(view: View, clientId: string, b: Brief, title: strin
     }
     return `[^${sources.indexOf(id) + 1}]`;
   };
-  const L: string[] = [`# ${title.replace(/\d{4}-\d{2}-\d{2}/, (d) => monthDay(d))}: ${client.name}`, '', `**${b.headline}.** ${b.lead}${b.bills[0] ? cite(sourceFor(view, b.bills[0].bill.id)) : ''}`, ''];
+  // The headline names the top bill's next meeting, so it cites the notice for that meeting.
+  const top = b.bills[0];
+  const headSource = top ? (top.facts.slot && sourceFor(view, top.facts.slot.id)) || sourceFor(view, top.bill.id) : undefined;
+  const L: string[] = [`# ${title.replace(/\d{4}-\d{2}-\d{2}/, (d) => monthDay(d))}: ${client.name}`, '', `**${b.headline}.** ${b.lead}${cite(headSource)}`, ''];
   if (narrative) L.push(narrative, '');
 
-  const taken = view.list('Decision', (d) => d.clientId === clientId && d.status === 'resolved' && String(d.openedAt).slice(0, 10) > b.since);
+  const taken = view.list('Decision', (d) => d.clientId === clientId && d.status === 'resolved' && d.resolution !== 'withdraw' && String(d.openedAt).slice(0, 10) > b.since);
   if (taken.length) {
     L.push('## Decisions taken', '');
     for (const d of taken) L.push(`- ${d.question.replace(/\?$/, '')}: ${d.resolution === 'approve' ? 'approved' : d.resolution === 'alternative' ? `chose "${d.resolutionNote}"` : 'declined'}.`);
@@ -292,7 +315,7 @@ export function buildReport(view: View, clientId: string, b: Brief, title: strin
 
   if (b.moves.length) {
     L.push('## Stakeholder moves', '');
-    for (const m of b.moves.slice(0, 5)) L.push(`- ${m.text.startsWith(m.subject.name) ? m.text : `${m.subject.name}: ${m.text}`}${m.issueTitle ? ` (${m.issueTitle})` : ''}${cite(m.sourceId)}`);
+    for (const m of b.moves.slice(0, 5)) L.push(`- ${m.text.includes(m.subject.name) ? m.text : `${m.subject.name}: ${m.text}`} (${[m.at, m.issueTitle].filter(Boolean).join('; ')})${cite(m.sourceId)}`);
     L.push('');
   }
   if (b.asks.length) {
@@ -302,4 +325,48 @@ export function buildReport(view: View, clientId: string, b: Brief, title: strin
   }
   L.push('## Sources', '', ...notes.map((n, i) => `[^${i + 1}]: ${n}`));
   return { body: L.join('\n'), sources };
+}
+
+// ---- Keeping the report and decisions current after the run ----
+
+/** The weekly report title for a base date. */
+export const reportTitle = (asOf: string) => `Weekly report, week ending ${asOf}`;
+
+/**
+ * Rebuilds this week's report from current data and replaces its text when anything changed (an approved risk, a decision
+ * taken). An approved report that changes goes back to review, so a stale report can never be sent. Returns true on a change.
+ */
+export function refreshWeeklyReport(store: Store, ctx: Ctx, clientId: string, since?: string): boolean {
+  const view = store.as(ctx);
+  const title = reportTitle(view.baseDate);
+  const d = view.list('Deliverable', (x) => x.clientId === clientId && x.title === title && ['draft', 'in_review', 'approved'].includes(x.status))[0];
+  if (!d) return false;
+  const md = buildReport(view, clientId, weeklyBrief(view, clientId, { since: since ?? addDays(view.baseDate, -7), clientFacing: true }), title);
+  if (md.body === d.body) return false;
+  store.applyAction(ctx, 'redraftDeliverable', { deliverableId: d.id, body: md.body, sourceIds: md.sources });
+  return true;
+}
+
+/** Why an open decision no longer holds, if it does not: the stance it rests on has changed. */
+export function decisionStale(view: View, d: ObjectRecord): string | undefined {
+  if (d.status !== 'open' || !d.targetId || !d.premiseStance) return undefined;
+  const issues = new Set(view.targets(d.subjectId, 'about').map((i) => i.id));
+  const now = view.list('StakeholderAssessment', (a) => a.clientId === d.clientId && a.subjectId === d.targetId && issues.has(a.issueId))[0];
+  return now && now.stance !== d.premiseStance ? 'stance changed' : undefined;
+}
+
+/**
+ * Withdraws an out-of-date decision and raises a fresh one for the same bill if the decision rule still finds someone to
+ * persuade. Returns the new decision id, or undefined when nothing needs deciding any more.
+ */
+export function regenerateDecision(store: Store, ctx: Ctx, decisionId: string): string | undefined {
+  const view = store.as(ctx);
+  const d = view.get(decisionId)!;
+  store.applyAction(ctx, 'resolveDecision', { decisionId, resolution: 'withdraw', note: `Out of date: ${decisionStale(view, d) ?? 'premise changed'}` });
+  const fresh = store.as(ctx);
+  const c = decisionCandidates(fresh, d.clientId, addDays(fresh.baseDate, -7)).find((x) => x.bill.id === d.subjectId);
+  if (!c) return undefined;
+  const src = sourceFor(fresh, c.meeting.id) ?? sourceFor(fresh, c.bill.id);
+  if (!src) return undefined;
+  return store.applyAction(ctx, 'raiseDecision', decisionParams(fresh, d.clientId, c, src)).created[0];
 }

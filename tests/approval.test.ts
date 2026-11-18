@@ -158,12 +158,16 @@ describe('stage and evidence actions', () => {
     expect(s.as(principal).get('bill-017')!.stage).toBe('passed');
   });
 
-  it('a signal can be triaged only once', () => {
+  it('a signal can be triaged only once per client, and never changes the public record', () => {
     const s = freshStore();
     const sig = s.as(principal).list('Signal', (x) => x.status === 'new')[0];
     const agent = ctx('agent', ['cli-aster']);
-    s.applyAction(agent, 'triageSignal', { signalId: sig.id, dismiss: true, relevance: 0.1 });
-    expect(codeOf(() => s.applyAction(agent, 'triageSignal', { signalId: sig.id, dismiss: true, relevance: 0.1 }))).toBe('PRECONDITION_FAILED');
+    s.applyAction(agent, 'triageSignal', { clientId: 'cli-aster', signalId: sig.id, dismiss: true, relevance: 0.1 });
+    expect(codeOf(() => s.applyAction(agent, 'triageSignal', { clientId: 'cli-aster', signalId: sig.id, dismiss: true, relevance: 0.1 }))).toBe('PRECONDITION_FAILED');
+    expect(s.as(principal).get(sig.id)).toEqual(sig); // the Signal is untouched
+    // Moru's queue still has it: Aster's filing lives in Aster's layer.
+    s.applyAction(ctx('agent', ['cli-moru']), 'triageSignal', { clientId: 'cli-moru', signalId: sig.id, dismiss: true, relevance: 0.1 });
+    expect(s.as(ctx('principal', ['cli-moru'])).list('SignalTriage').map((t) => t.clientId)).toEqual(['cli-moru']);
   });
 
   it('a government bill gets its number when it leaves legislative notice', () => {
@@ -178,14 +182,15 @@ describe('stage and evidence actions', () => {
   it('undo returns a filed item to the queue and removes the links that rested only on it', () => {
     const s = freshStore();
     const sig = s.as(principal).list('Signal', (x) => x.status === 'new' && x.rawText.includes('22-S0308'))[0];
-    s.applyAction(ctx('agent', ['cli-aster']), 'triageSignal', { signalId: sig.id, relevance: 0.95, issueId: 'iss-01', billId: 'bill-001' });
+    s.applyAction(ctx('agent', ['cli-aster']), 'triageSignal', { clientId: 'cli-aster', signalId: sig.id, relevance: 0.95, issueId: 'iss-01', billId: 'bill-001' });
     expect(s.as(principal).links({ type: 'about', from: sig.id })).toHaveLength(1);
-    expect(codeOf(() => s.applyAction(ctx('agent', ['cli-aster']), 'reopenSignal', { signalId: sig.id }))).toBe('PERMISSION_DENIED');
-    s.applyAction(ctx('principal', ['cli-aster']), 'reopenSignal', { signalId: sig.id });
+    expect(codeOf(() => s.applyAction(ctx('agent', ['cli-aster']), 'reopenSignal', { clientId: 'cli-aster', signalId: sig.id }))).toBe('PERMISSION_DENIED');
+    s.applyAction(ctx('principal', ['cli-aster']), 'reopenSignal', { clientId: 'cli-aster', signalId: sig.id });
     const v = s.as(principal);
     expect(v.get(sig.id)).toMatchObject({ status: 'new' });
+    expect(v.list('SignalTriage', (t) => t.signalId === sig.id).map((t) => t.status)).toEqual(['returned']);
     expect(v.links({ from: sig.id })).toEqual([]);
     expect(v.list('Evidence', (e) => e.signalId === sig.id).every((e) => e.reviewStatus === 'rejected')).toBe(true);
-    expect(codeOf(() => s.applyAction(ctx('principal', ['cli-aster']), 'reopenSignal', { signalId: sig.id }))).toBe('PRECONDITION_FAILED');
+    expect(codeOf(() => s.applyAction(ctx('principal', ['cli-aster']), 'reopenSignal', { clientId: 'cli-aster', signalId: sig.id }))).toBe('PRECONDITION_FAILED');
   });
 });

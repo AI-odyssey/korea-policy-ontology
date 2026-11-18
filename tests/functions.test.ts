@@ -99,7 +99,7 @@ describe('functions', () => {
     expect(level('bill-003', 'cli-aster')).toBe('engage'); // no stance, but high impact and a meeting in 3 days
     expect(level('bill-002', 'cli-aster')).toBe('monitor'); // no stance, high impact, subcommittee in 10 days
     expect(level('bill-011', 'cli-aster')).toBe('monitor'); // supported, medium impact, meeting in 8 days
-    expect(level('bill-004', 'cli-aster')).toBe('monitor'); // in legislative notice, nothing scheduled, high impact
+    expect(level('bill-004', 'cli-aster')).toBe('monitor'); // notice period closes in 21 days and high impact, but no client stance
     expect(level('bill-022', 'cli-moru')).toBe('watch'); // supported, medium impact, nothing moving
     expect(responseLevel(v, 'bill-009', 'cli-aster')).toEqual({ level: 'watch', reasons: ['Bill is closed (merged_alternative)'] });
     expect(level('bill-017', 'cli-moru')).toBe('watch'); // passed

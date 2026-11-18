@@ -2,11 +2,11 @@
 // This week: the client executive's page. It renders the weekly brief (agent/brief.ts), the same model the report uses.
 import { useState } from 'react';
 import { Button, HTMLSelect } from '@blueprintjs/core';
-import { REVIEW_THRESHOLD } from '../../ontology/index.ts';
+import { REVIEW_THRESHOLD, signalQueue } from '../../ontology/index.ts';
 import type { ObjectRecord } from '../../ontology/index.ts';
-import { decisionsLine, proposeTriage, triageParams, weeklyBrief } from '../../agent/index.ts';
+import { decisionsLine, decisionStale, proposeTriage, regenerateDecision, triageParams, weeklyBrief } from '../../agent/index.ts';
 import type { TimelineItem } from '../../agent/index.ts';
-import { Empty, ObjLink, Section, T, md, nameOf, person, prose, roleOf, wmd } from './ui.tsx';
+import { Empty, ObjLink, POSITION, Section, T, md, nameOf, person, prose, roleOf, wmd } from './ui.tsx';
 import type { App } from './ui.tsx';
 import { PublicRecords } from './live.tsx';
 
@@ -37,7 +37,7 @@ export function ThisWeek({ app }: { app: App }) {
           {b.moves.slice(0, 5).map((m) => (
             <div key={m.subject.id} className="item move">
               <div><i className={`dot dot-${m.stance}`} /><a onClick={() => app.go(`stakeholders/${m.subject.id}`)}><b>{nameOf(m.subject)}</b></a> <span className="sub">{roleOf(app.view, m.subject)}</span></div>
-              <div className="sub">{m.text} <span className="nowrap">({md(m.date)}{m.issueTitle ? `, ${m.issueTitle}` : ''})</span></div>
+              <div className="sub">{m.text} <span>({[md(m.date), m.at, m.issueTitle].filter(Boolean).join(', ')})</span></div>
             </div>
           ))}
         </Section>
@@ -47,7 +47,7 @@ export function ThisWeek({ app }: { app: App }) {
             <div key={t.id} className="item ask">
               <span className="grow">{t.title}</span>
               <span className="sub nowrap">By {md(t.dueDate)}</span>
-              <Button size="small" variant="minimal" text="Received" onClick={() => app.act('completeTask', { taskId: t.id }, 'Marked as received.')} />
+              <Button size="small" variant="minimal" text="Mark received" onClick={() => app.act('completeTask', { taskId: t.id }, 'Marked as received.')} />
             </div>
           ))}
         </Section>
@@ -68,14 +68,29 @@ function DecisionItem({ d, app }: { d: ObjectRecord; app: App }) {
   const alts = d.alternatives as string[];
   const [alt, setAlt] = useState(alts[0] ?? '');
   const source = app.view.links({ type: 'raised_by', from: d.id })[0]?.to;
+  const stale = decisionStale(app.view, d);
+  const regenerate = () => {
+    try {
+      const fresh = regenerateDecision(app.store, app.ctx, d.id);
+      app.notify(fresh ? 'Withdrawn and raised again from the current assessment.' : 'Withdrawn. Nobody left on the agenda needs persuading, so no new decision was raised.', 'success');
+    } catch (e) {
+      app.notify((e as Error).message, 'danger');
+    }
+  };
   const resolve = (resolution: string, note?: string) => app.act('resolveDecision', { decisionId: d.id, resolution, ...(note ? { note } : {}) },
     resolution === 'approve' ? 'Approved. A follow-up task is on the timeline.' : resolution === 'reject' ? 'Declined.' : `Going with: ${note}`);
   return (
     <div className="item">
-      <div className="item-title">{prose(d.question)} {d.dueDate && <T tone="hi">Due {md(d.dueDate)}</T>}</div>
+      <div className="item-title">{prose(d.question)} {stale ? <T tone="rust">Out of date: {stale}</T> : d.dueDate && <T tone="hi">Due {md(d.dueDate)}</T>}</div>
       <p className="sub"><b>Recommended:</b> {prose(d.recommendation)}</p>
       {alts.length > 0 && <p className="sub"><b>Alternatives:</b> {alts.map((a, i) => `${i + 1}) ${a}`).join('  ')}</p>}
-      {!choosing ? (
+      {stale ? (
+        <div className="row">
+          <span className="sub">The recommendation rests on an earlier assessment of {nameOf(app.view.get(d.targetId))}.</span>
+          <Button size="small" intent="primary" text="Regenerate" onClick={regenerate} />
+          {source && <ObjLink id={source} app={app} label="Source" />}
+        </div>
+      ) : !choosing ? (
         <div className="row">
           <Button size="small" intent="primary" text="Approve" onClick={() => resolve('approve')} />
           {alts.length > 0 && <Button size="small" text="Choose an alternative" onClick={() => setChoosing(true)} />}
@@ -135,7 +150,7 @@ function Timeline({ app, items }: { app: App; items: TimelineItem[] }) {
 /** New items the assistant was not sure about, for this client. Items returned with Undo land here too. */
 function ToConfirm({ app }: { app: App }) {
   const { view, clientId } = app;
-  const items = view.list('Signal', (s) => s.status === 'new')
+  const items = signalQueue(view)
     .map((s) => ({ s, p: proposeTriage(view, s, clientId) }))
     .filter(({ p }) => p.action === 'link' && p.relevantToClient)
     .sort((a, b) => b.s.collectedAt.localeCompare(a.s.collectedAt) || a.s.id.localeCompare(b.s.id))
@@ -150,8 +165,8 @@ function ToConfirm({ app }: { app: App }) {
             <div className="sub">{md(s.collectedAt)} · {p.confidence < REVIEW_THRESHOLD ? 'Possibly about' : 'About'} {view.get(p.issueId!)?.title}</div>
           </div>
           <div className="row nowrap">
-            <Button size="small" text="Confirm" onClick={() => app.act('triageSignal', triageParams(p), 'Filed under the issue.')} />
-            <Button size="small" variant="minimal" text="Not relevant" onClick={() => app.act('triageSignal', { signalId: s.id, relevance: p.relevance, dismiss: true, reason: 'Not relevant' }, 'Set aside.')} />
+            <Button size="small" text="Confirm" onClick={() => app.act('triageSignal', triageParams(p, clientId), 'Filed under the issue.')} />
+            <Button size="small" variant="minimal" text="Not relevant" onClick={() => app.act('triageSignal', { clientId, signalId: s.id, relevance: p.relevance, dismiss: true, reason: 'Not relevant' }, 'Set aside.')} />
           </div>
         </div>
       ))}
@@ -166,10 +181,11 @@ function AutoFiled({ app }: { app: App }) {
   const entries = app.store.auditEntries(app.ctx).filter((a) => ['triageSignal', 'reopenSignal'].includes(a.action) && a.status === 'executed');
   const last = new Map<string, (typeof entries)[number]>();
   for (const a of entries) last.set((a.params as { signalId: string }).signalId, a);
+  const filedNow = new Set(app.view.list('SignalTriage', (t) => t.clientId === app.clientId && t.status === 'filed').map((t) => t.signalId));
   const filed = [...last.values()]
     .filter((a) => a.action === 'triageSignal' && a.role === 'agent' && !(a.params as { dismiss?: boolean }).dismiss)
     .map((a) => app.view.get((a.params as { signalId: string }).signalId))
-    .filter((s): s is ObjectRecord => !!s && s.status === 'triaged')
+    .filter((s): s is ObjectRecord => !!s && filedNow.has(s.id))
     .sort((a, b) => b.collectedAt.localeCompare(a.collectedAt) || a.id.localeCompare(b.id));
   if (!filed.length) return null;
   return (
@@ -180,7 +196,7 @@ function AutoFiled({ app }: { app: App }) {
             <div className="item-title"><ObjLink id={s.id} app={app} label={s.title} /></div>
             <div className="sub">{md(s.collectedAt)} · {app.view.targets(s.id, 'about').map((i) => i.title).join(', ')}</div>
           </div>
-          <Button size="small" variant="minimal" text="Undo" onClick={() => app.act('reopenSignal', { signalId: s.id }, 'Returned to the items to confirm.')} />
+          <Button size="small" variant="minimal" text="Undo" onClick={() => app.act('reopenSignal', { clientId: app.clientId, signalId: s.id }, 'Returned to the items to confirm.')} />
         </div>
       ))}
       {filed.length > 4 && <Button size="small" variant="minimal" text={all ? 'Show fewer' : `Show all ${filed.length}`} onClick={() => setAll(!all)} />}
@@ -188,12 +204,11 @@ function AutoFiled({ app }: { app: App }) {
   );
 }
 
-const STANCE_WORD: Record<string, string> = { support: 'Support', oppose: 'Oppose', amend: 'Amend', monitor: 'Monitor' };
-
-/** Requests from the assistant or a consultant that wait for the engagement lead. Hidden when empty. */
-function Pending({ app }: { app: App }) {
+/** Requests from the assistant or a consultant, and reports in review, that wait for the engagement lead. Hidden when empty. */
+export function Pending({ app, empty }: { app: App; empty?: string }) {
   const pending = app.store.pendingApprovals(app.ctx);
-  if (!pending.length) return null;
+  const reports = app.view.list('Deliverable', (d) => d.clientId === app.clientId && d.status === 'in_review').sort((a, b) => a.id.localeCompare(b.id));
+  if (!pending.length && !reports.length) return empty ? <Section title="Waiting for your approval"><Empty>{empty}</Empty></Section> : null;
   const decide = (fn: () => void, msg: string) => {
     try {
       fn();
@@ -204,7 +219,7 @@ function Pending({ app }: { app: App }) {
   };
   const what = (p: (typeof pending)[number]) => {
     const x = p.params as Record<string, any>;
-    if (p.action === 'setClientPosition') return { title: `Change the client position on the ${nameOf(app.view.get(x.targetId)).toLowerCase()} to ${STANCE_WORD[x.stance]}`, detail: x.rationale };
+    if (p.action === 'setClientPosition') return { title: `Change the client position on the ${nameOf(app.view.get(x.targetId)).toLowerCase()} to ${POSITION[x.stance]}`, detail: x.rationale };
     if (p.action === 'addRiskOpportunity') return { title: `New ${x.kind}: ${x.title}`, detail: x.summary };
     if (p.action === 'updateStrategy') return { title: `Update the strategy on ${nameOf(app.view.get(x.issueId))}`, detail: (x.messages ?? []).join(' ') };
     return { title: p.action, detail: '' };
@@ -224,6 +239,11 @@ function Pending({ app }: { app: App }) {
           </div>
         );
       })}
+      {reports.map((d) => (
+        <div key={d.id} className="item">
+          <div className="item-title"><a onClick={() => app.go('reports')}>Approve: {prose(d.title)}</a> <span className="sub">Prepared by the {person(d.createdBy).toLowerCase()}</span></div>
+        </div>
+      ))}
     </Section>
   );
 }

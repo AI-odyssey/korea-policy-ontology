@@ -1,7 +1,7 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
 // App shell: one in-memory Store persisted to localStorage. The viewer is the engagement lead for one client:
 // they see the public record plus that client's confidential layer, and they approve what the assistant proposes.
-import { StrictMode, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { StrictMode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button, HTMLSelect } from '@blueprintjs/core';
 import '@blueprintjs/core/lib/css/blueprint.css';
@@ -9,7 +9,7 @@ import './styles.css';
 import worldJson from '../../data/world.json';
 import { Store, clientMarking } from '../../ontology/index.ts';
 import type { ActionName, Ctx, World } from '../../ontology/index.ts';
-import { openWeek, runWeeklyAgent } from '../../agent/index.ts';
+import { openWeek, refreshWeeklyReport, runWeeklyAgent } from '../../agent/index.ts';
 import type { AgentRun } from '../../agent/index.ts';
 import { MarkTag, ObjectDrawer, md } from './ui.tsx';
 import type { App, Tone } from './ui.tsx';
@@ -21,8 +21,8 @@ import { ActivityLog, AssistantRun, Ontology, Reports } from './more.tsx';
 import { Settings } from './settings.tsx';
 
 const world = worldJson as unknown as World;
-const STATE_KEY = `kpo-demo-state-v4-${world.meta.seed}`;
-const RUNS_KEY = `kpo-demo-runs-v4-${world.meta.seed}`;
+const STATE_KEY = `kpo-demo-state-v5-${world.meta.seed}`;
+const RUNS_KEY = `kpo-demo-runs-v5-${world.meta.seed}`;
 const PREFS_KEY = 'kpo-demo-prefs-v3';
 const CLIENT_IDS = world.objects.filter((o) => o.type === 'Client').map((o) => o.id);
 const COLOPHON = `© 2026 AI-odyssey · korea-policy-ontology · build ${__BUILD_HASH__}`;
@@ -98,6 +98,17 @@ function Root() {
 
   const ctx: Ctx = useMemo(() => ({ actor: 'principal-1', role: 'principal', clientIds: [clientId] }), [clientId]);
   const view = useMemo(() => store.as(ctx), [store, ctx, version]);
+  // The weekly report follows the data: after any change (an approved risk, a decision taken) it is rebuilt, and an
+  // approved report that changed goes back to review, so what is sent always matches This week.
+  const refreshFailed = useRef(false);
+  useEffect(() => {
+    if (refreshFailed.current) return; // a refused redraft is logged and bumps the version; do not retry in a loop
+    try {
+      refreshWeeklyReport(store, { actor: 'agent-1', role: 'agent', clientIds: [clientId] }, clientId);
+    } catch {
+      refreshFailed.current = true;
+    }
+  }, [store, clientId, version]);
   const notify = (msg: string, tone: Tone = 'none') => setNotice({ msg, tone });
   const go = (path: string) => (location.hash = path);
 
@@ -118,7 +129,7 @@ function Root() {
       try {
         const run = await runWeeklyAgent(store, { clientId, applyTriage: true });
         setRuns((r) => ({ ...r, [run.clientId]: run }));
-        notify(run.gates.length ? `The assistant finished. ${run.gates.length === 1 ? 'One item waits' : `${run.gates.length} items wait`} for your approval.` : 'The assistant finished. Nothing new needs your approval.', 'primary');
+        notify(`The assistant finished. ${run.steps.at(-1)!.output.replace(/^Stopped\. /, '').replace(/ The assistant cannot approve or send\.$/, '')}`, 'primary');
         return run;
       } catch (e) {
         notify((e as Error).message, 'danger');

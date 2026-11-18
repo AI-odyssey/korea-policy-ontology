@@ -54,20 +54,22 @@ The assistant runs with a context that sees the public record and Aster's layer 
 | Propose a risk | Proposed a risk: Robot insurance committee alternative at the Legislation and Judiciary Committee. It waits for your approval. |
 | List deadlines | 16 dated items in the next 30 days; first: Cargo model width and stopping-distance data (Nov 17). |
 | Rank issues | Issues with the most at stake: Sidewalk rules for outdoor mobile robots; Insurance for robot operators; Operation safety certification. |
-| Summary | No language model is used. The report is built from the template. |
-| Draft the weekly report | Drafted the weekly report from nine source documents. |
+| Write the summary | The summary is written from this week's records, without a language model. |
+| Draft the weekly report | Drafted the weekly report from eight source documents. |
 | Send for review | Sent the report to you for review. |
-| Stop for approval | Stopped. Three items wait for your approval; the assistant cannot approve or send. |
+| Stop for approval | Stopped. The weekly report and one new risk wait for your approval, and one decision waits for your call. The assistant cannot approve or send. |
 
-**Triage.** Issue keywords and the bill number 22-S0308 put `sig-129` on the sidewalk issue, with links proposed to `iss-01`, `bill-001`, the committee and its subcommittee. Its weight for Aster comes from Aster's own keywords on the Settings screen: "sidewalk" (high priority) and "Road Traffic Act" (low), plus the bill number, give 0.97. The city's sidewalk repaving notice also says "sidewalk", but Aster's profile ignores that word when "repaving" appears, so the notice never reaches Aster. The assistant files only clear matches that concern its own client, plus noise; the 17 filed items appear on This week under **Filed automatically (17)**, each with **Undo**. The one below 0.8 waits under **New items to confirm**.
+**Triage.** Issue keywords and the bill number 22-S0308 put `sig-129` on the sidewalk issue, with links proposed to `iss-01`, `bill-001`, the committee and its subcommittee. Its weight for Aster comes from Aster's own keywords on the Settings screen: "sidewalk" (high priority) and "Road Traffic Act" (low), plus the bill number, give 0.97. The city's sidewalk repaving notice also says "sidewalk", but Aster's profile ignores that word when "repaving" appears, so the notice never reaches Aster. The assistant files only clear matches that concern its own client, plus noise; the 17 filed items appear on This week under **Filed automatically (17)**, each with **Undo**. The one below 0.8 waits under **New items to confirm**. Each filing is a `SignalTriage` record in Aster's layer; the shared items are untouched, so Moru's and Wrenfield's assistants see the same 48 new items.
 
 ## Why the sidewalk bill is "Act now"
 
 `responseLevel` puts each followed bill in one of four categories by explicit rules ([ADR-0009](decisions/ADR-0009-categorical-response-levels.md)):
 
-- **Act now:** on a committee, subcommittee or plenary agenda within 7 days, the client wants it changed (oppose or amend), and either it moved this week or the client opposes it and the impact is high.
-- **Engage:** the client wants it changed and it moved this week or has a meeting within 30 days; or high impact with a meeting within 7 days.
-- **Monitor:** it moved this week, has a meeting within 30 days, the client wants it changed, or the impact is high.
+A step is a meeting with the bill on the agenda or the close of an open legislative notice period.
+
+- **Act now:** a step within 7 days, the client wants it changed (oppose or amend), and either it moved this week or the client opposes it and the impact is high.
+- **Engage:** the client wants it changed and it moved this week or has a step within 30 days; or high impact with a step within 7 days.
+- **Monitor:** it moved this week, has a step within 30 days, the client wants it changed, or the impact is high.
 - **Watch:** none of the above, or the bill is closed.
 
 | Followed bill | Stage | Level | Reasons |
@@ -77,7 +79,7 @@ The assistant runs with a context that sees the public record and Aster's layer 
 | Foreign test results bill (22-S0336) | in subcommittee review | Monitor | moved 11-10; subcommittee 11-24, in 8 days; stance support (on the issue); impact high |
 | Pedestrian priority zones bill (22-S0315) | on the committee agenda | Monitor | no move; subcommittee 11-26, in 10 days; no stance; impact high |
 | Robot pilot zones bill (22-S0378) | on the committee agenda | Monitor | no move; subcommittee 11-24, in 8 days; stance support; impact medium |
-| Government bill on sidewalk operation standards (no number yet) | legislative notice | Monitor | no move; no meeting in 30 days; no stance; impact high |
+| Government bill on sidewalk operation standards (no number yet) | legislative notice | Monitor | no move; notice period closes 12-07, in 21 days; no stance yet; impact high |
 
 The government bill has no number because the Assembly assigns one only when the government submits it, after the 40-day notice.
 
@@ -130,29 +132,30 @@ The Strategy screen shows the plan for the issue: the outcome ("Aster Robotics r
 
 **Waiting for your approval.** Two requests sit at the top of This week: "New risk: Robot insurance committee alternative at the Legislation and Judiciary Committee", requested by the assistant, and "Change the client position on the government bill on sidewalk operation standards to Amend", requested by a consultant. **Approve** on each runs the request as its requester with `approvedBy` set to the lead.
 
-**New items to confirm.** Two Aster items are below 0.8: `sig-120` (an industry forum warning on robot operator duties, 0.45) and `sig-126` (a city sidewalk repaving schedule, 0.7). **Confirm** on `sig-120` runs `triageSignal` as the lead: links to `iss-01`, Nam Eunbi and the industry forum, each with an Evidence record of method `human`, status `accepted`. The activity-log entry is marked `CLIENT:cli-aster`; Moru's log does not show it.
+**New items to confirm.** One Aster item is below 0.8: `sig-120` (an industry forum warning on robot operator duties). The city's sidewalk repaving schedule never reaches Aster, because its profile ignores "sidewalk" next to "repaving". **Confirm** on `sig-120` runs `triageSignal` as the lead: links to `iss-01`, Nam Eunbi and the industry forum, each with an Evidence record of method `human`, status `accepted`. The activity-log entry is marked `CLIENT:cli-aster`; Moru's log does not show it.
 
-**The decision.** **Approve** runs `resolveDecision` with resolution `approve`. A follow-up task appears on the timeline: "Follow up: Meet Jang Sora, a secretary of the Public Administration and Security...", owner `human`, due 2026-11-18, the day before the committee meets.
+**The decision.** **Approve** runs `resolveDecision` with resolution `approve`. A follow-up task appears on the timeline: "Meet Jang Sora before the Nov 19 full committee", owner `human`, due 2026-11-18, the day before the committee meets. If the lead had first changed Jang Sora's stance, the decision would show **Out of date: stance changed** with **Regenerate**, which withdraws it and raises a new one only if someone on the agenda still needs persuading.
 
-**The report.** On Reports, the assistant's draft `del-r001`, "Weekly report, week ending 2026-11-16", is **In review**. It follows This week in memo form: the headline, then Risks, Opportunities, Coming up, Stakeholder moves and What we need from Aster Robotics, with nine footnotes, each a source document (a meeting notice, the legislative notice, news items). It leaves out the open decision and the team's own tasks. **Approve** runs `approveDeliverable`; **Send to client** then runs `sendDeliverable`. The status becomes `sent` and nothing leaves the browser.
+**The report.** On Reports, the assistant's draft `del-r001`, "Weekly report, week ending 2026-11-16", is **In review**. It follows This week in memo form: the headline, then Risks, Opportunities, Coming up, Stakeholder moves and What we need from Aster Robotics, with eight footnotes, each a source document (a meeting notice, the legislative notice, news items). It leaves out the open decision and the team's own tasks. The report is rebuilt after every approval, so the risk approved above and the decision just taken are already in it; had the lead approved the report first, the new risk would have sent it back to review. **Approve** runs `approveDeliverable`; **Send to client** then runs `sendDeliverable`. The status becomes `sent` and nothing leaves the browser.
 
 Two refusals the runtime enforces even though the screen never offers the button: the assistant calling `sendDeliverable` gets `PERMISSION_DENIED`, and anyone sending before approval gets `PRECONDITION_FAILED: Blocked until the principal approves the deliverable`. Both are written to the log.
 
 ## The activity log for the week
 
-The Aster workspace shows 32 entries after these steps. The assistant's run accounts for 26: 21 filings and set-asides, the decision, the risk proposal (waiting), the draft and the review step. Then:
+The assistant's run accounts for 26 entries: 21 filings and set-asides, the decision, the risk proposal, the draft and the review step. The lead's steps add these rows (newest last):
 
-| Who | What | Result | Approved by |
+| Who | What | Result | Decided by |
 |---|---|---|---|
-| Consultant | Set the client position on the government bill on sidewalk operation standards to amend | Waiting for approval | |
+| Assistant | Proposed a risk: Robot insurance committee alternative at the Legislation and Judiciary Committee | Approved | Engagement lead, Nov 16 |
+| Consultant | Asked to change the client position on the government bill on sidewalk operation standards to Amend | Approved | Engagement lead, Nov 16 |
+| Assistant | Brought up to date with the latest changes: Weekly report, week ending Nov 16 | Done | |
 | Engagement lead | Filed: Metro Robotics Industry Forum warns against rushing robot operator duties... | Done | |
-| Assistant | Proposed a risk: Robot insurance committee alternative at the Legislation and Judiciary Committee | Done | Engagement lead |
-| Consultant | Set the client position on the government bill on sidewalk operation standards to amend | Done | Engagement lead |
 | Engagement lead | Approved a decision: Meet Jang Sora... | Done | |
+| Assistant | Brought up to date with the latest changes: Weekly report, week ending Nov 16 | Done | |
 | Engagement lead | Approved: Weekly report, week ending Nov 16 | Done | |
 | Engagement lead | Sent to the client: Weekly report, week ending Nov 16 | Done | Engagement lead |
 
-Every row is marked `CLIENT:cli-aster`. An approved request is logged twice: once when it was asked for, once when it ran with the approver. The sent row's approver is taken from the deliverable, so it names whoever approved the report even if someone else pressed send.
+Every row is marked `CLIENT:cli-aster`. A request that waited for approval stays on the row where it was asked for, which then shows the outcome and who decided; the audit log keeps both entries underneath. The sent row's approver is taken from the deliverable, so it names whoever approved the report even if someone else pressed send.
 
 ## Switch the workspace to Moru Foods
 

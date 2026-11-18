@@ -122,7 +122,7 @@ interface Fx {
   create(type: string, prefix: string, props: Record<string, any>, markings?: Marking[]): ObjectRecord;
   update(id: string, patch: Record<string, any>): void;
   link(type: string, from: string, to: string, props?: Record<string, any>, markings?: Marking[]): LinkRecord;
-  attach(type: string, from: string, to: string, ev: EvidenceInput): void;
+  attach(type: string, from: string, to: string, ev: EvidenceInput): string; // the new Evidence id
   removeLinksWithoutSupport(evidenceId: string): void;
 }
 
@@ -140,18 +140,25 @@ const clientOf = (p: any): Marking[] => [clientMarking(p.clientId)];
 const callerMarkings = (ctx: Ctx): Marking[] => (ctx.clientIds.length ? ctx.clientIds.map(clientMarking) : [PUBLIC]);
 
 const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
+  // Filing is per client: the record lives in the client layer and the public Signal is left as the collector made it.
   triageSignal(fx, p) {
     const sig = fx.get(p.signalId);
-    if (p.dismiss) {
-      fx.update(sig.id, { status: 'dismissed', relevance: p.relevance, dismissReason: p.reason ?? 'Not relevant to any tracked issue' });
-      return;
+    const cur = fx.find('SignalTriage', (r) => r.clientId === p.clientId && r.signalId === sig.id);
+    if (cur && cur.status !== 'returned') throw new ActionError('PRECONDITION_FAILED', 'Signal was already filed or set aside for this client');
+    if (!p.dismiss && !p.issueId && !p.billId) throw bad('issueId or billId is required unless dismissing');
+    const evidenceIds: string[] = [];
+    if (!p.dismiss) {
+      const ev: EvidenceInput = { signalId: sig.id, excerpt: p.excerpt ?? sig.title, confidence: p.confidence ?? p.relevance, method: methodOf(fx.role) };
+      if (p.issueId) evidenceIds.push(fx.attach('about', sig.id, p.issueId, ev));
+      if (p.billId) evidenceIds.push(fx.attach('mentions', sig.id, p.billId, ev));
+      for (const id of p.mentionIds ?? []) evidenceIds.push(fx.attach('mentions', sig.id, id, ev));
     }
-    if (!p.issueId && !p.billId) throw bad('issueId or billId is required unless dismissing');
-    const ev: EvidenceInput = { signalId: sig.id, excerpt: p.excerpt ?? sig.title, confidence: p.confidence ?? p.relevance, method: methodOf(fx.role) };
-    if (p.issueId) fx.attach('about', sig.id, p.issueId, ev);
-    if (p.billId) fx.attach('mentions', sig.id, p.billId, ev);
-    for (const id of p.mentionIds ?? []) fx.attach('mentions', sig.id, id, ev);
-    fx.update(sig.id, { status: 'triaged', relevance: p.relevance });
+    const props = {
+      clientId: p.clientId, signalId: sig.id, status: p.dismiss ? 'set_aside' : 'filed', issueId: p.dismiss ? undefined : p.issueId,
+      relevance: p.relevance, reason: p.dismiss ? p.reason ?? 'Not relevant to any tracked issue' : undefined, evidenceIds, triagedBy: fx.actor,
+    };
+    if (cur) fx.update(cur.id, props);
+    else fx.create('SignalTriage', 'tri', props, clientOf(p));
   },
 
   linkEvidence(fx, p) {
@@ -165,11 +172,14 @@ const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
   },
 
   reopenSignal(fx, p) {
-    for (const e of fx.filter('Evidence', (r) => r.signalId === p.signalId && r.reviewStatus !== 'rejected')) {
-      fx.update(e.id, { reviewStatus: 'rejected' });
-      fx.removeLinksWithoutSupport(e.id);
+    const cur = fx.find('SignalTriage', (r) => r.clientId === p.clientId && r.signalId === p.signalId && r.status !== 'returned');
+    if (!cur) throw new ActionError('PRECONDITION_FAILED', 'Signal is not filed or set aside for this client');
+    for (const id of cur.evidenceIds ?? []) {
+      if (fx.get(id).reviewStatus === 'rejected') continue;
+      fx.update(id, { reviewStatus: 'rejected' });
+      fx.removeLinksWithoutSupport(id);
     }
-    fx.update(p.signalId, { status: 'new', relevance: undefined, dismissReason: undefined });
+    fx.update(cur.id, { status: 'returned', issueId: undefined, reason: undefined, evidenceIds: [] });
   },
 
   reviewEvidence(fx, p) {
@@ -211,6 +221,11 @@ const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
   },
 
   submitForReview: (fx, p) => fx.update(p.deliverableId, { status: 'in_review' }),
+  redraftDeliverable(fx, p) {
+    const d = fx.get(p.deliverableId);
+    // A changed text needs a fresh approval: an approved report goes back to review.
+    fx.update(d.id, { body: p.body, ...(p.sourceIds ? { sourceIds: p.sourceIds } : {}), ...(d.status === 'approved' ? { status: 'in_review', approvedBy: undefined } : {}) });
+  },
   approveDeliverable: (fx, p) => fx.update(p.deliverableId, { status: 'approved', approvedBy: fx.actor }),
 
   sendDeliverable(fx, p) {
@@ -232,7 +247,7 @@ const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
       // The follow-up has to happen before whatever the decision was due for, usually a meeting the next day.
       const due = [addDays(fx.baseDate, 3), ...(d.dueDate ? [d.dueDate] : [])].sort()[0];
       fx.create('Task', 'task', {
-        clientId: d.clientId, title: `Follow up: ${clip(String(d.question), 70)}`, dueDate: due < fx.baseDate ? fx.baseDate : due,
+        clientId: d.clientId, title: d.followUp ?? `Follow up: ${clip(String(d.question).replace(/\?$/, ''), 70)}`, dueDate: due < fx.baseDate ? fx.baseDate : due,
         owner: 'human', status: 'open', subjectId: d.id,
       }, [d.markings[0]]);
     }
@@ -583,6 +598,7 @@ export class Store {
           const l = fx.link(type, from, to);
           store.putLink({ ...l, evidence: [e.id] });
         }
+        return e.id;
       },
       removeLinksWithoutSupport(evidenceId) {
         for (const l of [...store.linkById.values()]) {

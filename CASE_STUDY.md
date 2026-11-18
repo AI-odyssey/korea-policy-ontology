@@ -35,7 +35,7 @@ I started from the nouns and verbs I already used with colleagues and clients, t
 
 **Public layer**, which anyone could in principle assemble from public sources: Issue, Bill, Provision, Institution, Person, StakeholderOrg, Event, Signal, Evidence.
 
-**Client layer**, confidential and marked `CLIENT:<clientId>`: Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy.
+**Client layer**, confidential and marked `CLIENT:<clientId>`: Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation, SignalTriage.
 
 Links carry direction, cardinality and whether evidence is mandatory. Links between public objects need at least one Evidence record. Time is explicit: `Bill.stageHistory`, `since` and `until` on `member_of`, `Signal.collectedAt`. That is what makes `whatChanged(since)` a computation. The full schema is in [docs/ontology.md](docs/ontology.md).
 
@@ -63,7 +63,7 @@ Four choices in the client layer came from watching how executives and consultan
 
 **Signal as a tag on a link.** The raw item is a first-class object with its original text, and Evidence points at it. When a link is questioned, the answer is an excerpt and a source.
 
-**A model for triage.** Rules handle most items: a bill number in the text, an issue keyword, a known name. Issue keywords decide which issue an item is about; how much it matters to a client comes from that client's own keywords, each with a priority, synonyms and phrases that cancel it. An exact bill number alone gives 0.9 confidence. The assistant files clear matches (0.8 or above) for its client and lists them on This week, where any one can be undone; anything below 0.8 is shown to a person as "New items to confirm". There is no model in the triage path. The only place a language model could be used is a two-sentence summary in the weekly report, behind a provider gate, and the adapter is off by default.
+**A model for triage.** Rules handle most items: a bill number in the text, an issue keyword, a known name. Issue keywords decide which issue an item is about; how much it matters to a client comes from that client's own keywords, each with a priority, synonyms and phrases that cancel it. An exact bill number alone gives 0.9 confidence. The assistant files clear matches (0.8 or above) for its client and lists them on This week, where any one can be undone; anything below 0.8 is shown to a person as "New items to confirm" and feeds no report, move or decision until someone confirms it. Filing is a `SignalTriage` record in the client's layer, never an edit to the shared item, so each client's queue depends only on that client's work. There is no model in the triage path. The only place a language model could be used is a two-sentence summary in the weekly report, behind a provider gate, and the adapter is off by default.
 
 ## 4. Actions and the approval loop
 
@@ -106,6 +106,8 @@ Baselines have to be measured by hand first. I would not promise targets before 
 
 **A response rule that needed movement.** The first categorical rule required a stage change in the week. Moru Foods' meat terms bill, which the client opposes and which a subcommittee takes up in two days, sat at Engage because nothing had moved since it was placed on the agenda. The rule now treats an opposed, high-impact bill with a meeting within seven days as Act now ([ADR-0009](docs/decisions/ADR-0009-categorical-response-levels.md)).
 
+**A shared triage queue.** The first version marked an item as filed on the shared `Signal` itself. Whichever client's assistant ran first emptied the queue for the others, so the same week showed 48, 26 and 16 new items depending on the client. Filing now lives in each client's layer.
+
 **Templated decisions.** The assistant's first decisions all read "Request a meeting with the chair's office". They ignored who had already been met and who actually held the vote, and they duplicated steps already in the plan. Selecting the target from the agenda-setters and the client's own assessments fixed both.
 
 **A report that duplicated a tracker.** The first weekly report was a bill table with risk scores and a "Who matters" list cited to ontology ids. Executives read the This week page and skipped the table, so the report now renders the same brief and cites source documents.
@@ -121,7 +123,7 @@ Baselines have to be measured by hand first. I would not promise targets before 
 
 ## 7. Risks and limits
 
-- **Synthetic world.** Everything here runs on generated data. It shows the structure and the control flow, not how the system behaves on noisy real sources.
+- **Fictional week, real snapshot beside it.** The clients, people, bills and the assistant's week run on generated data. Real public records (bills, minutes, notices, the Official Gazette, press releases and news headlines) are collected for each client's profile and shown from a committed snapshot, but kept apart from the fictional store: the assistant does not yet triage them, so the run shows structure and control flow rather than behavior on noisy real sources.
 - **Ontology maintenance cost.** The issue list, keywords and stakeholder assessments need an owner. If nobody owns them, linking quality and stance accuracy decay.
 - **Hand-set rules.** The response-level rules, the decision rule and the risk-score weights are explicit and tested, but they are my judgment written down, not fitted to outcomes.
 - **Rules are brittle at the edges.** Aliases, renamed committees and amended bill titles will cause misses. The confirmation queue and the undo are the safety net.
@@ -132,7 +134,7 @@ Baselines have to be measured by hand first. I would not promise targets before 
 
 ## 8. What is next
 
-1. Real ingestion for two or three public sources behind the same Signal interface.
+1. Let the assistant triage the live public records behind the same Signal interface, and measure precision per client against the trial's relevance calls.
 2. A server-side runtime with real identity, so the markings are enforced behind authentication instead of in a browser.
 3. An evaluation set for triage: labeled items, measuring rule precision and where a model would help.
 4. Staleness rules for stakeholder assessments: flag a stance whose newest basis record is old.

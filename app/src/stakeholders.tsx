@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Checkbox, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import cytoscape from 'cytoscape';
-import { addDays, stageGates, stakeholderNetwork } from '../../ontology/index.ts';
+import { addDays, clientBills, stageGates, stakeholderNetwork } from '../../ontology/index.ts';
 import type { ObjectRecord } from '../../ontology/index.ts';
-import { Empty, LEVEL3, ObjLink, STANCE, Section, billName, kindOf, md, nameOf, roleOf } from './ui.tsx';
+import { Empty, LEVEL3, MemberOf, ObjLink, STANCE, Section, billName, kindOf, md, memberships, nameOf, roleOf } from './ui.tsx';
 import type { App } from './ui.tsx';
 
 // Hue = stance, lightness = relevance (high, medium, low).
@@ -46,6 +46,7 @@ export function Stakeholders({ app, path }: { app: App; path?: string }) {
         <div className="split-main">
           <Graph app={app} issueId={issueId} selected={selected} onSelect={select} />
           <Legend />
+          <PeopleList app={app} issueId={issueId} selected={selected} onSelect={select} />
           <Lane app={app} issueId={issueId} onSelect={select} />
         </div>
         <aside className="split-side">
@@ -62,6 +63,8 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
   const net = useMemo(() => stakeholderNetwork(app.view, app.clientId, issueId), [app.view, app.clientId, issueId]);
   const pick = useRef(onSelect);
   pick.current = onSelect;
+  // Labels keep a readable size on a phone: the graph is zoomed out there, so the font grows to compensate.
+  const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 600px)').matches;
 
   useEffect(() => {
     if (!ref.current) return;
@@ -87,8 +90,8 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
       style: [
         { selector: 'node', style: {
           'background-color': 'data(color)', width: 'data(size)', height: 'data(size)', 'border-width': 1.5, 'border-color': 'data(border)',
-          label: 'data(label)', color: '#1B2430', 'font-size': 11, 'font-family': "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", 'text-valign': 'bottom', 'text-margin-y': 5,
-          'text-wrap': 'wrap', 'text-max-width': '96px', 'text-background-color': '#F7F6F2', 'text-background-opacity': 0.85, 'text-background-padding': '1px',
+          label: 'data(label)', color: '#1B2430', 'font-size': narrow ? 22 : 11, 'font-family': 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif', 'text-valign': 'bottom', 'text-margin-y': 5,
+          'text-wrap': 'wrap', 'text-max-width': narrow ? '150px' : '96px', 'text-background-color': '#F7F6F2', 'text-background-opacity': 0.85, 'text-background-padding': '1px',
         } },
         { selector: 'node.sel', style: { 'border-width': 3, 'border-color': '#1B2430', 'font-weight': 600 } },
         { selector: 'edge', style: { width: 1.4, 'line-color': '#8E97A3', 'line-style': 'data(line)' as never, 'curve-style': 'straight' } },
@@ -99,7 +102,7 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
     cy.on('tap', (e) => e.target === cy && pick.current(undefined));
     cyRef.current = cy;
     return () => cy.destroy();
-  }, [net]);
+  }, [net, narrow]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -109,6 +112,24 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
   }, [selected, net]);
 
   return <div ref={ref} className="graph" aria-label="Stakeholder network" />;
+}
+
+/** The same people as the graph, as a list a phone can read: stance, influence and role. */
+function PeopleList({ app, issueId, selected, onSelect }: { app: App; issueId: string; selected?: string; onSelect: (id: string) => void }) {
+  const { nodes } = stakeholderNetwork(app.view, app.clientId, issueId);
+  const rank = (a: ObjectRecord) => REL.indexOf(a.influence) * 3 + REL.indexOf(a.relevance);
+  const rows = [...nodes].sort((x, y) => rank(x.assessment) - rank(y.assessment) || x.subject.id.localeCompare(y.subject.id));
+  return (
+    <ul className="people" aria-label="Stakeholders on this issue">
+      {rows.map(({ assessment: a, subject: s }) => (
+        <li key={s.id} className={s.id === selected ? 'on' : ''}>
+          <i className={`dot dot-${a.stance}`} />
+          <a onClick={() => onSelect(s.id)}><b>{nameOf(s)}</b></a>
+          <span className="sub"> {STANCE[a.stance]}, {LEVEL3[a.influence].toLowerCase()} influence · {roleOf(app.view, s)}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function Legend() {
@@ -180,8 +201,12 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
   const [mode, setMode] = useState<'stance' | 'contact'>();
   const net = stakeholderNetwork(view, clientId, issueId);
   const neighbors = net.edges.filter((e) => e.a === subjectId || e.b === subjectId).map((e) => (e.a === subjectId ? e.b : e.a));
-  const sponsored = [...view.links({ type: 'sponsors', from: subjectId }), ...view.links({ type: 'cosponsors', from: subjectId })].map((l) => l.to);
-  const bodies = view.links({ type: 'member_of', from: subjectId }).map((l) => l.to);
+  // Only bills on this client's issues are named; others are counted, since naming them reads like another client's file.
+  const allBills = [...new Set([...view.links({ type: 'sponsors', from: subjectId }), ...view.links({ type: 'cosponsors', from: subjectId })].map((l) => l.to))];
+  const ours = new Set(clientBills(view, clientId).map((b) => b.id));
+  const sponsored = allBills.filter((id) => ours.has(id));
+  const otherBills = allBills.length - sponsored.length;
+  const seats = memberships(view, subjectId);
   const spoke = view.links({ type: 'testifies_at', from: subjectId }).map((l) => l.to);
   const rep = s.type === 'Person' ? s : view.list('Person', (p) => p.orgId === s.id)[0];
   const contacts = view.list('Interaction', (x) => x.clientId === clientId && (x.participantIds.includes(subjectId) || (rep && x.participantIds.includes(rep.id))));
@@ -202,8 +227,8 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
       </dl>
       <h3 className="label">Links</h3>
       <dl className="kv">
-        {sponsored.length > 0 && <div><dt>Bills</dt><dd>{list(sponsored)}</dd></div>}
-        {bodies.length > 0 && <div><dt>Member of</dt><dd>{list(bodies)}</dd></div>}
+        {allBills.length > 0 && <div><dt>Bills</dt><dd>{list(sponsored)}{otherBills > 0 && <span className="sub">{sponsored.length ? ' · ' : ''}{otherBills} other {otherBills === 1 ? 'bill' : 'bills'}</span>}</dd></div>}
+        {seats.length > 0 && <div><dt>Member of</dt><dd><MemberOf app={app} personId={subjectId} /></dd></div>}
         {spoke.length > 0 && <div><dt>Spoke at</dt><dd>{list(spoke)}</dd></div>}
         <div><dt>Contacts</dt><dd>{contacts.length ? contacts.map((c, i) => <span key={c.id}>{i ? ', ' : ''}<ObjLink id={c.id} app={app} label={`${c.kind === 'call' ? 'Call' : 'Meeting'} ${md(c.date)}`} /></span>) : 'None yet'}</dd></div>
         {neighbors.length > 0 && <div><dt>Connected to</dt><dd>{neighbors.map((id, i) => <span key={id}>{i ? ', ' : ''}<a onClick={() => onSelect(id)}>{nameOf(view.get(id))}</a></span>)}</dd></div>}
@@ -249,7 +274,7 @@ function StanceForm({ app, issueId, subject, current, done }: { app: App; issueI
         <Checkbox key={id} checked={basis.includes(id)} label={`${nameOf(view.get(id))}${view.get(id)?.collectedAt ? ` (${md(view.get(id)!.collectedAt)})` : ''}`}
           onChange={() => setBasis(basis.includes(id) ? basis.filter((x) => x !== id) : [...basis, id])} />
       ))}
-      {needsBasis && <p className="sub warn">Choose at least one record, or keep the stance unconfirmed.</p>}
+      {needsBasis && <p className="sub warn">{candidates.length ? 'Pick at least one record as the basis.' : 'No record to rest this stance on yet. Keep it unconfirmed for now.'}</p>}
       <div className="row">
         <Button size="small" intent="primary" text="Save" disabled={needsBasis} onClick={save} />
         <Button size="small" variant="minimal" text="Cancel" onClick={done} />

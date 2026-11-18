@@ -9,13 +9,13 @@ The model generalizes a rule I follow in real work: confidential client material
 | Layer | Marking | Object types | Link types |
 |---|---|---|---|
 | Public | `PUBLIC` | Issue, Bill, Provision, Institution, Person, StakeholderOrg, Event, Signal, Evidence | sponsors, cosponsors, member_of, referred_to, amends, about, agenda_item, testifies_at, regulates, mentions |
-| Client | `CLIENT:<clientId>` | Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation | affects, watches, produced_for, raised_by |
+| Client | `CLIENT:<clientId>` | Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation, SignalTriage | affects, watches, produced_for, raised_by |
 
 Rules (enforced by `ontology/validate.ts` on the world and by `Store` on every action):
 
 - Client objects may reference public objects. A public object never references a client object, and a public link never touches a client object.
 - A client object or link may reference only its own client's objects. A client-layer link must carry a `CLIENT` marking that matches its endpoints.
-- Objects created by an action get their marking from the action: client actions mark what they create with `CLIENT:<clientId>` from the call's `clientId`; Evidence and links created by triage are `PUBLIC`.
+- Objects created by an action get their marking from the action: client actions mark what they create with `CLIENT:<clientId>` from the call's `clientId`; Evidence and links created by triage are `PUBLIC`, while the filing itself is a `SignalTriage` in the client's layer, so one client's triage never changes the shared item or another client's queue.
 - One action call writes into one client layer. Before it runs, the runtime collects the markings of every object the parameters name; if more than one client layer appears, the call is refused (`INVALID_PARAMS`). So an Aster assessment cannot rest on a Moru meeting, and an Aster decision cannot be raised by a Moru task.
 - A client's judgment about a public person or organization is a `StakeholderAssessment` in that client's layer. `Person` and `StakeholderOrg` carry no stance ([ADR-0010](decisions/ADR-0010-client-judgments-in-client-layer.md)).
 
@@ -60,8 +60,8 @@ The optional language-model adapter (`agent/llm.ts`) is the only path by which d
 - `GateConfig.approvedClientDataProviders` is the allow-list. It is empty by default.
 - `serializeForProvider(provider, objects, cfg)` is the only function that turns ontology objects into text for a provider. It calls `assertProviderAllowed`, which throws `ProviderGateError` if any object has no markings, or if any object has a `CLIENT` marking and the provider is not on the list. Public-only objects may go to any provider.
 - `guardedComplete` checks first that the adapter is enabled (a disabled adapter never receives anything), then runs the gate, and only then calls the adapter. The check runs on the object set, not on prompt text, so wording cannot get past it.
-- The assistant uses the adapter for one thing: a two-sentence summary at the top of the weekly report, built from the client object and the top three bills. Because the client object is client-marked, any provider not on the list is blocked. A block appears in the assistant's trace as a gate step and the report uses the template text.
-- The shipped demo uses the disabled adapter (`provider: 'none'`). Its trace says "No language model is used. The report is built from the template." The demo makes no network calls.
+- The assistant uses the adapter for one thing: a two-sentence summary at the top of the weekly report, built from the client object and the top three bills. Because the client object is client-marked, any provider not on the list is blocked. A block appears in the assistant's trace as a gate step and the summary is written from the week's records instead.
+- The shipped demo uses the disabled adapter (`provider: 'none'`). Its trace says "The summary is written from this week's records, without a language model." The demo makes no network calls.
 
 ## 5. Activity log
 

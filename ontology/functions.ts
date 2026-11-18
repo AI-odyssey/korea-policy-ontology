@@ -43,6 +43,24 @@ export function confirmedView(view: View): View {
   return v;
 }
 
+/** Ids of signals the caller's clients have handled (filed or set aside), from their SignalTriage records. */
+export function handledSignals(view: View, status: readonly string[] = ['filed', 'set_aside']): Set<string> {
+  return new Set(view.list('SignalTriage', (t) => status.includes(t.status)).map((t) => t.signalId));
+}
+
+/** Items a brief, report or decision may rest on: routed by the collector before this week, or filed for the client. Items still waiting to be confirmed do not count. */
+export function confirmedSignals(view: View): ObjectRecord[] {
+  const filed = handledSignals(view, ['filed']);
+  const setAside = handledSignals(view, ['set_aside']);
+  return view.list('Signal', (s) => !setAside.has(s.id) && (s.status === 'triaged' || filed.has(s.id)));
+}
+
+/** The client's queue: new items its triage has not handled yet. The same for every client, since triage never edits the public Signal. */
+export function signalQueue(view: View): ObjectRecord[] {
+  const handled = handledSignals(view);
+  return view.list('Signal', (s) => s.status === 'new' && !handled.has(s.id)).sort((a, b) => cmp(a.collectedAt, b.collectedAt) || cmp(a.id, b.id));
+}
+
 function need(view: View, id: string): ObjectRecord {
   const o = view.get(id);
   if (!o) throw new Error(`${id} does not exist or is not accessible to ${view.ctx.actor}`);
@@ -114,6 +132,8 @@ export interface ResponseFacts {
   change?: { from: string | undefined; to: string; date: string }; // latest stage change after since
   slot?: ObjectRecord; // next committee, subcommittee or plenary meeting with the bill on the agenda
   daysToSlot?: number;
+  notice?: ObjectRecord; // an open legislative notice period on the bill, closing on notice.date
+  daysToNotice?: number;
   position?: ObjectRecord; // a stance on the bill wins over a stance on its issue
   impact?: string; // strongest affects impact among the bill's issues
 }
@@ -129,6 +149,9 @@ export function responseFacts(view: View, billId: string, clientId: string, sinc
   const slot = view.sources(billId, 'agenda_item')
     .filter((e) => SLOT_KINDS.includes(e.kind) && (e.date > asOf || (e.date === asOf && e.status === 'scheduled')))
     .sort((a, b) => cmp(a.date, b.date) || cmp(a.id, b.id))[0];
+  const notice = view.sources(billId, 'agenda_item')
+    .filter((e) => e.kind === 'public_comment' && e.status === 'scheduled' && e.date >= asOf)
+    .sort((a, b) => cmp(a.date, b.date) || cmp(a.id, b.id))[0];
   const issues = view.targets(billId, 'about');
   const positions = view.list('ClientPosition', (p) => p.clientId === clientId);
   const impacts = issues.flatMap((x) => view.links({ type: 'affects', from: x.id, to: clientId }).map((l) => l.props?.impact as string));
@@ -136,16 +159,23 @@ export function responseFacts(view: View, billId: string, clientId: string, sinc
     closed: TERMINAL.includes(bill.stage),
     ...(i >= 0 ? { change: { from: hist[i - 1]?.stage, to: hist[i].stage, date: hist[i].date } } : {}),
     ...(slot ? { slot, daysToSlot: daysBetween(asOf, slot.date) } : {}),
+    ...(notice ? { notice, daysToNotice: daysBetween(asOf, notice.date) } : {}),
     position: positions.find((p) => p.targetId === billId) ?? positions.find((p) => issues.some((x) => x.id === p.targetId)),
     impact: ['high', 'medium', 'low'].find((lvl) => impacts.includes(lvl)),
   };
 }
 
+/** Days to the bill's next scheduled step: a meeting with it on the agenda, or the close of an open legislative notice period. */
+export const daysToStep = (f: ResponseFacts): number | undefined =>
+  f.daysToSlot === undefined ? f.daysToNotice : f.daysToNotice === undefined ? f.daysToSlot : Math.min(f.daysToSlot, f.daysToNotice);
+
 /**
- * act_now: on a committee, subcommittee or plenary agenda within 7 days, the client wants it changed (oppose or amend), and either
- *          it moved this week or the client opposes it and the impact is high (a bill that sat still can still be voted on).
- * engage:  the client wants it changed and it moved this week or has a meeting within 30 days; or high impact with a meeting within 7 days.
- * monitor: it moved this week, has a meeting within 30 days, the client wants it changed, or the impact is high.
+ * A step is a committee, subcommittee or plenary meeting with the bill on the agenda, or the close of an open legislative notice
+ * period (the last chance to comment on a government bill before it is submitted).
+ * act_now: a step within 7 days, the client wants it changed (oppose or amend), and either it moved this week or the client
+ *          opposes it and the impact is high (a bill that sat still can still be voted on).
+ * engage:  the client wants it changed and it moved this week or has a step within 30 days; or high impact with a step within 7 days.
+ * monitor: it moved this week, has a step within 30 days, the client wants it changed, or the impact is high.
  * watch:   none of the above, or the bill is closed.
  */
 export function responseLevel(view: View, billId: string, clientId: string, since?: string): { level: ResponseLevel; reasons: string[] } {
@@ -153,12 +183,14 @@ export function responseLevel(view: View, billId: string, clientId: string, sinc
   const reasons: string[] = [];
   if (f.closed) return { level: 'watch', reasons: [`Bill is closed (${view.get(billId)!.stage})`] };
   const moved = !!f.change;
-  const within7 = f.daysToSlot !== undefined && f.daysToSlot <= 7;
-  const within30 = f.daysToSlot !== undefined && f.daysToSlot <= 30;
+  const step = daysToStep(f);
+  const within7 = step !== undefined && step <= 7;
+  const within30 = step !== undefined && step <= 30;
   const wantsChange = !!f.position && ACTION_STANCES.includes(f.position.stance);
   const high = f.impact === 'high';
   reasons.push(moved ? `Moved to ${f.change!.to} on ${f.change!.date}` : 'No stage change this week');
-  reasons.push(f.slot && within30 ? `${f.slot.name} on ${f.slot.date} (${f.daysToSlot} days)` : 'No committee, subcommittee or plenary slot in the next 30 days');
+  reasons.push(f.slot && f.daysToSlot! <= 30 ? `${f.slot.name} on ${f.slot.date} (${f.daysToSlot} days)` : 'No committee, subcommittee or plenary slot in the next 30 days');
+  if (f.notice && f.daysToNotice! <= 30) reasons.push(`Notice period closes on ${f.notice.date} (${f.daysToNotice} days)`);
   reasons.push(f.position ? `Client stance: ${f.position.stance}${f.position.targetId === billId ? '' : ` (on ${f.position.targetId})`}` : 'No client stance recorded');
   reasons.push(f.impact ? `Issue impact: ${f.impact}` : 'No linked issue affects this client');
   const level: ResponseLevel =

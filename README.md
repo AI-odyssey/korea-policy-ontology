@@ -1,18 +1,20 @@
-# korea-policy-ontology
+# Korea Policy Ontology
+
+For government-relations teams and their client executives: turns a week of Korean bills, notices and news into the few decisions each client has to make, with every step sourced and approved by a person.
 
 **[Live demo](https://ai-odyssey.github.io/korea-policy-ontology/)** · runs in the browser, no sign-in
 
 ![Main flow: approve the week's decision, open the stakeholder it names, approve and send the weekly report](docs/img/main-flow.gif)
 
-A government-relations consultant spends most of a week reading bill updates, notices and news to find the few items that matter to each client, then rewriting them into something an executive can decide on. This repository is for teams that do that work: it models it as an ontology of objects, links, actions and approvals that a person and a rule-based assistant share. On Monday the assistant has already filed the clear items, named the one lawmaker worth meeting before this week's committee vote, and drafted the client report, and the engagement lead approves or declines each step.
+The work is modelled as an ontology of objects, links, actions and approvals that people and a rule-based assistant share. On Monday the assistant has filed the clear items, named the one lawmaker worth meeting before this week's committee vote and drafted the client report. The engagement lead approves or declines each step.
 
 All clients, people, bills and events are fictional; the legislative procedure and institutions are real. The one exception is marked on screen: items with a "Public record" chip are real public records (bills, committee meetings, notices, the Official Gazette, press releases, news headlines) collected for each client's monitoring profile.
 
-It is a sanitized, fictional re-implementation of the ontology behind a system I run for my own policy work, and the domain layer for Donaro, my AI task router. Read [CASE_STUDY.md](CASE_STUDY.md) for the problem and the design choices, [docs/walkthrough.md](docs/walkthrough.md) for one concrete week, and [docs/ontology.md](docs/ontology.md) for the full schema.
+It is a sanitized, fictional re-implementation of the ontology behind a system I run for my own policy work, and the domain layer for Donaro, my AI task router (it decides which model or agent takes each piece of work). Read [CASE_STUDY.md](CASE_STUDY.md) for the problem and the design choices, [docs/walkthrough.md](docs/walkthrough.md) for one concrete week, and [docs/ontology.md](docs/ontology.md) for the full schema.
 
 ## The demo
 
-The viewer is the engagement lead for one client at a time: Aster Robotics (sidewalk delivery robots), Moru Foods (cultivated protein) or Wrenfield Pay (a foreign payments firm entering Korea). Every screen shows the public record plus that client's confidential layer, marked with a "Confidential" chip. When the demo opens it is Monday morning: the weekly assistant has run for each client, and a consultant has asked to change one of Aster's positions. Their work waits for the lead's approval.
+The viewer is the engagement lead for one client at a time: Aster Robotics (sidewalk delivery robots), Moru Foods (cultivated protein) or Wrenfield Pay (a foreign payments firm entering Korea). Every screen shows the records shared across clients plus that client's confidential layer; an object's panel says which one it belongs to. When the demo opens it is Monday morning: the weekly assistant has run for each client, and a consultant has asked to change one of Aster's positions. Their work waits for the lead's approval.
 
 | This week | Issues & bills |
 |---|---|
@@ -41,29 +43,29 @@ Objects become screens, actions become buttons, and approvals become entries in 
 | On screen | In the ontology |
 |---|---|
 | This week: headline | `responseLevel` on the bills the engagement follows; the most pressing one leads |
-| **Waiting for your approval** | Pending requests: `addRiskOpportunity` from the assistant, `setClientPosition` or `updateStrategy` from a consultant, each with its requester |
-| **Decisions needed**: **Approve**, **Choose an alternative**, **Decline**, **Source** | Open `Decision` objects and the item they were raised by; `resolveDecision`, which creates a follow-up `Task` due before the meeting |
+| **Waiting for your approval** | Pending requests (`addRiskOpportunity` from the assistant, `setClientPosition` or `updateStrategy` from a consultant, each with its requester) and reports in review. The Assistant run screen shows the same list |
+| **Decisions needed**: **Approve**, **Choose an alternative**, **Decline**, **Source** | Open `Decision` objects and the meeting notice they were raised from; `resolveDecision`, which creates a short follow-up `Task` due before the meeting. A decision whose premise changed (the stance of the person it names) is marked **Out of date** and can be regenerated |
 | **Risks** and **Opportunities** | `RiskOpportunity`, tagged high or medium impact and imminent, in progress or ongoing, in the order of the bills they concern |
 | **Timeline and actions** | `upcomingDeadlines`: open `Task`s (our team, the assistant) and scheduled `Event`s |
-| **Stakeholder moves** | Assessed people and organizations named in this week's items, events or `Interaction`s |
-| **Asks of the client**, **Received** | `Task` with owner `client`; `completeTask` |
-| **New items to confirm**, **Confirm**, **Not relevant** | The assistant's triage proposals below 0.8 confidence; `triageSignal` |
-| **Latest public records** (This week, Issues & bills) | Public `Signal` records (`provenance: public`) from `data/live-snapshot.json` that matched the client's monitoring profile; kept out of the fictional store, so the assistant, briefs and reports never use them |
-| **Filed automatically**, **Undo** | Items the assistant filed at 0.8 or above; `reopenSignal` returns one to the queue |
-| Issues & bills, bill profile | `Issue` (through `affects`), `Bill` (through `about`), `stageHistory`, `stageGates`, the reasons behind `responseLevel`, `mentions`, `ClientPosition` |
+| **Stakeholder moves** | What assessed people and organizations said or did this week: the subject of a confirmed item, a speaker in the minutes, a remark on record at a meeting, or an `Interaction` |
+| **Asks of the client**, **Mark received** | `Task` with owner `client`; `completeTask` |
+| **New items to confirm**, **Confirm**, **Not relevant** | The assistant's triage proposals below 0.8 confidence for this client; `triageSignal` writes a `SignalTriage` in the client's layer and never edits the shared item, so one client's filing does not change another client's queue. Items waiting here feed no report, move or decision |
+| **Latest public records** (This week, Issues & bills) | Public `Signal` records (`provenance: public`) from `data/live-snapshot.json` that matched the client's monitoring profile, newest first, each with the keyword that matched and the agenda line it sits on; kept out of the fictional store, so the assistant, briefs and reports never use them |
+| **Filed automatically**, **Undo** | Items the assistant filed at 0.8 or above; `reopenSignal` returns one to this client's queue |
+| Issues & bills, bill profile | `Issue` (through `affects`), `Bill` (through `about`), `stageHistory`, `stageGates`, `mentions`, `ClientPosition` (every issue shows Support, Amend, Oppose or No position), and the facts behind `responseLevel`, split into why the bill matters and why it is not higher |
 | **Change position** | `setClientPosition` |
 | Stakeholders graph | `stakeholderNetwork`: `StakeholderAssessment` nodes, edges from public cosponsor, committee and event links |
 | **Who decides at each stage** | `stageGates`: date and the chair and secretaries for the subcommittee, full committee, Legislation and Judiciary Committee and plenary |
 | Object panel: Properties, Links, Actions | The selected object, its links, and **Request meeting** (`createTask`), **Update stance** (`assessStakeholder`), **Log contact** (`logInteraction`) |
 | Strategy, **Edit** | `Strategy` with targets (`StakeholderAssessment`), allies (`StakeholderOrg`) and plan (`Task`); `updateStrategy` |
-| Reports: **Send for review**, **Approve**, **Send to client** | `Deliverable`; `submitForReview`, `approveDeliverable`, `sendDeliverable` (simulated). The weekly report renders the same brief as This week |
-| Activity log | The audit log: when, who (collector, assistant, consultant, engagement lead), what, result, approved by |
+| Reports: **Send for review**, **Approve**, **Send to client** | `Deliverable`; `submitForReview`, `approveDeliverable`, `sendDeliverable` (simulated). The weekly report renders the same brief as This week and is rebuilt after every approval (`redraftDeliverable`); an approved report that changes goes back to review, so a stale one cannot be sent |
+| Activity log | The audit log: when, who (collector, assistant, consultant, engagement lead), what, result, decided by. A request that waited for approval shows its outcome, who decided and when on its own row |
 | Assistant run | The steps of `runWeeklyAgent` in plain words, and what still waits for approval |
 | Settings: **Objectives**, **Keywords**, **Coverage** | `MonitoringProfile`: objectives with priority 1 to 3, keywords with priority, synonyms and exclusions, committees, agencies and source types; `updateMonitoringProfile` (a consultant's change waits for the lead). Triage scores each new item for the client with `profileMatch` |
 | Settings: **Trial** | `PilotEvaluation`: the client's must-catch list (`addExpectedItem`), what the profile caught in the window (`startPilot`), **Relevant** / **Irrelevant** (`markRelevance`), targets (`setPilotCriteria`), `pilotMetrics` against them, `closePilot` |
 | Ontology | `ontology/schema.ts`, rendered |
 
-A bill carries a response level (**Act now**, **Engage**, **Monitor**, **Watch**) with its reasons. The rules are in `ontology/functions.ts` and [ADR-0009](docs/decisions/ADR-0009-categorical-response-levels.md), including a case the first rule got wrong.
+A bill carries a response level (**Act now**, **Engage**, **Monitor**, **Watch**) with its reasons. A meeting with the bill on the agenda and the close of a legislative notice period both count as a scheduled step. The rules are in `ontology/functions.ts` and [ADR-0009](docs/decisions/ADR-0009-categorical-response-levels.md), including a case the first rule got wrong.
 
 ## How the assistant picks a decision
 
@@ -74,7 +76,7 @@ For each followed bill at Act now, the assistant looks at the bill's next meetin
 ```bash
 npm install          # Node 24 runs the .ts scripts directly
 npm run dev          # demo at http://localhost:5173
-npm test             # 239 tests in 13 files
+npm test             # 258 tests in 14 files
 npm run build        # static bundle in dist/, deployable to GitHub Pages
 npm run preview      # serves the build at http://localhost:4173
 ```
@@ -102,11 +104,11 @@ This edition includes the Assembly Open API and news connectors; the connectors 
 
 ```bash
 export ASSEMBLY_API_KEY=...      # National Assembly Open API key (open.assembly.go.kr); read from the environment only
-npm run ingest -- --from 2026-11-04 --to 2026-11-17 --profile ingest/profiles/aster-robotics.json   # one profile, to ingest/out/
-npm run ingest:snapshot          # all profiles, last 14 days, to data/live-snapshot.json
+npm run ingest -- --from 2026-11-03 --to 2026-11-16 --profile ingest/profiles/aster-robotics.json   # one profile, to ingest/out/
+npm run ingest:snapshot -- --from 2026-11-03 --to 2026-11-16   # all profiles, to data/live-snapshot.json (default: last 14 days)
 ```
 
-The snapshot command fetches each source once for all profiles and writes `data/live-snapshot.json`, which the demo reads at build time; the browser never calls these sources. It stores titles, links, dates, the issuing institution or outlet, and short official excerpts (agenda, proposer, notice period). For news it stores only the headline, link, outlet and date, never article text. A committee meeting is kept for a client when its agenda names one of the client's keywords. It also stores each source's fetch result, which the Trial screen uses for "Sources reached". The committed snapshot covers 2026-11-04 to 2026-11-17. The law.go.kr API for administrative rules needs a registered user id, so finalized rules come from the Official Gazette instead.
+The snapshot command fetches each source once for all profiles and writes `data/live-snapshot.json`, which the demo reads at build time; the browser never calls these sources. It stores titles, links, dates, the issuing institution or outlet, and short official excerpts (agenda, proposer, notice period). For news it stores only the headline, link, outlet and date, never article text. A committee meeting is kept for a client when its agenda names one of the client's keywords. For each client it records the keywords that matched and the one line of a long agenda or grouped notice where they appear. It also stores each source's fetch result, which the Trial screen uses for "Sources reached". The committed snapshot covers 2026-11-03 to 2026-11-16, the two weeks up to the demo date. The law.go.kr API for administrative rules needs a registered user id, so finalized rules come from the Official Gazette instead.
 
 ## Architecture
 
@@ -120,13 +122,13 @@ flowchart LR
     S5[Minutes and committee websites]
     S6[Official Gazette]
   end
-  SIG["Signal (status new)"]
+  SIG["Signal (shared, never edited by triage)"]
   TR["Rule-based triage"]
   HUM["Person confirms or undoes"]
   subgraph ONT[Ontology]
     direction TB
     PUB["Public layer: Issue, Bill, Provision, Institution, Person, StakeholderOrg, Event, Signal, Evidence"]
-    CLI["Client layer: Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation"]
+    CLI["Client layer: Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation, SignalTriage"]
     CLI -->|refers to| PUB
   end
   FN["Functions: whatChanged, responseLevel, stageGates, stakeholderNetwork, keyPeople, upcomingDeadlines, issueExposure, billRiskScore, profileMatch, pilotMetrics"]
@@ -186,7 +188,7 @@ erDiagram
 | | |
 |---|---|
 | Public layer (marking `PUBLIC`) | Issue, Bill, Provision, Institution, Person, StakeholderOrg, Event, Signal, Evidence |
-| Client layer (marking `CLIENT:<clientId>`) | Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy |
+| Client layer (marking `CLIENT:<clientId>`) | Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation, SignalTriage |
 | Roles | `system` (collector), `agent` (assistant), `consultant`, `principal` (shown as engagement lead) |
 
 Every link between public objects needs at least one `Evidence` record (source, excerpt, method, confidence); the validator enforces it. A client's read of a public person is a separate `StakeholderAssessment` in that client's layer, never a property of the `Person` ([ADR-0010](docs/decisions/ADR-0010-client-judgments-in-client-layer.md)). A stance other than `unconfirmed` needs at least one basis record, and only people can set it.
@@ -208,17 +210,18 @@ Generated by `data/seed.ts` with seed `20261116`, as of 2026-11-16, and committe
 | People | 60 (36 lawmakers) | Deliverables | 7 |
 | Stakeholder organizations | 13 | Decisions | 3 (the assistant raises three more on Monday) |
 | Events | 41 | Tasks | 24 |
-| Signals (six weeks) | 160 (109 filed, 3 set aside, 48 new this week) | Stakeholder assessments | 32 |
+| Signals (six weeks) | 160 (109 routed before this week, 3 set aside as noise, 48 new this week) | Stakeholder assessments | 32 |
 | Evidence records | 844 | Risks and opportunities | 11 |
 | Links | 890 | Strategies | 11 |
 | | | Monitoring profiles | 3 |
-| | | Trials | 1 (Wrenfield Pay, Oct 12 to 25: 12 must-catch items, 3 missed) |
+| | | Trials | 1 (Wrenfield Pay, Oct 12 to 25: 12 must-catch items, 3 missed; ended, not yet closed) |
+| | | Signal triage records | none in the seed; each client's filings this week are written by its assistant and people |
 
 ## Tests
 
 | File | Tests | What it checks |
 |---|---|---|
-| `tests/permissions.test.ts` | 99 | Every role against every action matches the schema; refusals are logged |
+| `tests/permissions.test.ts` | 103 | Every role against every action matches the schema; refusals are logged |
 | `tests/client-layer.test.ts` | 19 | Assessments, risks, strategies, the stance-needs-a-basis rule, activity-log markings, `stageGates`, `stakeholderNetwork` |
 | `tests/approval.test.ts` | 18 | Approval gate, send blocked until approval, audit log, stage rules, numbering on submission, undoing a triage |
 | `tests/settings.test.ts` | 12 | Settings and trial permissions and approval, isolation, `pilotMetrics` on the seeded trial, `profileMatch` priorities, synonyms and exclusions, triage reading the profile |
@@ -228,6 +231,7 @@ Generated by `data/seed.ts` with seed `20261116`, as of 2026-11-16, and committe
 | `tests/isolation.test.ts` | 12 | No cross-client reads, writes or references; frozen records; audit-log isolation |
 | `tests/ingest.test.ts` | 15 | Assembly Open API and news parsers on recorded responses, story merging, keyword matching, the runner, mapping to `Signal` and `Evidence` |
 | `tests/live.test.ts` | 11 | Matching across word boundaries, committee scope, merging differently worded copies, one fetch for several profiles, public records in the validator, the committed snapshot, trial reach from live fetch results |
+| `tests/consistency.test.ts` | 15 | Per-client triage queues, citations that name the right notice, moves only where the person is the subject or speaker, unconfirmed items kept out, the report rebuilt after approvals, out-of-date decisions, notice periods in `responseLevel`, the run's wording, why a live record matched |
 | `tests/gate.test.ts` | 6 | The provider gate itself |
 | `tests/docs.test.ts` | 4 | `docs/ontology.md` is the generated file and lists exactly the schema |
 | `tests/provenance.test.ts` | 1 | Every source file carries the copyright header |

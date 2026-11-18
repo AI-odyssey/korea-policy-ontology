@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Button } from '@blueprintjs/core';
 import { ACTION_NAMES, LINK_TYPE_NAMES, OBJECT_TYPE_NAMES, ROLES, actionTypes, functionTypes, linkTypes, objectTypes } from '../../ontology/index.ts';
 import type { ActionTypeDef, AuditEntry, LinkTypeDef, ObjectTypeDef } from '../../ontology/index.ts';
-import { Empty, Markdown, MarkTag, Section, T, cap, md, nameOf, person, pretty, prose } from './ui.tsx';
+import { Empty, Markdown, POSITION, Section, T, cap, md, nameOf, person, pretty, prose } from './ui.tsx';
 import type { App } from './ui.tsx';
+import { Pending } from './week.tsx';
 
 const KIND: Record<string, string> = { weekly_report: 'Weekly report', issue_brief: 'Issue brief', comment_letter: 'Comment letter', meeting_prep: 'Meeting notes' };
 const STATUS: Record<string, string> = { draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' };
@@ -46,7 +47,6 @@ export function Reports({ app }: { app: App }) {
             <div className="row">
               <T tone={d.status === 'in_review' ? 'hi' : d.status === 'sent' ? 'op' : 'plain'}>{STATUS[d.status]}</T>
               <span className="sub">Prepared by the {person(d.createdBy).toLowerCase()}{d.approvedBy ? `, approved by the ${person(d.approvedBy).toLowerCase()}` : ''}</span>
-              {d.markings.map((m) => <MarkTag key={m} m={m} app={app} />)}
             </div>
             <div className="row">
               {d.status === 'draft' && <Button size="small" text="Send for review" onClick={() => app.act('submitForReview', { deliverableId: d.id }, 'In review.')} />}
@@ -70,17 +70,18 @@ function describe(app: App, a: AuditEntry): string {
   switch (a.action) {
     case 'triageSignal': return p.dismiss ? `Set aside: ${n(p.signalId)}` : `Filed: ${n(p.signalId)}`;
     case 'raiseDecision': return `Raised a decision: ${clip(String(p.question))}`;
-    case 'resolveDecision': return `${{ approve: 'Approved', alternative: 'Chose an alternative on', reject: 'Declined' }[p.resolution as string]} a decision: ${clip(n(p.decisionId))}`;
+    case 'resolveDecision': return `${{ approve: 'Approved', alternative: 'Chose an alternative on', reject: 'Declined', withdraw: 'Withdrew' }[p.resolution as string]} a decision: ${clip(n(p.decisionId))}`;
     case 'draftDeliverable': return `Drafted: ${p.title}`;
     case 'submitForReview': return `Sent for review: ${n(p.deliverableId)}`;
+    case 'redraftDeliverable': return `Brought up to date with the latest changes: ${n(p.deliverableId)}`;
     case 'approveDeliverable': return `Approved: ${n(p.deliverableId)}`;
     case 'sendDeliverable': return `Sent to the client: ${n(p.deliverableId)}`;
     case 'createTask': return `Added: ${p.title}`;
     case 'completeTask': return `Completed: ${n(p.taskId)}`;
-    case 'setClientPosition': return `Set the client position on the ${n(p.targetId).charAt(0).toLowerCase()}${n(p.targetId).slice(1)} to ${p.stance}`;
+    case 'setClientPosition': return `${a.status === 'pending_approval' ? 'Asked to change' : 'Set'} the client position on the ${n(p.targetId).charAt(0).toLowerCase()}${n(p.targetId).slice(1)} to ${POSITION[p.stance as string]}`;
     case 'reopenSignal': return `Returned to the queue: ${n(p.signalId)}`;
     case 'logInteraction': return `Logged a ${p.kind} with ${(p.participantIds as string[] ?? []).map(n).join(', ')}`;
-    case 'assessStakeholder': return `Updated the stance of ${n(p.subjectId)}: ${p.stance}`;
+    case 'assessStakeholder': return `Updated the stance of ${n(p.subjectId)}: ${String(p.stance)}`;
     case 'addRiskOpportunity': return `${a.role === 'agent' ? 'Proposed' : 'Added'} a ${p.kind}: ${p.title}`;
     case 'updateStrategy': return `Updated the strategy on ${n(p.issueId)}`;
     case 'updateBillStage': return `Recorded a stage change on ${n(p.billId)}`;
@@ -97,24 +98,31 @@ function describe(app: App, a: AuditEntry): string {
 }
 
 export function ActivityLog({ app }: { app: App }) {
-  const entries = app.store.auditEntries(app.ctx).slice().reverse();
+  const all = app.store.auditEntries(app.ctx);
+  // A request that waited for approval shows its outcome on its own row; the entry written when it was decided is folded in.
+  const outcome = new Map(all.filter((a) => a.pendingId && a.status !== 'pending_approval').map((a) => [a.pendingId!, a]));
+  const entries = all.filter((a) => !(a.pendingId && a.status !== 'pending_approval')).reverse();
   return (
     <div className="page">
       <h1 className="headline">Activity log</h1>
       {!entries.length && <Empty>No activity yet.</Empty>}
       <div className="table-wrap">
         <table className="tbl log">
-          <thead><tr><th>When</th><th>Who</th><th>What</th><th>Result</th><th>Approved by</th></tr></thead>
+          <thead><tr><th>When</th><th>Who</th><th>What</th><th>Result</th><th>Decided by</th></tr></thead>
           <tbody>
-            {entries.map((a) => (
-              <tr key={a.id}>
-                <td className="nowrap sub">{md(a.at)} {a.at.slice(11, 16)}</td>
-                <td className="nowrap">{WHO[a.role]}</td>
-                <td>{prose(describe(app, a))}</td>
-                <td className="nowrap">{RESULT[a.status]}{a.error && <div className="sub">{a.error.replace(/^[A-Z_]+: /, '')}</div>}</td>
-                <td className="nowrap">{person(a.approvedBy)}</td>
-              </tr>
-            ))}
+            {entries.map((a) => {
+              const done = a.status === 'pending_approval' ? outcome.get(a.pendingId!) : undefined;
+              const when = done?.at;
+              return (
+                <tr key={a.id}>
+                  <td className="nowrap sub">{md(a.at)} {a.at.slice(11, 16)}</td>
+                  <td className="nowrap">{WHO[a.role]}</td>
+                  <td>{prose(describe(app, a))}</td>
+                  <td className="nowrap">{done ? (done.status === 'executed' ? 'Approved' : 'Declined') : RESULT[a.status]}{a.error && <div className="sub">{a.error.replace(/^[A-Z_]+: /, '')}</div>}</td>
+                  <td className="nowrap">{done ? <>{person(done.approvedBy)}<div className="sub">{md(when!)} {when!.slice(11, 16)}</div></> : person(a.approvedBy)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -126,7 +134,7 @@ export function ActivityLog({ app }: { app: App }) {
 const STEP: Record<string, string> = {
   'query.signals': 'Read new items', proposeTriage: 'Sort new items', triageSignal: 'File clear matches', whatChanged: 'Check what changed',
   responseLevel: 'Rank followed bills', stageGates: 'Find who decides next', raiseDecision: 'Raise a decision', addRiskOpportunity: 'Propose a risk',
-  upcomingDeadlines: 'List deadlines', issueExposure: 'Rank issues', 'llm.complete': 'Summary', draftDeliverable: 'Draft the weekly report',
+  upcomingDeadlines: 'List deadlines', issueExposure: 'Rank issues', 'llm.complete': 'Write the summary', draftDeliverable: 'Draft the weekly report',
   submitForReview: 'Send for review', stop: 'Stop for approval',
 };
 
@@ -138,14 +146,7 @@ export function AssistantRun({ app }: { app: App }) {
     await app.runAgent();
     setBusy(false);
   };
-  const pending = app.store.pendingApprovals(app.ctx);
-  const gateLabel = (g: { action: string; objectId: string }) => {
-    if (g.action === 'approveDeliverable') return app.view.get(g.objectId)?.status === 'in_review' ? <a onClick={() => app.go('reports')}>Approve the weekly report</a> : null;
-    if (g.action === 'resolveDecision') return app.view.get(g.objectId)?.status === 'open' ? <a onClick={() => app.go('week')}>Decide: {prose(clip(nameOf(app.view.get(g.objectId)), 110))}</a> : null;
-    const p = pending.find((x) => x.id === g.objectId);
-    return p ? <a onClick={() => app.go('week')}>Approve the new risk: {String(p.params.title)}</a> : null;
-  };
-  const open = run ? run.gates.map((g) => ({ g, label: gateLabel(g) })).filter((x) => x.label) : [];
+  const decisions = app.view.list('Decision', (d) => d.clientId === app.clientId && d.status === 'open').sort((a, b) => a.id.localeCompare(b.id));
   return (
     <div className="page">
       <h1 className="headline">Assistant run</h1>
@@ -154,9 +155,10 @@ export function AssistantRun({ app }: { app: App }) {
       {run && (
         <>
           <p className="lead">Week of {md(run.since)} to {md(run.asOf)}. The assistant took {run.steps.length} steps and stopped where your approval is needed.</p>
-          <Section title="Waiting for your approval">
-            {!open.length && <Empty>Nothing from this run is still waiting.</Empty>}
-            {open.map(({ g, label }) => <div key={g.objectId} className="item">{label}</div>)}
+          <Pending app={app} empty="Nothing waits for your approval." />
+          <Section title="Decisions needed">
+            {!decisions.length && <Empty>Nothing to decide this week.</Empty>}
+            {decisions.map((d) => <div key={d.id} className="item"><a onClick={() => app.go('week')}>{prose(clip(nameOf(d), 140))}</a></div>)}
           </Section>
           <Section title="Steps">
             <ol className="run">

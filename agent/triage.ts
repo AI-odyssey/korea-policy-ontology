@@ -82,7 +82,8 @@ export function proposeTriage(view: View, signal: ObjectRecord, clientId?: strin
   };
 }
 
-export const triageParams = (p: TriageProposal) => ({
+export const triageParams = (p: TriageProposal, clientId: string) => ({
+  clientId,
   signalId: p.signalId,
   relevance: p.relevance,
   confidence: p.confidence,

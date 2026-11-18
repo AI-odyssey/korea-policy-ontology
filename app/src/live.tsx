@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { Button } from '@blueprintjs/core';
 import type { ObjectRecord } from '../../ontology/index.ts';
-import { Empty, Section, md } from './ui.tsx';
+import { Empty, Section, md, prose } from './ui.tsx';
 import type { App } from './ui.tsx';
 
 export interface LiveSnapshot {
@@ -14,6 +14,7 @@ export interface LiveSnapshot {
   generatedAt: string;
   sources: { id: string; name: string; signalType: string; ok: boolean; fetched: number; error?: string }[];
   matches: Record<string, string[]>;
+  why?: Record<string, Record<string, { terms: string[]; line?: string; committee?: string }>>;
   signals: ObjectRecord[];
 }
 
@@ -39,22 +40,21 @@ const KINDS: [string, string, string[]][] = [
   ['seminars', 'Seminars', ['seminar']], ['news', 'News', ['news']],
 ];
 
-/** Newest first, but one of each kind of source before a second of any: a short list shows the range. */
-export function mixed(items: ObjectRecord[]): ObjectRecord[] {
-  const kind = (s: ObjectRecord) => KINDS.find(([, , t]) => t.includes(s.sourceType))?.[0];
-  const seen = new Map<string | undefined, number>();
-  const rank = new Map(items.map((s) => { const n = seen.get(kind(s)) ?? 0; seen.set(kind(s), n + 1); return [s.id, n]; }));
-  return [...items].sort((a, b) => rank.get(a.id)! - rank.get(b.id)! || b.publishedAt.localeCompare(a.publishedAt));
-}
+const excerptOf = (s: ObjectRecord) => prose(String(s.rawText).split('\n').slice(1).join(' ').trim());
 
-const excerptOf = (s: ObjectRecord) => String(s.rawText).split('\n').slice(1).join(' ').trim();
-
-function RecordItem({ s }: { s: ObjectRecord }) {
-  const excerpt = excerptOf(s);
+/** One record: what matched first (the keyword, and the agenda line it sits on), then a one-line excerpt. */
+function RecordItem({ s, clientId }: { s: ObjectRecord; clientId: string }) {
+  const why = LIVE?.why?.[s.id]?.[clientId];
+  const excerpt = why?.line ? '' : excerptOf(s);
   return (
     <div className="item rec">
       <div className="item-title"><a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a></div>
-      <div className="rec-meta"><span className="chip chip-record">Public record · {s.sourceName}</span><span className="sub">{md(s.publishedAt)}{s.publisher ? ` · ${s.publisher}` : ''}</span></div>
+      <div className="rec-meta">
+        <span className="chip chip-record">Public record · {s.sourceName}</span>
+        {why && (why.terms.length ? <span className="chip chip-match">Matched: {why.terms.join(', ')}</span> : why.committee && <span className="chip chip-match">Watched committee: {why.committee}</span>)}
+        <span className="sub">{md(s.publishedAt)}{s.publisher ? ` · ${s.publisher}` : ''}</span>
+      </div>
+      {why?.line && <p className="sub rec-line">{why.line}</p>}
       {excerpt && <p className="sub rec-excerpt">{excerpt}</p>}
     </div>
   );
@@ -68,7 +68,7 @@ export function PublicRecords({ app, limit, filters }: { app: App; limit: number
   const mine = liveFor(app.clientId);
   const kinds = KINDS.filter(([id, , types]) => id === 'all' || mine.some((s) => types.includes(s.sourceType)));
   const types = KINDS.find(([id]) => id === kind)?.[2] ?? [];
-  const shown = kind !== 'all' ? mine.filter((s) => types.includes(s.sourceType)) : filters ? mine : mixed(mine);
+  const shown = kind !== 'all' ? mine.filter((s) => types.includes(s.sourceType)) : mine; // newest first
   return (
     <Section title="Latest public records" className="records">
       {filters && kinds.length > 2 && (
@@ -77,7 +77,7 @@ export function PublicRecords({ app, limit, filters }: { app: App; limit: number
         </nav>
       )}
       {!shown.length && <Empty>Nothing from {md(LIVE.from)} to {md(LIVE.to)}.</Empty>}
-      {(all ? shown : shown.slice(0, limit)).map((s) => <RecordItem key={s.id} s={s} />)}
+      {(all ? shown : shown.slice(0, limit)).map((s) => <RecordItem key={s.id} s={s} clientId={app.clientId} />)}
       {shown.length > limit && <Button size="small" variant="minimal" text={all ? 'Show fewer' : `Show all ${shown.length}`} onClick={() => setAll(!all)} />}
     </Section>
   );

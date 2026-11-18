@@ -26,7 +26,7 @@ describe('weekly agent (offline)', () => {
     const [source] = v.targets(decision.id, 'raised_by');
     expect(source).toMatchObject({ type: 'Signal' });
     expect(source.rawText).toContain('22-S0308');
-    expect(run.steps.find((x) => x.name === 'llm.complete')).toMatchObject({ kind: 'note', output: 'No language model is used. The report is built from the template.' });
+    expect(run.steps.find((x) => x.name === 'llm.complete')).toMatchObject({ kind: 'note', output: "The summary is written from this week's records, without a language model." });
 
     const d = v.get(run.deliverableId!)!;
     expect(d.status).toBe('in_review'); // the agent never approves or sends
