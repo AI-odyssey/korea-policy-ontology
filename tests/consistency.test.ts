@@ -128,16 +128,17 @@ describe('decisions notice when their premise changes', () => {
     const s = freshStore();
     await runWeeklyAgent(s, { clientId: 'cli-wren', applyTriage: true });
     const c = lead('cli-wren');
-    const d = s.as(c).list('Decision', (x) => x.status === 'open' && x.targetId === 'per-015')[0];
-    expect(d.recommendation).toMatch(/has not taken a public position/);
+    const d = s.as(c).list('Decision', (x) => x.status === 'open' && x.targetId === 'per-018')[0]; // chair of the subcommittee that reviews the local presence bill
+    expect(d.recommendation).toMatch(/^Yes\. Hong Jiwan chairs the subcommittee that writes the text and has not taken a public position/);
     expect(decisionStale(s.as(c), d)).toBeUndefined();
-    s.applyAction(c, 'assessStakeholder', { clientId: 'cli-wren', subjectId: 'per-015', issueId: 'iss-08', stance: 'supportive', influence: 'high', relevance: 'high', basisIds: s.as(c).list('Event', (e) => e.name === 'Public hearing on foreign payment providers').map((e) => e.id) });
+    s.applyAction(c, 'assessStakeholder', { clientId: 'cli-wren', subjectId: 'per-018', issueId: 'iss-08', stance: 'supportive', influence: 'high', relevance: 'high', basisIds: ['int-wren-3'] });
     expect(decisionStale(s.as(c), s.as(c).get(d.id)!)).toBe('stance changed');
     regenerateDecision(s, c, d.id);
     const after = s.as(c);
     expect(after.get(d.id)).toMatchObject({ status: 'resolved', resolution: 'withdraw' });
-    // Nobody else on the agenda needs persuading, and no open decision still says she has no position.
-    expect(after.list('Decision', (x) => x.status === 'open' && /Go Mirae/.test(x.question))).toEqual([]);
+    // No open decision still says the chair has no position; the lead sponsor, who also writes the text and opposes the client, is next.
+    expect(after.list('Decision', (x) => x.status === 'open' && /Hong Jiwan/.test(x.question))).toEqual([]);
+    expect(after.list('Decision', (x) => x.status === 'open' && x.subjectId === 'bill-023').map((x) => x.targetId)).toEqual(['per-017']);
   });
 
   it('approving a decision files a short follow-up task', async () => {
@@ -147,7 +148,7 @@ describe('decisions notice when their premise changes', () => {
     const d = s.as(c).list('Decision', (x) => x.status === 'open')[0];
     const res = s.applyAction(c, 'resolveDecision', { decisionId: d.id, resolution: 'approve' });
     const task = s.as(c).get(res.created[0])!;
-    expect(task.title).toBe('Meet Jang Sora before the Nov 19 full committee');
+    expect(task.title).toBe('Meet Baek Siwoo before the Nov 19 full committee');
   });
 });
 

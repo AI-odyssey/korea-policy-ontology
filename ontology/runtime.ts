@@ -7,7 +7,7 @@ import type { ActionName, ActionTypeDef, LinkTypeDef, Marking, Role } from './sc
 import { canSee, clientMarking, PUBLIC } from './markings.ts';
 import type { Ctx } from './markings.ts';
 import { checkProps } from './props.ts';
-import { addDays } from './dates.ts';
+import { addDays, workdayOnOrBefore } from './dates.ts';
 
 // ---- Records ----
 export interface ObjectRecord {
@@ -122,7 +122,7 @@ interface Fx {
   create(type: string, prefix: string, props: Record<string, any>, markings?: Marking[]): ObjectRecord;
   update(id: string, patch: Record<string, any>): void;
   link(type: string, from: string, to: string, props?: Record<string, any>, markings?: Marking[]): LinkRecord;
-  attach(type: string, from: string, to: string, ev: EvidenceInput): string; // the new Evidence id
+  attach(type: string, from: string, to: string, ev: EvidenceInput, markings?: Marking[]): string; // the new Evidence id
   removeLinksWithoutSupport(evidenceId: string): void;
 }
 
@@ -149,9 +149,11 @@ const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
     const evidenceIds: string[] = [];
     if (!p.dismiss) {
       const ev: EvidenceInput = { signalId: sig.id, excerpt: p.excerpt ?? sig.title, confidence: p.confidence ?? p.relevance, method: methodOf(fx.role) };
-      if (p.issueId) evidenceIds.push(fx.attach('about', sig.id, p.issueId, ev));
-      if (p.billId) evidenceIds.push(fx.attach('mentions', sig.id, p.billId, ev));
-      for (const id of p.mentionIds ?? []) evidenceIds.push(fx.attach('mentions', sig.id, id, ev));
+      // The links and their evidence are this client's judgment, so they stay in its layer like the triage record.
+      const m = clientOf(p);
+      if (p.issueId) evidenceIds.push(fx.attach('about', sig.id, p.issueId, ev, m));
+      if (p.billId) evidenceIds.push(fx.attach('mentions', sig.id, p.billId, ev, m));
+      for (const id of p.mentionIds ?? []) evidenceIds.push(fx.attach('mentions', sig.id, id, ev, m));
     }
     const props = {
       clientId: p.clientId, signalId: sig.id, status: p.dismiss ? 'set_aside' : 'filed', issueId: p.dismiss ? undefined : p.issueId,
@@ -245,7 +247,7 @@ const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
     fx.update(d.id, { status: 'resolved', resolution: p.resolution, resolutionNote: p.note, resolvedBy: fx.actor });
     if (p.resolution === 'approve') {
       // The follow-up has to happen before whatever the decision was due for, usually a meeting the next day.
-      const due = [addDays(fx.baseDate, 3), ...(d.dueDate ? [d.dueDate] : [])].sort()[0];
+      const due = workdayOnOrBefore([addDays(fx.baseDate, 3), ...(d.dueDate ? [d.dueDate] : [])].sort()[0]); // never a weekend
       fx.create('Task', 'task', {
         clientId: d.clientId, title: d.followUp ?? `Follow up: ${clip(String(d.question).replace(/\?$/, ''), 70)}`, dueDate: due < fx.baseDate ? fx.baseDate : due,
         owner: 'human', status: 'open', subjectId: d.id,
@@ -582,20 +584,21 @@ export class Store {
         created.push(l.id);
         return l;
       },
-      attach(type, from, to, ev) {
+      attach(type, from, to, ev, markings = [PUBLIC]) {
         const sig = ev.signalId ? fx.get(ev.signalId) : undefined;
         const e = fx.create('Evidence', 'ev', {
           sourceUrl: sig?.url ?? 'https://example.invalid/records/manual-entry',
           sourceType: sig?.sourceType ?? 'official_record',
           signalId: ev.signalId, excerpt: ev.excerpt, method: ev.method, confidence: ev.confidence,
           reviewStatus: ev.method !== 'human' && ev.confidence < REVIEW_THRESHOLD ? 'review' : 'accepted',
-        });
-        const existing = store.out.get(from)?.find((l) => l.type === type && l.to === to);
+        }, markings);
+        const same = (a: Marking[]) => a.length === markings.length && a.every((x) => markings.includes(x));
+        const existing = store.out.get(from)?.find((l) => l.type === type && l.to === to && same(l.markings));
         if (existing) {
           store.putLink({ ...existing, evidence: [...existing.evidence, e.id] });
           before.add(existing.id);
         } else {
-          const l = fx.link(type, from, to);
+          const l = fx.link(type, from, to, undefined, markings);
           store.putLink({ ...l, evidence: [e.id] });
         }
         return e.id;

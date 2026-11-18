@@ -127,11 +127,33 @@ export type ResponseLevel = 'act_now' | 'engage' | 'monitor' | 'watch';
 const SLOT_KINDS = ['full_committee', 'subcommittee', 'plenary'];
 const ACTION_STANCES = ['oppose', 'amend'];
 
+/**
+ * What a meeting does to a bill.
+ * introduction: the full committee takes up a bill that was only referred (상정, proposer's statement, expert review report); no vote.
+ * review:       the bill review subcommittee deliberates and writes the text (소위 심사, 의결); the main place where text changes.
+ * vote:         the full committee votes on a bill its subcommittee has passed (전체회의 의결).
+ * wording:      the Legislation and Judiciary Committee checks system and wording only (체계·자구 심사) and can hold a bill back (계류).
+ * plenary:      the plenary votes the text as it stands.
+ */
+export type StepKind = 'introduction' | 'review' | 'vote' | 'wording' | 'plenary';
+export function stepKind(meeting: ObjectRecord, bill: ObjectRecord): StepKind {
+  if (meeting.institutionId === 'inst-ljc') return 'wording';
+  if (meeting.kind === 'plenary') return 'plenary';
+  if (meeting.kind === 'subcommittee') return 'review';
+  return ['submitted', 'committee_referred'].includes(bill.stage) ? 'introduction' : 'vote';
+}
+/** Steps where the text can still change: the subcommittee's review and the full committee's vote. */
+export const isDecisive = (k: StepKind) => k === 'review' || k === 'vote';
+
 export interface ResponseFacts {
   closed: boolean; // passed, merged or withdrawn
+  textOpen: boolean; // the text can still change in substance: the full committee has not yet passed it
   change?: { from: string | undefined; to: string; date: string }; // latest stage change after since
   slot?: ObjectRecord; // next committee, subcommittee or plenary meeting with the bill on the agenda
+  slotKind?: StepKind;
   daysToSlot?: number;
+  decisive?: ObjectRecord; // next meeting where the text is reviewed or voted (see isDecisive)
+  daysToDecisive?: number;
   notice?: ObjectRecord; // an open legislative notice period on the bill, closing on notice.date
   daysToNotice?: number;
   position?: ObjectRecord; // a stance on the bill wins over a stance on its issue
@@ -146,36 +168,60 @@ export function responseFacts(view: View, billId: string, clientId: string, sinc
   const asOf = view.baseDate;
   const hist: { stage: string; date: string }[] = bill.stageHistory;
   const i = hist.findLastIndex((h) => h.date > since && h.date <= asOf);
-  const slot = view.sources(billId, 'agenda_item')
+  const meetings = view.sources(billId, 'agenda_item')
     .filter((e) => SLOT_KINDS.includes(e.kind) && (e.date > asOf || (e.date === asOf && e.status === 'scheduled')))
-    .sort((a, b) => cmp(a.date, b.date) || cmp(a.id, b.id))[0];
+    .sort((a, b) => cmp(a.date, b.date) || cmp(a.id, b.id));
+  const slot = meetings[0];
+  const decisive = meetings.find((e) => isDecisive(stepKind(e, bill)));
   const notice = view.sources(billId, 'agenda_item')
     .filter((e) => e.kind === 'public_comment' && e.status === 'scheduled' && e.date >= asOf)
     .sort((a, b) => cmp(a.date, b.date) || cmp(a.id, b.id))[0];
   const issues = view.targets(billId, 'about');
   const positions = view.list('ClientPosition', (p) => p.clientId === clientId);
   const impacts = issues.flatMap((x) => view.links({ type: 'affects', from: x.id, to: clientId }).map((l) => l.props?.impact as string));
+  const closed = TERMINAL.includes(bill.stage);
+  const order = (s: string) => (STAGE_ORDER as readonly string[]).indexOf(s);
   return {
-    closed: TERMINAL.includes(bill.stage),
+    closed,
+    textOpen: !closed && order(bill.stage) < order('committee_passed'),
     ...(i >= 0 ? { change: { from: hist[i - 1]?.stage, to: hist[i].stage, date: hist[i].date } } : {}),
-    ...(slot ? { slot, daysToSlot: daysBetween(asOf, slot.date) } : {}),
+    ...(slot ? { slot, slotKind: stepKind(slot, bill), daysToSlot: daysBetween(asOf, slot.date) } : {}),
+    ...(decisive ? { decisive, daysToDecisive: daysBetween(asOf, decisive.date) } : {}),
     ...(notice ? { notice, daysToNotice: daysBetween(asOf, notice.date) } : {}),
     position: positions.find((p) => p.targetId === billId) ?? positions.find((p) => issues.some((x) => x.id === p.targetId)),
     impact: ['high', 'medium', 'low'].find((lvl) => impacts.includes(lvl)),
   };
 }
 
-/** Days to the bill's next scheduled step: a meeting with it on the agenda, or the close of an open legislative notice period. */
-export const daysToStep = (f: ResponseFacts): number | undefined =>
-  f.daysToSlot === undefined ? f.daysToNotice : f.daysToNotice === undefined ? f.daysToSlot : Math.min(f.daysToSlot, f.daysToNotice);
+const minDays = (...xs: (number | undefined)[]): number | undefined => {
+  const d = xs.filter((x): x is number => x !== undefined);
+  return d.length ? Math.min(...d) : undefined;
+};
+/** Days to the bill's next scheduled step of any kind: a meeting with it on the agenda, or the close of an open legislative notice period. */
+export const daysToStep = (f: ResponseFacts): number | undefined => minDays(f.daysToSlot, f.daysToNotice);
+/** Days to the next step where the text can still change in substance: the subcommittee's review, the full committee's vote, or the close of a notice period. */
+export const daysToDecisiveStep = (f: ResponseFacts): number | undefined => minDays(f.daysToDecisive, f.daysToNotice);
+/** Days to the next step worth preparing for: a decisive step, or the full committee taking the bill up for the first time. */
+export const daysToPrepare = (f: ResponseFacts): number | undefined =>
+  minDays(daysToDecisiveStep(f), f.slotKind === 'introduction' ? f.daysToSlot : undefined);
+
+const STEP_NOTE: Record<StepKind, string> = {
+  introduction: 'first 상정, no vote', review: 'subcommittee review', vote: 'full committee vote', wording: 'wording review only', plenary: 'plenary vote on the settled text',
+};
 
 /**
- * A step is a committee, subcommittee or plenary meeting with the bill on the agenda, or the close of an open legislative notice
- * period (the last chance to comment on a government bill before it is submitted).
- * act_now: a step within 7 days, the client wants it changed (oppose or amend), and either it moved this week or the client
- *          opposes it and the impact is high (a bill that sat still can still be voted on).
- * engage:  the client wants it changed and it moved this week or has a step within 30 days; or high impact with a step within 7 days.
- * monitor: it moved this week, has a step within 30 days, the client wants it changed, or the impact is high.
+ * A step is a committee or subcommittee meeting with the bill on the agenda, or the close of an open legislative notice period
+ * (the last easy moment to file comments on a government bill: the ministry must consider them but is not bound, and the text can
+ * still change in regulatory review, the Ministry of Government Legislation review and the Cabinet). A step is decisive when the
+ * text can still change there: the subcommittee's review, the full committee's vote on a bill its subcommittee passed, or the notice.
+ * A first 상정 at the full committee is not a decision, and the Legislation and Judiciary Committee and the plenary only check
+ * wording or vote on a settled text.
+ * act_now: a decisive step within 7 days, the client wants it changed (oppose or amend), and either it moved this week or the
+ *          client opposes it and the impact is high (a bill that sat still can still be voted on).
+ * engage:  the text is open and either the client wants it changed and it moved this week or has a decisive step or first 상정
+ *          within 30 days; or the impact is high with a decisive step or first 상정 within 10 days (support included).
+ * monitor: it moved this week, has any step within 30 days, the client wants it changed, or the impact is high.
+ *          A bill whose text is settled (past the full committee) stays here at most: only wording and delay risk are left.
  * watch:   none of the above, or the bill is closed.
  */
 export function responseLevel(view: View, billId: string, clientId: string, since?: string): { level: ResponseLevel; reasons: string[] } {
@@ -184,20 +230,21 @@ export function responseLevel(view: View, billId: string, clientId: string, sinc
   if (f.closed) return { level: 'watch', reasons: [`Bill is closed (${view.get(billId)!.stage})`] };
   const moved = !!f.change;
   const step = daysToStep(f);
-  const within7 = step !== undefined && step <= 7;
-  const within30 = step !== undefined && step <= 30;
+  const decisive = daysToDecisiveStep(f);
+  const prepare = daysToPrepare(f);
   const wantsChange = !!f.position && ACTION_STANCES.includes(f.position.stance);
   const high = f.impact === 'high';
   reasons.push(moved ? `Moved to ${f.change!.to} on ${f.change!.date}` : 'No stage change this week');
-  reasons.push(f.slot && f.daysToSlot! <= 30 ? `${f.slot.name} on ${f.slot.date} (${f.daysToSlot} days)` : 'No committee, subcommittee or plenary slot in the next 30 days');
+  reasons.push(f.slot && f.daysToSlot! <= 30 ? `${f.slot.name} on ${f.slot.date} (${f.daysToSlot} days; ${STEP_NOTE[f.slotKind!]})` : 'No committee, subcommittee or plenary slot in the next 30 days');
   if (f.notice && f.daysToNotice! <= 30) reasons.push(`Notice period closes on ${f.notice.date} (${f.daysToNotice} days)`);
   reasons.push(f.position ? `Client stance: ${f.position.stance}${f.position.targetId === billId ? '' : ` (on ${f.position.targetId})`}` : 'No client stance recorded');
   reasons.push(f.impact ? `Issue impact: ${f.impact}` : 'No linked issue affects this client');
-  const level: ResponseLevel =
-    within7 && wantsChange && (moved || (f.position!.stance === 'oppose' && high)) ? 'act_now'
-      : (wantsChange && (moved || within30)) || (high && within7) ? 'engage'
-        : moved || within30 || wantsChange || high ? 'monitor'
-          : 'watch';
+  if (!f.textOpen) reasons.push('The text is settled: only wording and delay risk are left, so the level stays at monitor or below');
+  const within = (d: number | undefined, n: number) => d !== undefined && d <= n;
+  const level: ResponseLevel = f.textOpen && within(decisive, 7) && wantsChange && (moved || (f.position!.stance === 'oppose' && high)) ? 'act_now'
+    : f.textOpen && ((wantsChange && (moved || within(prepare, 30))) || (high && within(prepare, 10))) ? 'engage'
+      : moved || within(step, 30) || wantsChange || high ? 'monitor'
+        : 'watch';
   return { level, reasons };
 }
 

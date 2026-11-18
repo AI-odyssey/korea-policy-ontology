@@ -40,21 +40,41 @@ const KINDS: [string, string, string[]][] = [
   ['seminars', 'Seminars', ['seminar']], ['news', 'News', ['news']],
 ];
 
-const excerptOf = (s: ObjectRecord) => prose(String(s.rawText).split('\n').slice(1).join(' ').trim());
+const excerptOf = (s: ObjectRecord) => shorten(prose(String(s.rawText).split('\n').slice(1).join(' ').trim()));
+
+/** A long run of bill numbers ("의안번호 2221528, 2221383, ...") shows the first two and counts the rest. */
+export const shorten = (text: string) =>
+  text.replace(/\d{6,8}(?:\s*,\s*\d{6,8}){2,}/g, (run) => {
+    const nums = run.split(/\s*,\s*/);
+    return `${nums.slice(0, 2).join(', ')} and ${nums.length - 2} more`;
+  });
+
+// A short English line under a Korean title, from the kind of record the app already knows.
+const GLOSS: Record<string, string> = {
+  bill_update: 'Bill update', minutes: 'Committee meeting', public_notice: 'Notice open for comment', gazette: 'Official Gazette entry',
+  press_release: 'Press release', ministry_press: 'Press release', seminar: 'Seminar at the National Assembly', news: 'News article',
+};
+const gloss = (s: ObjectRecord) => {
+  if (!/[가-힣]/.test(String(s.title)) || !GLOSS[s.sourceType]) return '';
+  const n = String(s.title).match(/\((\d+)건\)/)?.[1];
+  return n ? `${GLOSS[s.sourceType]}, ${n} bills grouped` : GLOSS[s.sourceType];
+};
 
 /** One record: what matched first (the keyword, and the agenda line it sits on), then a one-line excerpt. */
 function RecordItem({ s, clientId }: { s: ObjectRecord; clientId: string }) {
   const why = LIVE?.why?.[s.id]?.[clientId];
   const excerpt = why?.line ? '' : excerptOf(s);
+  const en = gloss(s);
   return (
     <div className="item rec">
-      <div className="item-title"><a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a></div>
+      <div className="item-title">{/^https:\/\//.test(String(s.url)) ? <a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a> : s.title}</div>
+      {en && <div className="sub rec-gloss" lang="en">{en}</div>}
       <div className="rec-meta">
         <span className="chip chip-record">Public record · {s.sourceName}</span>
         {why && (why.terms.length ? <span className="chip chip-match">Matched: {why.terms.join(', ')}</span> : why.committee && <span className="chip chip-match">Watched committee: {why.committee}</span>)}
         <span className="sub">{md(s.publishedAt)}{s.publisher ? ` · ${s.publisher}` : ''}</span>
       </div>
-      {why?.line && <p className="sub rec-line">{why.line}</p>}
+      {why?.line && <p className="sub rec-line">{shorten(why.line)}</p>}
       {excerpt && <p className="sub rec-excerpt">{excerpt}</p>}
     </div>
   );

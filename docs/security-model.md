@@ -8,14 +8,14 @@ The model generalizes a rule I follow in real work: confidential client material
 
 | Layer | Marking | Object types | Link types |
 |---|---|---|---|
-| Public | `PUBLIC` | Issue, Bill, Provision, Institution, Person, StakeholderOrg, Event, Signal, Evidence | sponsors, cosponsors, member_of, referred_to, amends, about, agenda_item, testifies_at, regulates, mentions |
+| Public | `PUBLIC` | Issue, Bill, Provision, Institution, Person, StakeholderOrg, Event, Signal, Evidence (except evidence from a client's filing) | sponsors, cosponsors, member_of, referred_to, amends, about, agenda_item, testifies_at, regulates, mentions |
 | Client | `CLIENT:<clientId>` | Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation, SignalTriage | affects, watches, produced_for, raised_by |
 
 Rules (enforced by `ontology/validate.ts` on the world and by `Store` on every action):
 
 - Client objects may reference public objects. A public object never references a client object, and a public link never touches a client object.
 - A client object or link may reference only its own client's objects. A client-layer link must carry a `CLIENT` marking that matches its endpoints.
-- Objects created by an action get their marking from the action: client actions mark what they create with `CLIENT:<clientId>` from the call's `clientId`; Evidence and links created by triage are `PUBLIC`, while the filing itself is a `SignalTriage` in the client's layer, so one client's triage never changes the shared item or another client's queue.
+- Objects created by an action get their marking from the action: client actions mark what they create with `CLIENT:<clientId>` from the call's `clientId`; filing an item is a client judgment, so the `SignalTriage` record and the `about` / `mentions` links and Evidence it creates all carry `CLIENT:<clientId>`. One client's filing never changes the shared item, another client's queue or what another client sees linked to it.
 - One action call writes into one client layer. Before it runs, the runtime collects the markings of every object the parameters name; if more than one client layer appears, the call is refused (`INVALID_PARAMS`). So an Aster assessment cannot rest on a Moru meeting, and an Aster decision cannot be raised by a Moru task.
 - A client's judgment about a public person or organization is a `StakeholderAssessment` in that client's layer. `Person` and `StakeholderOrg` carry no stance ([ADR-0010](decisions/ADR-0010-client-judgments-in-client-layer.md)).
 

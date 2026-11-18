@@ -153,13 +153,13 @@ describe('triage reads the client profile', () => {
     expect(proposeTriage(s.as(lead), sig, 'cli-wren').relevantToClient).toBe(false);
   });
 
-  it('keeps the Aster story: the sidewalk bill files itself and the decision is to meet Jang Sora', async () => {
+  it('keeps the Aster story: the sidewalk bill files itself and the decision is to meet the lead sponsor', async () => {
     const s = freshStore();
     const run = await runWeeklyAgent(s, { clientId: 'cli-aster', applyTriage: true });
     const hero = run.proposals.find((p) => p.billId === 'bill-001')!;
     expect(hero).toMatchObject({ action: 'link', issueId: 'iss-01', relevantToClient: true });
     expect(hero.confidence).toBeGreaterThanOrEqual(0.8);
     expect(run.appliedTriage).toContain(hero.signalId);
-    expect(s.as(principal).get(run.decisionId!)!.question).toMatch(/^Meet Jang Sora, /);
+    expect(s.as(principal).get(run.decisionId!)!.question).toMatch(/^Meet Baek Siwoo, /);
   });
 });

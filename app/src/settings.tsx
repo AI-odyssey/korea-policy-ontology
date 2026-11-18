@@ -2,7 +2,7 @@
 // Settings: what we watch for the client (objectives, keywords, coverage) and the trial the client runs to test it.
 import { useState } from 'react';
 import { Button, HTMLSelect, InputGroup, Switch } from '@blueprintjs/core';
-import { addDays, pilotMetrics, SOURCE_TYPES } from '../../ontology/index.ts';
+import { addDays, clientBills, pilotMetrics, SOURCE_TYPES, stageGates } from '../../ontology/index.ts';
 import type { ObjectRecord, PilotMetrics, ProfileKeyword, ProfileObjective } from '../../ontology/index.ts';
 import { Empty, ObjLink, SOURCE, T, cap, md, nameOf } from './ui.tsx';
 import type { App } from './ui.tsx';
@@ -147,8 +147,22 @@ function Coverage({ app, profile }: { app: App; profile: ObjectRecord }) {
   const sw = (field: 'committees' | 'agencies', o: ObjectRecord, label = o.name) => (
     <Switch key={o.id} checked={(profile[field] as string[]).includes(o.id)} label={label} onChange={() => toggle(field, o.id, o.name)} />
   );
+  // A followed bill whose current or next body is not watched would be missed: say so plainly.
+  const watched = new Set<string>(profile.committees);
+  const covered = (i?: ObjectRecord) => !i || watched.has(i.id) || (!!i.parentId && watched.has(i.parentId));
+  const gaps = clientBills(view, clientId).filter((b) => !['passed', 'merged_alternative', 'withdrawn'].includes(b.stage)).flatMap((b) => {
+    const bodies = new Set<string>(view.targets(b.id, 'referred_to').map((c) => c.id));
+    const next = stageGates(view, b.id).find((g) => g.status === 'next');
+    if (next?.institutionId) bodies.add(next.institutionId);
+    return [...bodies].map((id) => view.get(id)).filter((i) => i && i.kind !== 'plenary' && !covered(i)).map((i) => `${nameOf(b)} is at the ${i!.name}, which is not watched.`);
+  });
   return (
     <div className="g2 cov">
+      {gaps.length > 0 && (
+        <div className="cov-warn">
+          {[...new Set(gaps)].map((g) => <p key={g} className="warn small">{g}</p>)}
+        </div>
+      )}
       <section className="sec">
         <h2 className="label">Committees</h2>
         {committees.map((c) => (
@@ -216,7 +230,7 @@ function TrialResult({ app, pilot, m }: { app: App; pilot: ObjectRecord; m: Pilo
     <section className="sec">
       <div className="row">
         <h2 className="h2">{pilot.title}</h2>
-        <T tone={open ? 'md' : pilot.result === 'pass' ? 'op' : 'hi'}>{open ? (pilot.to < app.view.baseDate ? `Ended ${md(pilot.to)}, not closed` : 'In progress') : pilot.result === 'pass' ? 'Passed' : 'Did not pass'}</T>
+        <T tone={open ? 'md' : pilot.result === 'pass' ? 'op' : 'hi'}>{open ? (pilot.to < app.view.baseDate ? `Ended ${md(pilot.to)} · result not recorded yet` : 'In progress') : pilot.result === 'pass' ? 'Passed' : 'Did not pass'}</T>
       </div>
       <p className="sub">{md(pilot.from)} to {md(pilot.to)} · {count(m.expected, 'must-catch item')} · {count(m.caught, 'item')} caught</p>
       <p className="lead">{shortfall(m)}</p>
@@ -224,7 +238,7 @@ function TrialResult({ app, pilot, m }: { app: App; pilot: ObjectRecord; m: Pilo
         <div className="stat">
           <div className="stat-name">Sources reached</div>
           <div className="stat-value">{m.access.reached} of {m.access.total}</div>
-          <div className="sub">Target {pct(m.criteria.access)}{LIVE ? ` · live sources checked for ${md(LIVE.from)} to ${md(LIVE.to)}` : ''}</div>
+          <div className="sub">Of the {count(m.access.total, 'source')} switched on in Coverage · target {pct(m.criteria.access)}{LIVE ? ` · live sources checked for ${md(LIVE.from)} to ${md(LIVE.to)}` : ''}</div>
           {met(m.checks.access)}
         </div>
         <div className="stat">

@@ -1,6 +1,6 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
 import { describe, expect, it } from 'vitest';
-import { billRiskScore, clientBills, functions, issueExposure, keyPeople, responseLevel, RISK_WEIGHTS, upcomingDeadlines, whatChanged } from '../ontology/functions.ts';
+import { billRiskScore, clientBills, functions, issueExposure, keyPeople, responseFacts, responseLevel, RISK_WEIGHTS, upcomingDeadlines, whatChanged } from '../ontology/functions.ts';
 import { functionTypes } from '../ontology/schema.ts';
 import { ctx, freshStore, principal } from './helpers.ts';
 
@@ -66,26 +66,26 @@ describe('functions', () => {
     expect(clientBills(s.as(principal), 'cli-aster').map((b) => b.id)).toContain('bill-023');
   });
 
-  it('responseLevel: act_now needs a slot within 7 days, a stance of oppose or amend, and a move this week', () => {
+  it('responseLevel: act_now needs a decisive step within 7 days, a stance of oppose or amend, and a move this week', () => {
     const v = view();
     const r = responseLevel(v, 'bill-001', 'cli-aster');
     expect(r.level).toBe('act_now');
     expect(r.reasons).toEqual([
       'Moved to subcommittee_passed on 2026-11-12',
-      'Public Administration and Security Committee meeting on 2026-11-19 (3 days)',
+      'Public Administration and Security Committee meeting on 2026-11-19 (3 days; full committee vote)',
       'Client stance: amend',
       'Issue impact: high',
     ]);
     // Drop any one condition and it is no longer act_now.
     expect(responseLevel(v, 'bill-001', 'cli-aster', '2026-11-12').level).toBe('engage'); // no move after 11-12
-    expect(responseLevel(v, 'bill-014', 'cli-moru').level).toBe('engage'); // moved, LJC in 7 days, but the client supports it
-    expect(responseLevel(v, 'bill-008', 'cli-aster').level).toBe('engage'); // amend, but the subcommittee is 8 days out
+    expect(responseLevel(v, 'bill-014', 'cli-moru').level).toBe('engage'); // moved with the lawmaker bills, full committee vote in 8 days, but the client supports it
+    expect(responseLevel(v, 'bill-008', 'cli-aster').level).toBe('engage'); // amend, subcommittee in 7 days, but it did not move
   });
 
   it('responseLevel: an opposed, high-impact bill on an agenda within 7 days is act_now without a move; amend is not', () => {
     const v = view();
     expect(responseLevel(v, 'bill-018', 'cli-moru').level).toBe('act_now'); // oppose, high, subcommittee in 2 days, no move
-    expect(responseLevel(v, 'bill-023', 'cli-wren').level).toBe('act_now'); // oppose, high, full committee in 3 days, no move
+    expect(responseLevel(v, 'bill-023', 'cli-wren').level).toBe('act_now'); // oppose, high, subcommittee review in 4 days
     expect(responseLevel(v, 'bill-028', 'cli-wren').level).toBe('engage'); // amend, high, subcommittee in 4 days, no move
     const s = freshStore();
     s.applyAction(principal, 'setClientPosition', { clientId: 'cli-moru', targetId: 'bill-018', stance: 'amend', rationale: 'Softer line' });
@@ -95,10 +95,9 @@ describe('functions', () => {
   it('responseLevel: engage, monitor and watch follow the stated rules', () => {
     const v = view();
     const level = (b: string, c: string) => responseLevel(v, b, c).level;
-    expect(level('bill-031', 'cli-aster')).toBe('engage'); // amend on its issue, LJC in 7 days
-    expect(level('bill-003', 'cli-aster')).toBe('engage'); // no stance, but high impact and a meeting in 3 days
-    expect(level('bill-002', 'cli-aster')).toBe('monitor'); // no stance, high impact, subcommittee in 10 days
-    expect(level('bill-011', 'cli-aster')).toBe('monitor'); // supported, medium impact, meeting in 8 days
+    expect(level('bill-003', 'cli-aster')).toBe('engage'); // no stance, but high impact and the full committee takes it up in 3 days
+    expect(level('bill-002', 'cli-aster')).toBe('engage'); // no stance, high impact, subcommittee in 10 days
+    expect(level('bill-011', 'cli-aster')).toBe('monitor'); // supported, medium impact, subcommittee in 7 days
     expect(level('bill-004', 'cli-aster')).toBe('monitor'); // notice period closes in 21 days and high impact, but no client stance
     expect(level('bill-022', 'cli-moru')).toBe('watch'); // supported, medium impact, nothing moving
     expect(responseLevel(v, 'bill-009', 'cli-aster')).toEqual({ level: 'watch', reasons: ['Bill is closed (merged_alternative)'] });
@@ -137,5 +136,47 @@ describe('functions', () => {
     expect(e).toHaveLength(4);
     expect(e.map((x) => x.exposure)).toEqual([...e.map((x) => x.exposure)].sort((a, b) => b - a));
     expect(e.every((x) => x.exposure <= 100)).toBe(true);
+  });
+});
+
+describe('response level and the steps a bill can still change at', () => {
+  it('a supported, high-impact bill with a subcommittee review within ten days is engage', () => {
+    const v = view();
+    const f = responseFacts(v, 'bill-005', 'cli-aster');
+    expect(f.position?.stance).toBe('support');
+    expect(f.impact).toBe('high');
+    expect(f.daysToDecisive).toBe(7);
+    expect(responseLevel(v, 'bill-005', 'cli-aster').level).toBe('engage');
+    // The same bill without the review in sight is not.
+    expect(responseLevel(v, 'bill-011', 'cli-aster').level).toBe('monitor'); // supported, but medium impact
+  });
+
+  it('a first 상정 is not a decisive step: the full committee takes up a referred bill without a vote', () => {
+    const v = view();
+    expect(responseFacts(v, 'bill-003', 'cli-aster')).toMatchObject({ slotKind: 'introduction', daysToSlot: 3 });
+    expect(responseFacts(v, 'bill-003', 'cli-aster').decisive).toBeUndefined();
+    expect(responseFacts(v, 'bill-001', 'cli-aster')).toMatchObject({ slotKind: 'vote', daysToDecisive: 3 });
+    expect(responseFacts(v, 'bill-008', 'cli-aster')).toMatchObject({ slotKind: 'review' });
+    const s = freshStore();
+    // Even an opposed, high-impact bill is only engage while its only meeting is the introduction.
+    s.applyAction(principal, 'setClientPosition', { clientId: 'cli-aster', targetId: 'bill-003', stance: 'oppose', rationale: 'Test' });
+    expect(responseLevel(s.as(principal), 'bill-003', 'cli-aster').level).toBe('engage');
+  });
+
+  it('at the Legislation and Judiciary Committee only wording and delay risk are left, whatever the stance', () => {
+    const v = view();
+    const f = responseFacts(v, 'bill-031', 'cli-aster');
+    expect(f).toMatchObject({ slotKind: 'wording', textOpen: false, daysToSlot: 7 });
+    const r = responseLevel(v, 'bill-031', 'cli-aster');
+    expect(r.level).toBe('monitor');
+    expect(r.reasons.join(' ')).toMatch(/wording review only/);
+    expect(r.reasons).toContain('The text is settled: only wording and delay risk are left, so the level stays at monitor or below');
+    // Even an opposing client with high impact cannot push a settled bill above monitor.
+    const s = freshStore();
+    s.applyAction(principal, 'setClientPosition', { clientId: 'cli-aster', targetId: 'bill-031', stance: 'oppose', rationale: 'Test' });
+    expect(responseLevel(s.as(principal), 'bill-031', 'cli-aster').level).toBe('monitor');
+    // The substantive ask sits on the related bill still in subcommittee.
+    expect(responseFacts(v, 'bill-008', 'cli-aster')).toMatchObject({ textOpen: true, slotKind: 'review' });
+    expect(responseLevel(v, 'bill-008', 'cli-aster').level).toBe('engage');
   });
 });

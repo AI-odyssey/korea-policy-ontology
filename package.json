@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "ingest": "node ingest/cli.ts",
     "ingest:snapshot": "node ingest/snapshot.ts",
+    "ingest:refilter": "node ingest/refilter.ts",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

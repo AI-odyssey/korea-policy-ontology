@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { Button, Drawer } from '@blueprintjs/core';
 import { monthDay } from '../../ontology/index.ts';
-import type { ActionName, Ctx, Marking, ObjectRecord, Store, View } from '../../ontology/index.ts';
+import type { ActionName, AuditEntry, Ctx, Marking, ObjectRecord, Store, View } from '../../ontology/index.ts';
 import type { AgentRun } from '../../agent/index.ts';
 export { billName } from '../../agent/index.ts';
 
@@ -21,6 +21,8 @@ export interface App {
   go: (path: string) => void;
   runs: Record<string, AgentRun>;
   runAgent: () => Promise<AgentRun | undefined>;
+  when: (a: AuditEntry) => string; // 'Nov 16 14:32': seeded time for the opening, the viewer's own time for what they did
+
 }
 
 // ---- Labels ----

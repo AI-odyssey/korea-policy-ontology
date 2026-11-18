@@ -10,8 +10,8 @@
    "ok": true,
    "fetched": 453,
    "kept": {
-    "cli-aster": 3,
-    "cli-moru": 1,
+    "cli-aster": 1,
+    "cli-moru": 0,
     "cli-wren": 0
    }
   },
@@ -22,8 +22,8 @@
    "ok": true,
    "fetched": 317,
    "kept": {
-    "cli-aster": 2,
-    "cli-moru": 1,
+    "cli-aster": 1,
+    "cli-moru": 0,
     "cli-wren": 0
    }
   },
@@ -82,8 +82,8 @@
    "ok": true,
    "fetched": 45,
    "kept": {
-    "cli-aster": 3,
-    "cli-moru": 1,
+    "cli-aster": 1,
+    "cli-moru": 0,
     "cli-wren": 1
    }
   },
@@ -106,9 +106,9 @@
    "ok": true,
    "fetched": 13,
    "kept": {
-    "cli-aster": 1,
-    "cli-moru": 1,
-    "cli-wren": 1
+    "cli-aster": 0,
+    "cli-moru": 0,
+    "cli-wren": 0
    }
   },
   {
@@ -131,91 +131,13 @@
    "fetched": 94,
    "kept": {
     "cli-aster": 4,
-    "cli-moru": 10,
-    "cli-wren": 15
+    "cli-moru": 5,
+    "cli-wren": 10
    }
   }
  ],
  "matches": {
-  "sig-live-8c85edce": [
-   "cli-aster"
-  ],
-  "sig-live-242870c2": [
-   "cli-aster"
-  ],
-  "sig-live-510b02f6": [
-   "cli-aster"
-  ],
-  "sig-live-bdaf280c": [
-   "cli-aster"
-  ],
-  "sig-live-ba258b4d": [
-   "cli-aster"
-  ],
-  "sig-live-3921d659": [
-   "cli-aster"
-  ],
-  "sig-live-9aa3f3d8": [
-   "cli-aster"
-  ],
-  "sig-live-85f3dd3c": [
-   "cli-aster"
-  ],
-  "sig-live-b1357ce4": [
-   "cli-aster"
-  ],
-  "sig-live-b213cc9b": [
-   "cli-aster"
-  ],
-  "sig-live-12675430": [
-   "cli-aster"
-  ],
-  "sig-live-6f21af21": [
-   "cli-aster"
-  ],
-  "sig-live-d8523e30": [
-   "cli-aster"
-  ],
   "sig-live-054345f3": [
-   "cli-moru"
-  ],
-  "sig-live-a8ab2925": [
-   "cli-moru"
-  ],
-  "sig-live-24a39314": [
-   "cli-moru"
-  ],
-  "sig-live-ab233519": [
-   "cli-moru"
-  ],
-  "sig-live-dac712cb": [
-   "cli-moru"
-  ],
-  "sig-live-9b56caf2": [
-   "cli-moru"
-  ],
-  "sig-live-9a63cf68": [
-   "cli-moru"
-  ],
-  "sig-live-410dafec": [
-   "cli-moru"
-  ],
-  "sig-live-9e1fc638": [
-   "cli-moru"
-  ],
-  "sig-live-a812d13b": [
-   "cli-moru"
-  ],
-  "sig-live-a4a43d3f": [
-   "cli-moru"
-  ],
-  "sig-live-dd63c08b": [
-   "cli-moru"
-  ],
-  "sig-live-d0fba530": [
-   "cli-moru"
-  ],
-  "sig-live-41a1823c": [
    "cli-moru"
   ],
   "sig-live-262873e8": [
@@ -224,14 +146,17 @@
   "sig-live-9c3b42a1": [
    "cli-wren"
   ],
+  "sig-live-a8ab2925": [
+   "cli-moru"
+  ],
   "sig-live-0cab7a88": [
    "cli-wren"
   ],
-  "sig-live-9227155a": [
-   "cli-wren"
+  "sig-live-bdaf280c": [
+   "cli-aster"
   ],
-  "sig-live-2b28ec6b": [
-   "cli-wren"
+  "sig-live-ba258b4d": [
+   "cli-aster"
   ],
   "sig-live-3d56c76f": [
    "cli-wren"
@@ -239,215 +164,42 @@
   "sig-live-e4c3c444": [
    "cli-wren"
   ],
+  "sig-live-85f3dd3c": [
+   "cli-aster"
+  ],
   "sig-live-079bcd26": [
    "cli-wren"
   ],
-  "sig-live-ee3c51d2": [
-   "cli-wren"
+  "sig-live-b1357ce4": [
+   "cli-aster"
   ],
-  "sig-live-daaf175e": [
-   "cli-wren"
+  "sig-live-b213cc9b": [
+   "cli-aster"
   ],
-  "sig-live-55adb7d0": [
-   "cli-wren"
+  "sig-live-9b56caf2": [
+   "cli-moru"
+  ],
+  "sig-live-6f21af21": [
+   "cli-aster"
+  ],
+  "sig-live-a4a43d3f": [
+   "cli-moru"
+  ],
+  "sig-live-d8523e30": [
+   "cli-aster"
+  ],
+  "sig-live-d0fba530": [
+   "cli-moru"
   ],
   "sig-live-6cd2c559": [
-   "cli-wren"
-  ],
-  "sig-live-8f700e5a": [
    "cli-wren"
   ]
  },
  "why": {
-  "sig-live-8c85edce": {
-   "cli-aster": {
-    "terms": [
-     "도로교통법"
-    ]
-   }
-  },
-  "sig-live-242870c2": {
-   "cli-aster": {
-    "terms": [
-     "도로교통법"
-    ],
-    "line": "도로교통법 일부개정법률안 15건"
-   }
-  },
-  "sig-live-510b02f6": {
-   "cli-aster": {
-    "terms": [],
-    "committee": "산업통상자원중소벤처기업위원회"
-   }
-  },
-  "sig-live-bdaf280c": {
-   "cli-aster": {
-    "terms": [
-     "지능형로봇법"
-    ]
-   }
-  },
-  "sig-live-ba258b4d": {
-   "cli-aster": {
-    "terms": [
-     "지능형로봇법"
-    ],
-    "line": "지능형 로봇 개발 및 보급 촉진법 일부개정법률안 2건"
-   }
-  },
-  "sig-live-3921d659": {
-   "cli-aster": {
-    "terms": [
-     "도로교통법"
-    ]
-   }
-  },
-  "sig-live-9aa3f3d8": {
-   "cli-aster": {
-    "terms": [
-     "개인형 이동장치"
-    ],
-    "line": "개인형 이동장치의 안전 및 관리에 관한 법률안(대안)"
-   }
-  },
-  "sig-live-85f3dd3c": {
-   "cli-aster": {
-    "terms": [
-     "실외이동로봇"
-    ]
-   }
-  },
-  "sig-live-b1357ce4": {
-   "cli-aster": {
-    "terms": [
-     "지능형로봇법"
-    ]
-   }
-  },
-  "sig-live-b213cc9b": {
-   "cli-aster": {
-    "terms": [
-     "실외이동로봇"
-    ]
-   }
-  },
-  "sig-live-12675430": {
-   "cli-aster": {
-    "terms": [
-     "도로교통법"
-    ]
-   }
-  },
-  "sig-live-6f21af21": {
-   "cli-aster": {
-    "terms": [
-     "실외이동로봇"
-    ]
-   }
-  },
-  "sig-live-d8523e30": {
-   "cli-aster": {
-    "terms": [
-     "지능형로봇법"
-    ]
-   }
-  },
   "sig-live-054345f3": {
    "cli-moru": {
     "terms": [
      "대체단백질"
-    ]
-   }
-  },
-  "sig-live-a8ab2925": {
-   "cli-moru": {
-    "terms": [
-     "대체단백질"
-    ]
-   }
-  },
-  "sig-live-24a39314": {
-   "cli-moru": {
-    "terms": [
-     "식품위생법"
-    ]
-   }
-  },
-  "sig-live-ab233519": {
-   "cli-moru": {
-    "terms": [
-     "식품위생법"
-    ],
-    "line": "식품위생법 일부개정법률안 4건"
-   }
-  },
-  "sig-live-dac712cb": {
-   "cli-moru": {
-    "terms": [
-     "대체단백질"
-    ]
-   }
-  },
-  "sig-live-9b56caf2": {
-   "cli-moru": {
-    "terms": [
-     "대체단백질"
-    ]
-   }
-  },
-  "sig-live-9a63cf68": {
-   "cli-moru": {
-    "terms": [
-     "배양육"
-    ]
-   }
-  },
-  "sig-live-410dafec": {
-   "cli-moru": {
-    "terms": [
-     "배양육"
-    ]
-   }
-  },
-  "sig-live-9e1fc638": {
-   "cli-moru": {
-    "terms": [
-     "배양육"
-    ]
-   }
-  },
-  "sig-live-a812d13b": {
-   "cli-moru": {
-    "terms": [],
-    "committee": "농림축산식품해양수산위원회"
-   }
-  },
-  "sig-live-a4a43d3f": {
-   "cli-moru": {
-    "terms": [
-     "배양육",
-     "대체단백질"
-    ]
-   }
-  },
-  "sig-live-dd63c08b": {
-   "cli-moru": {
-    "terms": [
-     "대체단백질"
-    ]
-   }
-  },
-  "sig-live-d0fba530": {
-   "cli-moru": {
-    "terms": [
-     "배양육"
-    ]
-   }
-  },
-  "sig-live-41a1823c": {
-   "cli-moru": {
-    "terms": [
-     "식품위생법"
     ]
    }
   },
@@ -466,6 +218,13 @@
     ]
    }
   },
+  "sig-live-a8ab2925": {
+   "cli-moru": {
+    "terms": [
+     "대체단백질"
+    ]
+   }
+  },
   "sig-live-0cab7a88": {
    "cli-wren": {
     "terms": [
@@ -473,18 +232,19 @@
     ]
    }
   },
-  "sig-live-9227155a": {
-   "cli-wren": {
+  "sig-live-bdaf280c": {
+   "cli-aster": {
     "terms": [
-     "소액해외송금"
+     "지능형로봇법"
     ]
    }
   },
-  "sig-live-2b28ec6b": {
-   "cli-wren": {
+  "sig-live-ba258b4d": {
+   "cli-aster": {
     "terms": [
-     "외국환거래법"
-    ]
+     "지능형로봇법"
+    ],
+    "line": "지능형 로봇 개발 및 보급 촉진법 일부개정법률안 2건"
    }
   },
   "sig-live-3d56c76f": {
@@ -501,6 +261,13 @@
     ]
    }
   },
+  "sig-live-85f3dd3c": {
+   "cli-aster": {
+    "terms": [
+     "실외이동로봇"
+    ]
+   }
+  },
   "sig-live-079bcd26": {
    "cli-wren": {
     "terms": [
@@ -508,38 +275,60 @@
     ]
    }
   },
-  "sig-live-ee3c51d2": {
-   "cli-wren": {
+  "sig-live-b1357ce4": {
+   "cli-aster": {
     "terms": [
-     "전자금융거래법",
-     "선불충전금"
+     "지능형로봇법"
     ]
    }
   },
-  "sig-live-daaf175e": {
-   "cli-wren": {
+  "sig-live-b213cc9b": {
+   "cli-aster": {
     "terms": [
-     "외국환거래법"
+     "실외이동로봇"
     ]
    }
   },
-  "sig-live-55adb7d0": {
-   "cli-wren": {
-    "terms": [],
-    "committee": "재정경제기획위원회"
+  "sig-live-9b56caf2": {
+   "cli-moru": {
+    "terms": [
+     "대체단백질"
+    ]
+   }
+  },
+  "sig-live-6f21af21": {
+   "cli-aster": {
+    "terms": [
+     "실외이동로봇"
+    ]
+   }
+  },
+  "sig-live-a4a43d3f": {
+   "cli-moru": {
+    "terms": [
+     "배양육",
+     "대체단백질"
+    ]
+   }
+  },
+  "sig-live-d8523e30": {
+   "cli-aster": {
+    "terms": [
+     "지능형로봇법"
+    ]
+   }
+  },
+  "sig-live-d0fba530": {
+   "cli-moru": {
+    "terms": [
+     "배양육"
+    ]
    }
   },
   "sig-live-6cd2c559": {
    "cli-wren": {
     "terms": [
      "선불충전금"
-    ]
-   }
-  },
-  "sig-live-8f700e5a": {
-   "cli-wren": {
-    "terms": [
-     "외국환거래법"
     ]
    }
   }
@@ -618,59 +407,6 @@
    "status": "new"
   },
   {
-   "id": "sig-live-8c85edce",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "bill_update",
-   "title": "[소관위 상정] 도로교통법 일부개정법률안 (15건)",
-   "url": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_P2N6N0L9M0U4V1T4R0S0R2R2Z8Z8Y9",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Assembly bill tracker",
-   "publishedAt": "2026-11-16",
-   "rawText": "[소관위 상정] 도로교통법 일부개정법률안 (15건)\n의안번호 2221528, 2221383, 2221339, 2221005, 2220982, 2220753, 2220350, 2220069, 2219714, 2219550, 2219501, 2219373, 2219322, 2219258, 2219148",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-242870c2",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "minutes",
-   "title": "[회의록 게재 전] 제11차 행정안전위원회 (2026.11.16.)",
-   "url": "https://adminhom.na.go.kr/cmmit/schl/cmitSchl/view.do?menuNo=2000048&cmtSchSn=10121537",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Committee website",
-   "publishedAt": "2026-11-16",
-   "publisher": "행정안전위원회",
-   "rawText": "[회의록 게재 전] 제11차 행정안전위원회 (2026.11.16.)\n청원심사기간 연장 요구의 건 · 공공기관의 사회적 가치 실현에 관한 기본법안 2건 · 공공기관의 정보공개에 관한 법률 일부개정법률안 · 공공데이터의 제공 및 이용 활성화에 관한 법률 일부개정법률안 · 공유재산 및 물품 관리법 일부개정법률안 2건 · 공중화장실 등에 관한 법률 일부개정법률안 · 국가장법 일부개정법률안 · 국경일에 관한 법률 일부개정법률안 · 대한민국지방의정회법안 · 새마을금고법 일부개정법률안 2건 · 새만금특별지방자치단체연합 설치 및 지원에 관한 특별법안 · 옥외광고물 등의 관리와 옥외광고산업 진흥에 관한 법률 일부…",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-510b02f6",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "press_release",
-   "title": "산자중기위, 소관 법률안 177건 상정",
-   "url": "https://www.assembly.go.kr/portal/bbs/B0000051/view.do?nttId=5311407&menuNo=600101",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Committee press release",
-   "publishedAt": "2026-11-16",
-   "publisher": "산업통상자원중소벤처기업위원회",
-   "rawText": "산자중기위, 소관 법률안 177건 상정",
-   "status": "new"
-  },
-  {
    "id": "sig-live-0cab7a88",
    "type": "Signal",
    "markings": [
@@ -724,94 +460,6 @@
    "status": "new"
   },
   {
-   "id": "sig-live-24a39314",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "bill_update",
-   "title": "[소관위 상정] 식품위생법 일부개정법률안 (4건)",
-   "url": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_46BB972AD92A4E3F9184984D7DCD9B",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Assembly bill tracker",
-   "publishedAt": "2026-11-13",
-   "rawText": "[소관위 상정] 식품위생법 일부개정법률안 (4건)\n의안번호 2221754, 2221536, 2221340, 2220991",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-3921d659",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "bill_update",
-   "title": "도로교통법 일부개정법률안",
-   "url": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_6FC542211DB145B4A75486BE4AC483",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Assembly bill tracker",
-   "publishedAt": "2026-11-13",
-   "rawText": "도로교통법 일부개정법률안\n부승찬의원 등 10인 · 소관 행정안전위원회",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-ab233519",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "minutes",
-   "title": "[회의록 게재 전] 제8차 보건복지위원회 (2026.11.13.)",
-   "url": "https://health.na.go.kr/cmmit/schl/cmitSchl/view.do?menuNo=2000048&cmtSchSn=10121518",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Committee website",
-   "publishedAt": "2026-11-13",
-   "publisher": "보건복지위원회",
-   "rawText": "[회의록 게재 전] 제8차 보건복지위원회 (2026.11.13.)\n2027년도 예산안 · 2027년도 기금운용계획안 · 2027년도 미래대응기금운용계획안에 대한 의견제시의 건 · 간호법 일부개정법률안 · 고독사 예방 및 관리에 관한 법률 일부개정법률안 · 고독사 예방 및 관리에 관한 법률 전부개정법률안 2건 · 공공보건의료에 관한 법률 일부개정법률안 · 구강보건법 일부개정법률안 · 국내입양에 관한 특별법 일부개정법률안 · 국립대학병원 설치법 일부개정법률안 6건 · 국립대학치과병원 설치법 일부개정법률안 2건 · 국민건강보험법 일부개정법률안 9건 · 국민건강증진법 일부개정법률안 · 국민기초생활 보장…",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-9227155a",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "news",
-   "title": "FinCEN의 해외송금 정산거래 경보와 국내 해외지급결제업의 AML 위험관리",
-   "url": "https://news.google.com/rss/articles/CBMickFVX3lxTE5SS0hpdDhoUTNnaUdRUGFMME43enBxQXdHVTFxUlY3UV8wRzZpcVkxTkdvYVlWdHlCLUdSOVEtMDBWbXJqQnhCZjVwYUdzNEhqaWpDTzhzWmlrZFVieXh2MWdHOEpkWXR3a1pReFBJczNBZ9IBckFVX3lxTE5SS0hpdDhoUTNnaUdRUGFMME43enBxQXdHVTFxUlY3UV8wRzZpcVkxTkdvYVlWdHlCLUdSOVEtMDBWbXJqQnhCZjVwYUdzNEhqaWpDTzhzWmlrZFVieXh2MWdHOEpkWXR3a1pReFBJczNBZw?oc=5",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "News",
-   "publishedAt": "2026-11-12",
-   "publisher": "법률신문",
-   "rawText": "FinCEN의 해외송금 정산거래 경보와 국내 해외지급결제업의 AML 위험관리",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-2b28ec6b",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "news",
-   "title": "가상자산이전업 등록제 도입을 위한 외국환거래법 시행령 개정안의 주요 내용",
-   "url": "https://news.google.com/rss/articles/CBMickFVX3lxTE1oQklWZXpkM2dwMTVCeURtWFkzcVUzaDhxZDRZYkw5dGhLMDVkRF9heWtJOWhLS25YemVmakJFcHpKNkJKM1BkR00zanVQNWJ1M2NBYjBaNHFXWGFKdjFlbER0REg5cnNiN3J6ZUVMNmJVUdIBckFVX3lxTE1oQklWZXpkM2dwMTVCeURtWFkzcVUzaDhxZDRZYkw5dGhLMDVkRF9heWtJOWhLS25YemVmakJFcHpKNkJKM1BkR00zanVQNWJ1M2NBYjBaNHFXWGFKdjFlbER0REg5cnNiN3J6ZUVMNmJVUQ?oc=5",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "News",
-   "publishedAt": "2026-11-12",
-   "publisher": "법률신문",
-   "rawText": "가상자산이전업 등록제 도입을 위한 외국환거래법 시행령 개정안의 주요 내용",
-   "status": "new"
-  },
-  {
    "id": "sig-live-3d56c76f",
    "type": "Signal",
    "markings": [
@@ -845,24 +493,6 @@
    "publishedAt": "2026-11-11",
    "publisher": "연합뉴스",
    "rawText": "재경부 \"스테이블코인 국경간 이전, 외국환거래법으로 규율\"",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-9aa3f3d8",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "minutes",
-   "title": "[회의록 게재 전] 제1차 국토교통위원회 교통법안심사소위원회 (2026.11.11.)",
-   "url": "https://ltc.na.go.kr/cmmit/schl/cmitSchl/view.do?menuNo=2000048&cmtSchSn=10121481",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Committee website",
-   "publishedAt": "2026-11-11",
-   "publisher": "국토교통위원회",
-   "rawText": "[회의록 게재 전] 제1차 국토교통위원회 교통법안심사소위원회 (2026.11.11.)\n항공안전법 일부개정법률안 3건 · 인천국제공항공사법 일부개정법률안 3건 · 자동차관리법 일부개정법률안 · 공항시설법 일부개정법률안 · 여객자동차 운수사업법 일부개정법률안 2건 · 철도안전법 일부개정법률안 6건 · 공항소음 방지 및 소음대책지역 지원에 관한 법률 일부개정법률안 · 유료도로법 일부개정법률안 · 한국철도공사법 일부개정법률안 · 교통기본법안 3건 · 교통정책기본법안 · 모빌리티기본법안 · 개인형 이동장치의 안전 및 관리에 관한 법률안(대안) · 개인형 이동수단의 안전 및 관리에 관한 법률안 2건 · 개인형 이동수단의 안전…",
    "status": "new"
   },
   {
@@ -920,42 +550,6 @@
    "status": "new"
   },
   {
-   "id": "sig-live-dac712cb",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "news",
-   "title": "고기 대신 대체육 먹으면, 온실가스 345만 t 줄인다",
-   "url": "https://news.google.com/rss/articles/CBMidkFVX3lxTFBPZUpQeWxtOVVNeUowNTNBQmlTbzNjWXFRTWZZTDd5d1dhSjJLNGFEOFlQbG15M1BQVXlVbUMzRUJZazlzZENNSkdJaEQ2YmJxNGtnQnAxUWI5TC1pbVVSRTREMWVZNUVlQ0FtR0ZXMFdTM1pOUEHSAWZBVV95cUxNYXFvYkFxaEtiZEx1TnRUUDdpOXFneF9yUUdEQnhOb2ZMb1RKazlHLXRDVGRFS1VDUHRnVVJ0dFAtM2R0RHFxajZMR1FUY1BLa1pQMm1TbkpjX0tVcTdmdU92dVZoakE?oc=5",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "News",
-   "publishedAt": "2026-11-10",
-   "publisher": "동아일보",
-   "rawText": "고기 대신 대체육 먹으면, 온실가스 345만 t 줄인다",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-ee3c51d2",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "news",
-   "title": "전자금융업자 운영자금·판매대금 분리…정산자금 60% 이상 외부관리",
-   "url": "https://news.google.com/rss/articles/CBMickFVX3lxTE9kZlN5OGV0MC1CQ3lzLVdpbUR1TDNwYV9xUThocDRsTzJxQjg5d1lYa0hhY2EzaHhUcVV2RVc2a1hCWTJsVmg5ZF9NMm9MTjVjX01pNjFkQW1tRjg3aXFIanVfODg5TEFucTd2OHd3MU9LZw?oc=5",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "News",
-   "publishedAt": "2026-11-09",
-   "publisher": "KB Think",
-   "rawText": "전자금융업자 운영자금·판매대금 분리…정산자금 60% 이상 외부관리",
-   "status": "new"
-  },
-  {
    "id": "sig-live-b213cc9b",
    "type": "Signal",
    "markings": [
@@ -971,24 +565,6 @@
    "publishedAt": "2026-11-09",
    "publisher": "조선일보",
    "rawText": "\"사람이 먼저? 로봇이 먼저?\"…배송 로봇과 부딪히면 누가 배상하나",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-daaf175e",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "news",
-   "title": "「외국환거래법 시행령」 개정안 입법예고 – 가상자산이전업무 신설 및 환전업 규제 강화",
-   "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE9SY2h5dzdpbnFMUllDeUVBM0p3NV9nUS12S1k5anhiZ0FXMVJYTGlfRDJEanRTMnJ6MmY2Q0ZHYVJOOFRXUkM0S2xCQnR5RTNGdmp5LUFMcV82TnJnRG5BbXZ3ekF6VHRlT0RQQ3RR0gFyQVVfeXFMUC1UcEpSdnJzckNqX0RPS2FUUTVzLVczWmFOY25PZUxJaXlZMmlEWS1GLUV2NXVfWEhtdGJaUXdBVi01UFR1RmNpQjJQVURuWVU1T1ZjWU94S2lubzRrMm5nTUdUODdMNnFhaTE3cTl5Vy13?oc=5",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "News",
-   "publishedAt": "2026-11-09",
-   "publisher": "법률신문",
-   "rawText": "「외국환거래법 시행령」 개정안 입법예고 – 가상자산이전업무 신설 및 환전업 규제 강화",
    "status": "new"
   },
   {
@@ -1010,59 +586,6 @@
    "status": "new"
   },
   {
-   "id": "sig-live-9a63cf68",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "news",
-   "title": "“배양육·단백질 식품 양대 날개 달았다”… 의성군, 바이오푸드밸리에 455억 원 투자 유치",
-   "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5ER0c4ZTNWOXN2Wkg4ZlZhSjhCYVp0MHVwZklEaXBHWDhvWGJ3RnNWV2hiYlZQT0JOTHVLUG8wS3VKcXBNUng0YWtVVHpzTDFEQzJkaXpDQjRISGhVd1ZXZ1pCU0F3RG50c0FxaFlYeEzSAXRBVV95cUxPUURCMy10dVhIX0lVZnB0ZlkzLWhJdUZ6R0psbHM2bjlZZUlBdVFXNnNWQzN5V3Fzc3NyOGlZT0JBdXZucTNaVW5TcXZ1Y0pMbzNzQU9jOUdIQ25BbVpOTVVMUG90ZGJ1aXlRT09vRlhxenlHUA?oc=5",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "News",
-   "publishedAt": "2026-11-06",
-   "publisher": "이뉴스투데이",
-   "rawText": "“배양육·단백질 식품 양대 날개 달았다”… 의성군, 바이오푸드밸리에 455억 원 투자 유치",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-410dafec",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "news",
-   "title": "세포배양식품 전문기업 팡세, 네덜란드 정부·연구기관에 세포배양식품 산업화 역량 선보여",
-   "url": "https://news.google.com/rss/articles/CBMieEFVX3lxTE9aSDJuM2JUMWQtTEpSbVREQTlSMWNWVjZTMGdwcVVudm5DX0ZZSFNXQU94UVJTeGxLbUtHU1dRMzk2aTNrNDdZS21xWHBVQVByUmJtTDNaRGJ2WGdzaGdvVWpmdlFvV1R5MTRIVHhodlVYUGZQOXJjNg?oc=5",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "News",
-   "publishedAt": "2026-11-06",
-   "publisher": "스포츠조선",
-   "rawText": "세포배양식품 전문기업 팡세, 네덜란드 정부·연구기관에 세포배양식품 산업화 역량 선보여",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-12675430",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "bill_update",
-   "title": "도로교통법 일부개정법률안",
-   "url": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_9BF702CC508F431E92B87CCAC9DB07",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Assembly bill tracker",
-   "publishedAt": "2026-11-06",
-   "rawText": "도로교통법 일부개정법률안\n임이자의원 등 10인 · 소관 행정안전위원회",
-   "status": "new"
-  },
-  {
    "id": "sig-live-6f21af21",
    "type": "Signal",
    "markings": [
@@ -1078,42 +601,6 @@
    "publishedAt": "2026-11-05",
    "publisher": "파이낸셜뉴스",
    "rawText": "자율주행 로봇, 일상 인프라 자리매김 [2026 로보월드]",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-9e1fc638",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "news",
-   "title": "미틀리, 런던 제조거점 이전…2027년 배양육 펫푸드 생산 확대 준비",
-   "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTFBONUlRWTc2ZFhVQXA3S3RuWWRvRXVqdlZrMlk4ZUtwNVlJeU83c1UxSnJLbzAyZjQ1akV3T1NoY1EwUEJSVzZaTXJPNnBCMnFsTHBmSDlTdnRWTmtCMW9KVDMxemFsUQ?oc=5",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "News",
-   "publishedAt": "2026-11-05",
-   "publisher": "비건뉴스",
-   "rawText": "미틀리, 런던 제조거점 이전…2027년 배양육 펫푸드 생산 확대 준비",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-a812d13b",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "press_release",
-   "title": "농림축산식품해양수산위원회, 예산안 및 법률안 상정",
-   "url": "https://www.assembly.go.kr/portal/bbs/B0000051/view.do?nttId=5292701&menuNo=600101",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Committee press release",
-   "publishedAt": "2026-11-05",
-   "publisher": "농림축산식품해양수산위원회",
-   "rawText": "농림축산식품해양수산위원회, 예산안 및 법률안 상정",
    "status": "new"
   },
   {
@@ -1152,42 +639,6 @@
    "status": "new"
   },
   {
-   "id": "sig-live-dd63c08b",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "news",
-   "title": "육류 13.5%만 대체육으로 전환해도...\"온실가스 345만톤 감축\"",
-   "url": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE9sVjJ4UDRCQURIOEtaRVNoM3VDNDVKNkNJSGplcllKeUVlRy1USXZyZUVVMldxVDdWNTBhcUJ3VWVrYkdJNHVsLTFzR2Qta3BaSl9hN2ZsTUQtUTVI?oc=5",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "News",
-   "publishedAt": "2026-11-04",
-   "publisher": "뉴스;트리",
-   "rawText": "육류 13.5%만 대체육으로 전환해도...\"온실가스 345만톤 감축\"",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-55adb7d0",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "press_release",
-   "title": "재정경제기획위원회, 공청회 실시 및 법률안·예산안 등 상정",
-   "url": "https://www.assembly.go.kr/portal/bbs/B0000051/view.do?nttId=5288949&menuNo=600101",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Committee press release",
-   "publishedAt": "2026-11-04",
-   "publisher": "재정경제기획위원회",
-   "rawText": "재정경제기획위원회, 공청회 실시 및 법률안·예산안 등 상정",
-   "status": "new"
-  },
-  {
    "id": "sig-live-d0fba530",
    "type": "Signal",
    "markings": [
@@ -1221,41 +672,6 @@
    "publishedAt": "2026-11-03",
    "publisher": "한국경제",
    "rawText": "충전해놓고 잊은 선불금만 250억…잠자는 돈 찾아가세요",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-8f700e5a",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "news",
-   "title": "[김경환 변호사의 IT법] 〈17〉가상자산도 이제 외국환거래법 규제 대상이다",
-   "url": "https://news.google.com/rss/articles/CBMiTkFVX3lxTE1tWG9zTzNYRXNDTDJlUDlvNjJ2VWp6aXVtNW9ZVllBT0ZPc1VINVdVVTBuSFQ5Rkl3WXVaOUVXb1g1cnY2Z3ZPT0hMbDFGdw?oc=5",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "News",
-   "publishedAt": "2026-11-03",
-   "publisher": "전자신문",
-   "rawText": "[김경환 변호사의 IT법] 〈17〉가상자산도 이제 외국환거래법 규제 대상이다",
-   "status": "new"
-  },
-  {
-   "id": "sig-live-41a1823c",
-   "type": "Signal",
-   "markings": [
-    "PUBLIC"
-   ],
-   "synthetic": false,
-   "provenance": "public",
-   "sourceType": "bill_update",
-   "title": "식품위생법 일부개정법률안",
-   "url": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_5EE530A04BED4446973D6E52ADD6E0",
-   "collectedAt": "2026-11-18T00:13:57.097Z",
-   "sourceName": "Assembly bill tracker",
-   "publishedAt": "2026-11-03",
-   "rawText": "식품위생법 일부개정법률안\n강명구의원 등 11인 · 소관 보건복지위원회",
    "status": "new"
   }
  ]

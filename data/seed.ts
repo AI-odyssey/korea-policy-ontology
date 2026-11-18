@@ -3,15 +3,16 @@
 // Everything here is invented: clients, people, bills, events, signals. Institutions, their jurisdiction and the
 // legislative process follow the real public procedure: referral to a standing committee, agenda placement, the bill
 // review subcommittee (chaired by the majority-party secretary), the full committee vote, Legislation and Judiciary
-// Committee review, the plenary. Government bills go through a 40-day legislative notice before they are submitted and
-// numbered. A committee alternative exists only once the full committee adopts it. The outdoor-robot bills amend the
+// Committee review, the plenary. Government bills go through a 40-day legislative notice (the last easy moment to comment;
+// the ministry must consider comments but is not bound), then regulatory review, the Ministry of Government Legislation, the
+// Cabinet and presidential approval, which takes months before the bill is submitted and numbered. A committee alternative exists only once the full committee adopts it. The outdoor-robot bills amend the
 // rules in force since November 2023 (certified robots of up to 500 kg and 15 km/h count as pedestrians; operators must
 // be insured). Names are invented and were checked against the 22nd National Assembly member list.
 import type { LinkRecord, ObjectRecord, World } from '../ontology/runtime.ts';
 import { objectTypes, STAGE_ORDER } from '../ontology/schema.ts';
 import type { Marking } from '../ontology/schema.ts';
 import { clientMarking } from '../ontology/markings.ts';
-import { addDays, monthDay } from '../ontology/dates.ts';
+import { addDays, monthDay, workdayOnOrAfter } from '../ontology/dates.ts';
 import { cmp, pilotCatch } from '../ontology/functions.ts';
 
 export const BASE_DATE = '2026-11-16';
@@ -79,6 +80,8 @@ const PROVISIONS: [string, string, string, string, string][] = [
   ['prov-03', 'Intelligent Robots Act', 'Art. 40-2', 'Operation safety certification', 'Certification before a robot may use sidewalks. Current rules cover robots up to 500 kg, 15 km/h and 800 mm wide.'],
   ['prov-04', 'Intelligent Robots Act', 'Art. 40-4', 'Mandatory insurance for operators', 'Operators of certified robots must carry insurance or mutual aid cover for injury and property damage.'],
   ['prov-05', 'Intelligent Robots Act', 'New article', 'Local pilot zones for outdoor mobile robots', 'Article the pending bills would insert, letting cities designate robot pilot zones.'],
+  ['prov-06', 'Road Traffic Act', 'Art. 27', 'Protection of pedestrians', 'Duties of drivers toward pedestrians, such as stopping before a crosswalk. Robots certified since November 2023 count as pedestrians.'],
+  ['prov-12', 'Road Traffic Act', 'Art. 17', 'Speed limits', 'The basis for maximum speeds on roads. The pending bill would add a limit for robots on paths shared with pedestrians.'],
   ['prov-07', 'Food Sanitation Act', 'Art. 7', 'Standards and specifications for foods', 'Standards that decide which raw materials may be used.'],
   ['prov-08', 'Food Sanitation Act', 'Art. 7-3', 'Recognition of temporary standards', 'Recognition procedure for raw materials not yet covered by a standard.'],
   ['prov-09', 'Food Labeling and Advertising Act', 'Art. 4', 'Labeling standards', 'Mandatory label items and wording.'],
@@ -99,7 +102,7 @@ const PROV_BY_ISSUE: Record<string, string[]> = {
   'iss-10': ['prov-17', 'prov-18'], 'iss-11': ['prov-19', 'prov-20'],
 };
 const REGULATES: Record<string, string[]> = {
-  'inst-npa': ['prov-01', 'prov-02'], 'inst-motir': ['prov-03', 'prov-04', 'prov-05'], 'inst-mss': ['prov-05'],
+  'inst-npa': ['prov-01', 'prov-02', 'prov-06', 'prov-12'], 'inst-motir': ['prov-03', 'prov-04', 'prov-05'], 'inst-mss': ['prov-05'],
   'inst-mfds': ['prov-07', 'prov-08', 'prov-09', 'prov-10', 'prov-11'], 'inst-fsc': ['prov-13', 'prov-14', 'prov-15'],
   'inst-fss': ['prov-15', 'prov-16'], 'inst-mofe': ['prov-17', 'prov-18'], 'inst-pipc': ['prov-19', 'prov-20'],
 };
@@ -126,10 +129,22 @@ const INSTITUTIONS: [string, string, string, string, string?][] = [
   ['inst-fss', 'Financial Supervisory Service', '금융감독원', 'agency'],
   ['inst-mofe', 'Ministry of Finance and Economy', '재정경제부', 'ministry'],
   ['inst-pipc', 'Personal Information Protection Commission', '개인정보보호위원회', 'agency'],
+  // The other standing committees of the 22nd National Assembly. No bill in this world is referred to them; a client may still watch them.
+  ['inst-hsc', 'House Steering Committee', '국회운영위원회', 'committee'],
+  ['inst-edc', 'Education Committee', '교육위원회', 'committee'],
+  ['inst-stic', 'Science, ICT, Broadcasting and Communications Committee', '과학기술정보방송통신위원회', 'committee'],
+  ['inst-fauc', 'Foreign Affairs and Unification Committee', '외교통일위원회', 'committee'],
+  ['inst-ndc', 'National Defense Committee', '국방위원회', 'committee'],
+  ['inst-cstc', 'Culture, Sports and Tourism Committee', '문화체육관광위원회', 'committee'],
+  ['inst-afc', 'Agriculture, Food, Rural Affairs, Oceans and Fisheries Committee', '농림축산식품해양수산위원회', 'committee'],
+  ['inst-celc', 'Climate, Energy, Environment and Labor Committee', '기후에너지환경노동위원회', 'committee'],
+  ['inst-litc', 'Land, Infrastructure and Transport Committee', '국토교통위원회', 'committee'],
+  ['inst-intc', 'Intelligence Committee', '정보위원회', 'committee'],
+  ['inst-gefc', 'Gender Equality and Family Committee', '성평등가족위원회', 'committee'],
 ];
 // Short names for meeting titles.
 const SHORT: Record<string, string> = {
-  pasc: 'Public Administration and Security', hwc: 'Health and Welfare', pac: 'Political Affairs', tiec: 'Trade and Industry',
+  pasc: 'Public Administration and Security', hwc: 'Health and Welfare', pac: 'Political Affairs', tiec: 'Trade, Industry, Energy, SMEs and Startups',
   fepc: 'Finance, Economy and Planning', ljc: 'Legislation and Judiciary',
 };
 
@@ -166,15 +181,18 @@ const ORG_REPS: [string, string][] = [
 interface BillSpec {
   n: number; s: string; iss: string[]; t: string; ty: 'L' | 'G' | 'A'; st: string; c: string; last?: string; into?: number; noticeEnd?: string;
   sponsorMin?: string; lead?: string; cos?: string[]; sum?: string;
+  prov?: string[]; // provisions it amends, when not the issue's default pair
+  burn?: number; // extra random draws kept so earlier seeded content does not move when a bill's chain is shortened
+  then?: [string, string]; // a later stage reached after the generated history: [stage, date]
 }
 const B: BillSpec[] = [
   { n: 1, s: 'Sidewalk robot duties bill', iss: ['iss-01'], t: 'Act Partially Amending the Road Traffic Act (Cargo-Class Robots and Operator Duties on Sidewalks)', ty: 'L', st: 'subcommittee_passed', c: 'pasc', last: '2026-11-12', lead: 'per-002', cos: ['per-001', 'per-004', 'per-006'],
     sum: 'Would amend Articles 2 and 8-2 of the Road Traffic Act to let certified cargo-class robots up to 1,000 mm wide use sidewalks at least 3 m wide. The subcommittee added a duty to stop for any pedestrian within 2 m.' },
   { n: 2, s: 'Pedestrian priority zones bill', iss: ['iss-01'], t: 'Act Partially Amending the Road Traffic Act (Pedestrian Priority Zones)', ty: 'L', st: 'committee_review', c: 'pasc', lead: 'per-003',
-    sum: 'Would amend Article 8-2 of the Road Traffic Act to let police designate sidewalk sections where robots must give way to pedestrians at all times.' },
-  { n: 3, s: 'Shared path speed limits bill', iss: ['iss-01'], t: 'Act Partially Amending the Road Traffic Act (Speed Limits for Robots on Shared Paths)', ty: 'L', st: 'committee_referred', c: 'pasc' },
+    prov: ['prov-06'], sum: 'Would amend Article 27 of the Road Traffic Act to let police designate sidewalk sections where robots must give way to pedestrians at all times.' },
+  { n: 3, s: 'Shared path speed limits bill', iss: ['iss-01'], t: 'Act Partially Amending the Road Traffic Act (Speed Limits for Robots on Shared Paths)', ty: 'L', st: 'committee_referred', c: 'pasc', prov: ['prov-12'] },
   { n: 4, s: 'Government bill on sidewalk operation standards', iss: ['iss-01', 'iss-04'], t: 'Act Partially Amending the Road Traffic Act (Government Bill: Sidewalk Operation Standards for Outdoor Mobile Robots)', ty: 'G', st: 'public_comment', c: 'pasc', noticeEnd: '2026-12-07', sponsorMin: 'inst-npa',
-    sum: 'Would amend Articles 2 and 8-2 of the Road Traffic Act to set sidewalk operation standards by robot class and give police powers to stop non-compliant robots.' },
+    sum: 'Would amend Articles 2 and 8-2 of the Road Traffic Act to authorize an enforcement decree to set robot classes and sidewalk operation standards, and to give police powers to stop non-compliant robots. The classes and standards themselves would be written in the decree, not in the Act.' },
   { n: 5, s: 'Foreign test results bill', iss: ['iss-02'], t: 'Act Partially Amending the Intelligent Robots Act (Recognition of Foreign Test Results)', ty: 'L', st: 'subcommittee', c: 'tiec', last: '2026-11-10' },
   { n: 6, s: 'Certification renewal bill', iss: ['iss-02'], t: 'Act Partially Amending the Intelligent Robots Act (Renewal of Operation Safety Certification)', ty: 'L', st: 'committee_referred', c: 'tiec' },
   { n: 7, s: 'Government bill on the certification body', iss: ['iss-02'], t: 'Act Partially Amending the Intelligent Robots Act (Government Bill: Designated Certification Body)', ty: 'G', st: 'submitted', c: 'tiec', sponsorMin: 'inst-motir' },
@@ -184,7 +202,7 @@ const B: BillSpec[] = [
   { n: 11, s: 'Robot pilot zones bill', iss: ['iss-04'], t: 'Act Partially Amending the Intelligent Robots Act (Local Pilot Zones for Outdoor Mobile Robots)', ty: 'L', st: 'committee_review', c: 'tiec' },
   { n: 12, s: 'Pilot zone designation bill', iss: ['iss-04'], t: 'Act Partially Amending the Intelligent Robots Act (Pilot Zone Designation by Local Governments)', ty: 'L', st: 'committee_referred', c: 'tiec' },
   { n: 13, s: 'Novel ingredient recognition bill', iss: ['iss-05'], t: 'Act Partially Amending the Food Sanitation Act (Recognition Procedure for Novel Food Ingredients)', ty: 'L', st: 'subcommittee_passed', c: 'hwc', last: '2026-11-12', lead: 'per-009' },
-  { n: 14, s: 'Government bill on ingredient reevaluation', iss: ['iss-05'], t: 'Act Partially Amending the Food Sanitation Act (Government Bill: Post-Market Reevaluation of Novel Ingredients)', ty: 'G', st: 'committee_passed', c: 'hwc', last: '2026-11-12', sponsorMin: 'inst-mfds' },
+  { n: 14, s: 'Government bill on ingredient reevaluation', iss: ['iss-05'], t: 'Act Partially Amending the Food Sanitation Act (Government Bill: Post-Market Reevaluation of Novel Ingredients)', ty: 'G', st: 'subcommittee_passed', c: 'hwc', last: '2026-11-12', sponsorMin: 'inst-mfds', burn: 1 }, // reviewed together with 13, 15 and 16: one text leaves the subcommittee
   { n: 15, s: 'Cultured ingredient standards bill', iss: ['iss-05'], t: 'Act Partially Amending the Food Sanitation Act (Temporary Standards for Cultured Ingredients)', ty: 'L', st: 'subcommittee_passed', c: 'hwc', last: '2026-11-12' },
   { n: 16, s: 'Fast-track review bill', iss: ['iss-05'], t: 'Act Partially Amending the Food Sanitation Act (Fast-Track Review for Cell-Based Foods)', ty: 'L', st: 'subcommittee_passed', c: 'hwc', last: '2026-11-12' },
   { n: 17, s: 'Origin labeling bill', iss: ['iss-06'], t: 'Act Partially Amending the Food Labeling and Advertising Act (Origin Labeling Clarification)', ty: 'L', st: 'passed', c: 'hwc', last: '2026-10-22' },
@@ -193,7 +211,7 @@ const B: BillSpec[] = [
   { n: 20, s: 'Warning statement bill', iss: ['iss-06'], t: 'Act Partially Amending the Food Labeling and Advertising Act (Mandatory Warning Statement)', ty: 'L', st: 'withdrawn', c: 'hwc' },
   { n: 21, s: 'Food-tech sandbox bill', iss: ['iss-07'], t: 'Act Partially Amending the Food Sanitation Act (Temporary Sales Permits for Food-Tech Products)', ty: 'L', st: 'committee_referred', c: 'hwc' },
   { n: 22, s: 'Government bill on sandbox permits', iss: ['iss-07'], t: 'Act Partially Amending the Food Sanitation Act (Government Bill: Sandbox Sales Permits)', ty: 'G', st: 'submitted', c: 'hwc', sponsorMin: 'inst-mfds' },
-  { n: 23, s: 'Local presence bill', iss: ['iss-08'], t: 'Act Partially Amending the Electronic Financial Transactions Act (Local Presence Requirement for Foreign Providers)', ty: 'L', st: 'committee_referred', c: 'pac', lead: 'per-017' },
+  { n: 23, s: 'Local presence bill', iss: ['iss-08'], t: 'Act Partially Amending the Electronic Financial Transactions Act (Local Presence Requirement for Foreign Providers)', ty: 'L', st: 'committee_referred', c: 'pac', lead: 'per-017', then: ['committee_review', '2026-11-12'] },
   { n: 24, s: 'Capital requirement bill', iss: ['iss-08'], t: 'Act Partially Amending the Electronic Financial Transactions Act (Capital Requirement Adjustment)', ty: 'L', st: 'subcommittee', c: 'pac' },
   { n: 25, s: 'Outsourcing oversight bill', iss: ['iss-08'], t: 'Act Partially Amending the Electronic Financial Transactions Act (Oversight of Outsourced Operations)', ty: 'L', st: 'merged_alternative', c: 'pac', into: 33 },
   { n: 26, s: 'Government bill on prepaid safeguarding', iss: ['iss-09'], t: 'Act Partially Amending the Electronic Financial Transactions Act (Government Bill: Prepaid Balance Safeguarding)', ty: 'G', st: 'public_comment', c: 'pac', noticeEnd: '2026-11-27', sponsorMin: 'inst-fsc' },
@@ -350,7 +368,7 @@ export function generateWorld(): World {
   for (const [id, instrument, art, title, summary] of PROVISIONS) add('Provision', id, { instrument, article: art, title, summary });
   for (const [id, name, nameKo, kind, parentId] of INSTITUTIONS) add('Institution', id, { name, nameKo, kind, ...(parentId ? { parentId } : {}) });
   ORGS.forEach(([name, kind], i) => add('StakeholderOrg', `org-${pad(i + 1, 2)}`, { name, kind }));
-  for (const [inst, provs] of Object.entries(REGULATES)) for (const p of provs) link('regulates', inst, p);
+  for (const [inst, provs] of Object.entries(REGULATES)) for (const p of provs) link('regulates', inst, p, undefined, p === 'prov-06' || p === 'prov-12' ? { confidence: 0.97 } : {}); // fixed confidence: no random draw
 
   // People. Within each committee: seat 0 chair (three or more terms), seat 3 majority secretary, seat 4 minority secretary.
   const seat = (i: number) => (i === 0 ? 'chair' : i === 3 || i === 4 ? 'secretary' : 'member');
@@ -423,8 +441,11 @@ export function generateWorld(): World {
       rev.push({ stage, date: d, ...(inst ? { institutionId: inst } : {}) });
       d = weekdayOnly(addDays(d, -int(5, 24)));
     }
+    for (let k = 0; k < (b.burn ?? 0); k++) int(5, 24);
     const h = rev.reverse();
-    if (b.ty === 'G' && h.length > 1) h[0].date = weekdayOnly(addDays(h[1].date, -(40 + int(0, 10)))); // 40-day notice precedes submission
+    // The 40-day notice closes months before submission: regulatory review, the Ministry of Government Legislation, the Cabinet and approval come between.
+    if (b.ty === 'G' && h.length > 1) h[0].date = weekdayOnly(addDays(h[1].date, -(40 + 75 + int(0, 10))));
+    if (b.then) h.push({ stage: b.then[0], date: b.then[1], institutionId: STAGE_INST[b.then[0]](b.c) });
     return h;
   };
   for (const b of [...B].sort((x, y) => (y.ty === 'A' ? 1 : 0) - (x.ty === 'A' ? 1 : 0))) hist.set(b.n, buildHist(b));
@@ -446,13 +467,13 @@ export function generateWorld(): World {
   };
   for (const b of B) {
     const h = hist.get(b.n)!;
-    const prov = b.iss.flatMap((i) => PROV_BY_ISSUE[i]).slice(0, b.ty === 'A' ? 3 : 2);
+    const prov = b.prov ?? b.iss.flatMap((i) => PROV_BY_ISSUE[i]).slice(0, b.ty === 'A' ? 3 : 2);
     const subject = (b.ty === 'A' ? b.t.match(/^Committee Alternative: (.+) \(/)?.[1] : b.t.match(/\(([^)]+)\)$/)?.[1].replace(/^Government Bill: /, '')) ?? b.s;
     add('Bill', billId(b.n), {
       ...(b.st === 'public_comment' ? {} : { billNo: billNo(b.n) }), title: b.t, shortTitle: b.s,
       summary: b.sum ?? `Would ${amendsText(prov)} on ${subject.toLowerCase()}.`,
       billType: b.ty === 'L' ? 'lawmaker' : b.ty === 'G' ? 'government' : 'committee_alternative',
-      stage: b.st, stageHistory: h, proposedDate: h[0].date, ...(b.into ? { mergedInto: billId(b.into) } : {}),
+      stage: b.then?.[0] ?? b.st, stageHistory: h, proposedDate: h[0].date, ...(b.into ? { mergedInto: billId(b.into) } : {}),
     });
   }
 
@@ -460,9 +481,10 @@ export function generateWorld(): World {
   for (const b of B) {
     const id = billId(b.n);
     const h = hist.get(b.n)!;
-    const prov = b.iss.flatMap((i) => PROV_BY_ISSUE[i]).slice(0, b.ty === 'A' ? 3 : 2);
+    const prov = b.prov ?? b.iss.flatMap((i) => PROV_BY_ISSUE[i]).slice(0, b.ty === 'A' ? 3 : 2);
     for (const i of b.iss) link('about', id, i);
     for (const p of prov) link('amends', id, p);
+    for (let k = prov.length; b.prov && k < 2; k++) conf(0.95, 0.99); // keeps the random sequence of the two-article default
     if (h.some((e) => e.stage === 'committee_referred') || b.ty === 'A') link('referred_to', id, `inst-${b.c}`);
     if (b.ty === 'L') {
       const cm = members[b.c];
@@ -509,22 +531,23 @@ export function generateWorld(): World {
   // 2. Scheduled meetings. A full committee takes up bills that are referred but not yet on its agenda, and votes on bills
   // its subcommittee has passed; bills already on the agenda wait for the subcommittee.
   const SCHEDULED: [string, string, number[]][] = [
-    ['inst-pasc', '2026-11-19', [1, 3]], ['inst-pasc-brs', '2026-11-26', [2]], ['inst-hwc-brs', '2026-11-18', [18, 19]], ['inst-hwc', '2026-11-24', [13, 15, 16, 21]],
-    ['inst-pac', '2026-11-19', [23, 32]], ['inst-pac-brs', '2026-11-25', [24, 30]], ['inst-fepc-brs', '2026-11-20', [28]], ['inst-tiec', '2026-11-20', [6, 12]],
-    ['inst-tiec-brs', '2026-11-24', [5, 8, 11]], ['inst-ljc', '2026-11-23', [31, 33, 14, 29]],
+    ['inst-pasc', '2026-11-19', [1, 3]], ['inst-pasc-brs', '2026-11-26', [2]], ['inst-hwc-brs', '2026-11-18', [18, 19]], ['inst-hwc', '2026-11-24', [13, 14, 15, 16, 21]],
+    ['inst-pac', '2026-11-19', [32]], ['inst-pac-brs', '2026-11-20', [23, 24, 30]], ['inst-fepc-brs', '2026-11-20', [28]], ['inst-tiec', '2026-11-20', [6, 12]],
+    ['inst-tiec-brs', '2026-11-23', [5, 8, 11]], ['inst-ljc', '2026-11-23', [31, 33, 29]],
   ];
   for (const [inst, date, ns] of SCHEDULED) agenda(eventAt(inst, date), ns, 'The meeting notice lists');
   // 3. Notice periods for government bills (40 days; the event date is the closing date)
   for (const b of B.filter((x) => x.ty === 'G')) {
     const start = hist.get(b.n)![0].date;
-    const e = newEvent(`Notice period closes: ${b.s}`, 'public_comment', addDays(start, 39), { startDate: start, institutionId: minister(b), status: addDays(start, 39) >= BASE_DATE ? 'scheduled' : 'held' });
+    const closes = workdayOnOrAfter(addDays(start, 39)); // a notice that ends on a weekend runs to Monday
+    const e = newEvent(`Notice period closes: ${b.s}`, 'public_comment', closes, { startDate: start, institutionId: minister(b), status: closes >= BASE_DATE ? 'scheduled' : 'held' });
     agenda(e, [b.n], 'The notice concerns');
   }
   // 4. Hearings, audit sessions, seminars
   const HEARINGS: [string, string, string, string, number[], string[]][] = [
     ['Public hearing on sidewalk rules for robots', 'hearing', '2026-10-27', 'inst-pasc', [1, 2], ['org-02', 'org-01', 'per-030']],
     ['Public hearing on novel food ingredient review', 'hearing', '2026-11-05', 'inst-hwc', [13, 14], ['org-06', 'org-09', 'per-031', 'org-07']],
-    ['Public hearing on foreign payment providers', 'hearing', '2026-11-24', 'inst-pac', [23, 24], ['org-10', 'org-11', 'per-032', 'per-033']],
+    ['Public hearing on foreign payment providers', 'hearing', '2026-11-17', 'inst-pac', [23, 24], ['org-10', 'org-11', 'per-032', 'per-033']],
     ['Public hearing on labeling of cultivated protein', 'hearing', '2026-12-01', 'inst-hwc', [18, 19], ['org-06', 'org-08', 'org-07']],
     ['Parliamentary audit: National Police Agency', 'audit', '2026-10-13', 'inst-pasc', [], ['per-030']],
     ['Parliamentary audit: Ministry of Food and Drug Safety', 'audit', '2026-10-15', 'inst-hwc', [], ['per-031']],
@@ -555,15 +578,17 @@ export function generateWorld(): World {
     link('testifies_at', o.id, e.id, undefined, { excerpt: `The attendance record lists ${o.name} for the ministry.${said(o.id, e.id)}`, sourceType: 'public_notice' });
   }
 
+  rnd(); // one draw fewer in the meeting records than in earlier worlds; keeps every signal below where it was
   // ---- Signals ----
   interface SigSpec { sourceType: string; title: string; rawText: string; at: string; issueId?: string; billIds: string[]; mentionIds: string[]; kind: 'bill_update' | 'filler' | 'noise' | 'near'; conf: number }
   const sigs: SigSpec[] = [];
   const time = () => ({ h: int(7, 21), m: int(0, 59) });
 
+  let added = 0;
   for (const b of B) {
     for (const h of hist.get(b.n)!) {
       if (h.date < windowStart || h.date > BASE_DATE) continue;
-      const t = time();
+      const t = b.then && h === hist.get(b.n)!.at(-1) ? (added++, { h: 19, m: 30 }) : time(); // a stage added after generation draws no random time
       const no = b.st === 'public_comment' ? undefined : billNo(b.n);
       const inst = h.institutionId ? byId.get(h.institutionId)!.name : 'the National Assembly';
       sigs.push(h.stage === 'public_comment' ? {
@@ -590,7 +615,7 @@ export function generateWorld(): World {
     });
   }
   const NOISE_N = 8 + 3;
-  const fillerN = 160 - sigs.length - NOISE_N;
+  const fillerN = 160 - (sigs.length - added) - NOISE_N;
   const issueWeights = ISSUES.flatMap(([id], i) => Array(i === 0 ? 4 : [2, 2, 2, 3, 3, 2, 3, 2, 3, 2][i - 1]).fill(id) as string[]);
   const daysAgo = () => Math.floor(42 * Math.pow(rnd(), 1.4));
   const titles = new Set<string>();
@@ -692,7 +717,7 @@ export function generateWorld(): World {
     'cli-moru': [['iss-05', 'high'], ['iss-06', 'high'], ['iss-07', 'medium']],
     'cli-wren': [['iss-08', 'high'], ['iss-09', 'medium'], ['iss-10', 'high'], ['iss-11', 'medium']],
   };
-  const WATCHED_BILLS: Record<string, number[]> = { 'cli-aster': [1, 2, 4, 5, 11, 31], 'cli-moru': [13, 18, 21, 19], 'cli-wren': [23, 26, 28, 33] };
+  const WATCHED_BILLS: Record<string, number[]> = { 'cli-aster': [1, 2, 4, 5, 8, 11, 31], 'cli-moru': [13, 18, 21, 19], 'cli-wren': [23, 26, 28, 33] };
   for (const [id, name, sector, scope] of CLIENTS) {
     const key = id.slice(4);
     add('Client', id, { name, sector });
@@ -711,6 +736,8 @@ export function generateWorld(): World {
   P('aster', 1, 'bill-001', 'amend', 'Aster Robotics backs sidewalk access for cargo-class robots and wants the stop rule replaced by a duty to slow to walking pace and give way.');
   P('aster', 2, 'iss-02', 'support', 'Aster Robotics prefers one national certification path to separate city rules.');
   P('aster', 3, 'iss-03', 'amend', 'Aster Robotics accepts mandatory insurance if the minimum coverage scales with robot weight.');
+  P('aster', 5, 'bill-008', 'amend', 'Aster Robotics accepts mandatory insurance if the minimum coverage scales with robot weight. The weight-class bill is where that is still open: the bill review subcommittee has it on Nov 24.');
+  P('aster', 6, 'bill-031', 'monitor', 'The committee has adopted this alternative, so its substance is settled. The Legislation and Judiciary Committee checks wording and can hold the bill back; Aster Robotics only tracks both, and presses the coverage point on the weight-class bill.');
   P('aster', 4, 'bill-011', 'support', 'Aster Robotics wants pilot zones to test new routes before national rules change.');
   P('moru', 1, 'iss-05', 'support', 'Moru Foods needs a fixed review period for novel ingredients more than any other change.');
   P('moru', 2, 'bill-013', 'amend', 'Moru Foods supports the recognition procedure and wants a statutory review deadline added.');
@@ -730,7 +757,7 @@ export function generateWorld(): World {
   I('moru', 1, 'meeting', '2026-10-16', [31], 'The agency explained the current review steps and typical timelines for novel ingredients.', ['iss-05']);
   I('moru', 2, 'call', '2026-10-30', [50], 'The council discussed a coordinated response on labeling terms.', ['iss-06']);
   I('moru', 3, 'meeting', '2026-11-06', [39], 'An aide to a health committee member asked for consumer research on label comprehension.', ['bill-018']);
-  I('wren', 1, 'meeting', '2026-10-17', [32], 'The commission official outlined the registration review sequence for foreign providers.', ['iss-08']);
+  I('wren', 1, 'meeting', '2026-10-16', [32], 'The commission official outlined the registration review sequence for foreign providers.', ['iss-08']);
   I('wren', 2, 'call', '2026-10-29', [33], "The supervisory service asked for Wrenfield Pay's fund segregation procedure.", ['iss-09']);
   I('wren', 3, 'meeting', '2026-11-05', [42], 'An aide to a political affairs member asked what a local presence requirement would cost.', ['bill-023']);
 
@@ -755,9 +782,9 @@ export function generateWorld(): World {
   const ASTER_LETTER = [
     '# Comments on the sidewalk operation standards notice', '',
     'To the Traffic Safety Division, Korean National Police Agency', '',
-    `Aster Robotics welcomes the government bill on sidewalk operation standards for outdoor mobile robots, open for comment until ${md(B.find((b) => b.n === 4)!.noticeEnd!)}. Standards set by robot class will let operators and police apply the same rules on every sidewalk.`, '',
-    'We ask that the standards add a cargo class for certified robots up to 1,000 mm wide, with a duty to slow to walking pace and give way to pedestrians rather than to stop. Our pilot route logs show that robots meeting this duty keep sidewalks moving while protecting pedestrians.', '',
-    'We also ask that robots running inside a designated pilot zone be exempt from the width and speed limits for the length of the pilot, so cities can test new routes before national rules change. We would welcome the chance to share our route data with the Division.',
+    `Aster Robotics welcomes the government bill on sidewalk operation standards for outdoor mobile robots, open for comment until ${md(B.find((b) => b.n === 4)!.noticeEnd!)}. Standards set by robot class in the enforcement decree will let operators and police apply the same rules on every sidewalk.`, '',
+    'We ask that the enforcement decree the bill authorizes add a cargo class for certified robots up to 1,000 mm wide, with a duty to slow to walking pace and give way to pedestrians rather than to stop. Our pilot route logs show that robots meeting this duty keep sidewalks moving while protecting pedestrians.', '',
+    'We also ask that robots running inside a designated pilot zone be exempt in the decree from the width and speed limits for the length of the pilot, so cities can test new routes before national rules change. We would welcome the chance to share our route data with the Division.',
   ].join('\n');
   const MORU_NOTES = [
     '# Meeting notes: health committee aide', '',
@@ -769,7 +796,7 @@ export function generateWorld(): World {
   const WREN_BRIEF = [
     '# Issue brief: prepaid balance safeguarding', '',
     '## Situation', '',
-    `The Financial Services Commission has put a government bill on prepaid balance safeguarding out for legislative notice. Comments close on ${md(B.find((b) => b.n === 26)!.noticeEnd!)}, after which the bill goes to the National Assembly.`, '',
+    `The Financial Services Commission has put a government bill on prepaid balance safeguarding out for legislative notice. Comments close on ${md(B.find((b) => b.n === 26)!.noticeEnd!)}. The commission must consider them but is not bound, and the text can still change in regulatory review, the Ministry of Government Legislation and the Cabinet before the bill reaches the National Assembly, usually months later.`, '',
     '## Client position', '',
     'Wrenfield Pay already keeps prepaid funds in a segregated trust account and has no position on the bill until the final standard is known.', '',
     '## What changes', '',
@@ -793,15 +820,15 @@ export function generateWorld(): World {
   T('aster', 3, 'Update the sidewalk bill brief with the subcommittee text', '2026-11-18', 'agent', 'open', 'bill-001');
   T('aster', 4, "Meet Seo Haeun's office on the cargo class", '2026-11-18', 'human', 'open', 'per-001');
   T('aster', 5, 'Brief Ryu Taehwan on the slow-and-yield wording', '2026-11-18', 'human', 'open', 'per-004');
-  T('aster', 6, 'Send test results to the industry subcommittee members', '2026-11-23', 'human', 'open', 'bill-005');
-  T('aster', 7, 'Draft a coverage table scaled by robot weight', '2026-11-21', 'human', 'open', 'bill-031');
+  T('aster', 6, 'Send test results to the industry subcommittee members', '2026-11-20', 'human', 'open', 'bill-005');
+  T('aster', 7, 'Draft a coverage table scaled by robot weight', '2026-11-20', 'human', 'open', 'bill-008');
   T('aster', 8, 'Cargo model width and stopping-distance data', '2026-11-17', 'client', 'open', 'bill-001');
   T('aster', 9, "Name who attends the meeting with the chair's office (CEO or CTO)", '2026-11-18', 'client', 'open', 'bill-001');
   T('aster', 10, 'List of cities for pilot zones', '2026-12-01', 'client', 'open', 'bill-004');
   T('aster', 11, 'Meet the Pedestrian Rights Network on the slow-and-yield wording', '2026-11-20', 'human', 'open', 'org-02');
   T('moru', 1, 'Prepare a position note for the sandbox coalition', '2026-11-20', 'human', 'open', 'bill-021');
   T('moru', 2, 'Send thanks to the agency contact after the October meeting', '2026-10-20', 'human', 'done');
-  T('moru', 3, "Send review-deadline wording to Oh Yeeun's office", '2026-11-21', 'human', 'open', 'per-009');
+  T('moru', 3, "Send review-deadline wording to Oh Yeeun's office", '2026-11-20', 'human', 'open', 'per-009');
   T('moru', 4, 'Meet Consumer Labeling Watch on origin-label wording', '2026-11-17', 'human', 'open', 'org-08');
   T('moru', 5, 'Consumer research on label comprehension', '2026-11-17', 'client', 'open', 'bill-018');
   T('moru', 6, 'Sign off the coalition letter wording', '2026-11-19', 'client', 'open', 'bill-021');
@@ -859,6 +886,7 @@ export function generateWorld(): World {
     ['wren', 'per-029', 'iss-10', 'neutral', 'medium', 'high', 'Ministry director for the foreign exchange system.'],
     ['wren', 'org-12', 'iss-10', 'supportive', 'low', 'medium', 'Small merchants want cheaper transfers.'],
     ['wren', 'per-034', 'iss-11', 'neutral', 'medium', 'high', 'Data policy director at the commission.'],
+    ['wren', 'per-018', 'iss-08', 'unconfirmed', 'high', 'high', 'Chairs the bill review subcommittee that takes up the local presence bill.'],
   ];
   const saId = new Map<string, string>(); // key|subject|issue -> id
   const saCount: Record<string, number> = {};
@@ -879,10 +907,10 @@ export function generateWorld(): World {
     add('RiskOpportunity', `ro-${key}-${n}`, { clientId: `cli-${key}`, kind, title, summary, impact, urgency, ...(dueDate ? { dueDate } : {}), subjectIds, addedBy: `consultant-${key}-1`, approvedBy: 'principal-1' });
   RO('aster', 1, 'risk', 'Stop rule for pedestrians', 'The subcommittee text makes robots stop for any pedestrian within 2 m. On sidewalks under 3 m wide that would stall most of Aster Robotics\' city routes.', 'high', 'imminent', ['bill-001']);
   RO('aster', 2, 'risk', 'A single certification body', 'The government bill would move certification to one designated body. New models could wait months for a certificate.', 'medium', 'in_progress', ['bill-007']);
-  RO('aster', 3, 'opportunity', 'Cargo class in the operation standards', 'The police agency notice is open for comment. Comments can ask for a cargo class and pilot zone exemptions.', 'high', 'ongoing', ['bill-004'], '2026-12-07');
+  RO('aster', 3, 'opportunity', 'Cargo class in the enforcement decree', 'The police agency notice is open for comment. The bill leaves robot classes and operation standards to an enforcement decree, so comments can ask that the decree include a cargo class and pilot zone exemptions. The bill amends the same article as the sidewalk robot duties bill, so the committee may fold the two together once it is submitted.', 'high', 'ongoing', ['bill-004'], '2026-12-07');
   RO('aster', 4, 'opportunity', 'Joint amendment with the industry forum', 'Other operators back the same slow-and-yield wording. A joint text carries more weight with the committee.', 'medium', 'ongoing', ['iss-01']);
   RO('moru', 1, 'risk', 'Ban on meat terms', 'A blanket ban would force Moru Foods to relabel every product.', 'high', 'imminent', ['bill-018']);
-  RO('moru', 2, 'risk', 'No review deadline in the combined text', 'The subcommittee folded three novel ingredient bills into one text without a fixed review period.', 'medium', 'in_progress', ['bill-013']);
+  RO('moru', 2, 'risk', 'No review deadline in the combined text', 'The subcommittee reviewed the three lawmaker bills and the government bill together and passed one text without a fixed review period.', 'medium', 'in_progress', ['bill-013']);
   RO('moru', 3, 'opportunity', 'Food-tech sandbox', 'A sandbox bill would allow limited sales while ingredient review is pending.', 'medium', 'ongoing', ['bill-021']);
   RO('wren', 1, 'risk', 'Local presence requirement', 'The bill would require a local office before registration, which would delay launch.', 'high', 'imminent', ['bill-023']);
   RO('wren', 2, 'risk', 'Stricter prepaid fund rules', 'The commission\'s notice on prepaid safeguarding is open for comment.', 'medium', 'in_progress', ['bill-026'], '2026-11-27');
@@ -917,7 +945,7 @@ export function generateWorld(): World {
     ['org-09'], ['org-06'], [1, 6]);
   STR('wren', 'iss-08', 'Wrenfield Pay registers and launches next year without opening a local office.',
     ['A local agent gives regulators the same reach as a local office.', 'A presence rule delays entry and keeps fees high for users.'],
-    ['per-015', sponsorOf('bill-023'), 'per-016'], ['org-10'], [1, 6]);
+    ['per-018', 'per-015', sponsorOf('bill-023'), 'per-016'], ['org-10'], [1, 6]);
   STR('wren', 'iss-09', 'Segregation rules that accept trust accounts already in use.',
     ['Customer funds held in a segregated trust account are protected the same way.', 'Rules should accept trust accounts and payment guarantees alike.'],
     ['per-033', 'org-11'], ['org-10'], [4, 7, 2]);

@@ -13,7 +13,7 @@ All clients, people, bills and events are fictional. Every value below comes fro
 | Insurance for robot operators (`iss-03`) | medium | amend |
 | Local pilot zones for robots (`iss-04`) | medium | support, on the robot pilot zones bill |
 
-The engagement (`eng-aster`) follows those four issues and six bills.
+The engagement (`eng-aster`) follows those four issues and seven bills.
 
 **The bill that matters this week.** The sidewalk robot duties bill, `bill-001`, number 22-S0308, "Act Partially Amending the Road Traffic Act (Cargo-Class Robots and Operator Duties on Sidewalks)". It would let certified cargo-class robots up to 1,000 mm wide use sidewalks at least 3 m wide; the subcommittee added a duty to stop for any pedestrian within 2 m. Lead sponsor: Baek Siwoo. Referred to the Public Administration and Security Committee (`inst-pasc`).
 
@@ -32,11 +32,11 @@ The engagement (`eng-aster`) follows those four issues and six bills.
 
 `whatChanged(view, '2026-11-09')` returns the week:
 
-- **Six stage changes**, two on Aster bills: `bill-005` (foreign test results) went into subcommittee review on Nov 10, and `bill-001` passed the subcommittee on Nov 12. The other four are Moru Foods' novel food bills and a government food bill.
-- **48 items collected:** 15 news, 13 notices, 12 press releases, 6 bill tracker updates, 2 sets of minutes. All 48 were new before the assistant ran.
-- **Five meetings held and six in the next seven days**, including the Public Administration and Security Committee meeting on Nov 19.
+- **Seven stage changes**, two on Aster bills: `bill-005` (foreign test results) went into subcommittee review on Nov 10, and `bill-001` passed the subcommittee on Nov 12. The other five are Moru Foods' novel food bills (three lawmaker bills and a government bill, reviewed together, which passed the subcommittee on Nov 12) and Wrenfield Pay's local presence bill, which the full committee placed on its agenda.
+- **49 items collected:** 15 news, 13 notices, 12 press releases, 7 bill tracker updates, 2 sets of minutes. All 49 were new before the assistant ran.
+- **Five meetings held and nine in the next seven days**, including the Public Administration and Security Committee meeting on Nov 19.
 
-Two items carry the sidewalk bill's week: `sig-129`, the bill tracker update of Nov 12 ("Bill 22-S0308 passed the bill review subcommittee"), and `sig-133`, the committee's meeting notice of Nov 13 listing the bill for Nov 19.
+Two items carry the sidewalk bill's week: `sig-130`, the bill tracker update of Nov 12 ("Bill 22-S0308 passed the bill review subcommittee"), and `sig-135`, the committee's meeting notice of Nov 13 listing the bill for Nov 19.
 
 ## The assistant's run
 
@@ -44,44 +44,45 @@ The assistant runs with a context that sees the public record and Aster's layer 
 
 | Step | Result |
 |---|---|
-| Read new items | 48 new items since the last report. |
+| Read new items | 49 new items since the last report. |
 | Sort new items | 18 items concern Aster Robotics: 17 clear matches and one to confirm. Five items look unrelated to any tracked issue. |
 | File clear matches | Filed 17 clear matches and set aside five unrelated items. One item waits for you to confirm. |
-| Check what changed | Two stage changes on bills that affect Aster Robotics. Across the Assembly, five meetings held and six in the next seven days. |
-| Rank followed bills | Most pressing: Sidewalk robot duties bill (act now); Robot insurance committee alternative (engage); Foreign test results bill (monitor). |
-| Find who decides next | Sidewalk robot duties bill: the full committee meets on Nov 19. Jang Sora (secretary, high influence) is unconfirmed. |
-| Raise a decision | Raised: Meet Jang Sora, a secretary of the Public Administration and Security Committee, before the full committee takes up the sidewalk robot duties bill? |
-| Propose a risk | Proposed a risk: Robot insurance committee alternative at the Legislation and Judiciary Committee. It waits for your approval. |
+| Check what changed | Two stage changes on bills that affect Aster Robotics. Across the Assembly, five meetings held and nine in the next seven days. |
+| Rank followed bills | Most pressing: Sidewalk robot duties bill (act now); Foreign test results bill (engage); Coverage by weight class bill (engage). |
+| Find who decides next | Sidewalk robot duties bill: the full committee votes on Nov 19. Baek Siwoo (the lead sponsor, high influence) can change the text there and is supportive. |
+| Raise a decision | Raised: Meet Baek Siwoo, the lead sponsor, before the full committee votes on the sidewalk robot duties bill? |
+| Propose a risk | Proposed a risk: Coverage by weight class bill at the bill review subcommittee. It waits for your approval. |
 | List deadlines | 16 dated items in the next 30 days; first: Cargo model width and stopping-distance data (Nov 17). |
-| Rank issues | Issues with the most at stake: Sidewalk rules for outdoor mobile robots; Insurance for robot operators; Operation safety certification. |
+| Rank issues | Issues ranked by exposure, the risk of the worst open bill plus a little for each other open bill. This ranking ignores the priority numbers in the monitoring profile: Sidewalk rules for outdoor mobile robots; Insurance for robot operators; Operation safety certification. |
 | Write the summary | The summary is written from this week's records, without a language model. |
-| Draft the weekly report | Drafted the weekly report from eight source documents. |
+| Draft the weekly report | Drafted the weekly report from nine source documents. |
 | Send for review | Sent the report to you for review. |
 | Stop for approval | Stopped. The weekly report and one new risk wait for your approval, and one decision waits for your call. The assistant cannot approve or send. |
 
-**Triage.** Issue keywords and the bill number 22-S0308 put `sig-129` on the sidewalk issue, with links proposed to `iss-01`, `bill-001`, the committee and its subcommittee. Its weight for Aster comes from Aster's own keywords on the Settings screen: "sidewalk" (high priority) and "Road Traffic Act" (low), plus the bill number, give 0.97. The city's sidewalk repaving notice also says "sidewalk", but Aster's profile ignores that word when "repaving" appears, so the notice never reaches Aster. The assistant files only clear matches that concern its own client, plus noise; the 17 filed items appear on This week under **Filed automatically (17)**, each with **Undo**. The one below 0.8 waits under **New items to confirm**. Each filing is a `SignalTriage` record in Aster's layer; the shared items are untouched, so Moru's and Wrenfield's assistants see the same 48 new items.
+**Triage.** Issue keywords and the bill number 22-S0308 put `sig-130` on the sidewalk issue, with links proposed to `iss-01`, `bill-001`, the committee and its subcommittee. Its weight for Aster comes from Aster's own keywords on the Settings screen: "sidewalk" (high priority) and "Road Traffic Act" (low), plus the bill number, give 0.97. The city's sidewalk repaving notice also says "sidewalk", but Aster's profile ignores that word when "repaving" appears, so the notice never reaches Aster. The assistant files only clear matches that concern its own client, plus noise; the 17 filed items appear on This week under **Filed automatically (17)**, each with **Undo**. The one below 0.8 waits under **New items to confirm**. Each filing is a `SignalTriage` record in Aster's layer; the shared items are untouched, so Moru's and Wrenfield's assistants see the same 48 new items.
 
 ## Why the sidewalk bill is "Act now"
 
 `responseLevel` puts each followed bill in one of four categories by explicit rules ([ADR-0009](decisions/ADR-0009-categorical-response-levels.md)):
 
-A step is a meeting with the bill on the agenda or the close of an open legislative notice period.
+A step is a meeting with the bill on the agenda or the close of an open legislative notice period. It is a decisive step when the text can still change there: the subcommittee's review, the full committee's vote on a bill its subcommittee passed, or the close of the notice period (the last easy moment to file comments; the ministry must consider them but is not bound). The full committee taking up a bill for the first time (상정, no vote) is not a decision. The Legislation and Judiciary Committee only checks wording and can hold a bill back, and the plenary votes on a settled text.
 
-- **Act now:** a step within 7 days, the client wants it changed (oppose or amend), and either it moved this week or the client opposes it and the impact is high.
-- **Engage:** the client wants it changed and it moved this week or has a step within 30 days; or high impact with a step within 7 days.
-- **Monitor:** it moved this week, has a step within 30 days, the client wants it changed, or the impact is high.
+- **Act now:** a decisive step within 7 days, the client wants it changed (oppose or amend), and either it moved this week or the client opposes it and the impact is high.
+- **Engage:** the text is still open and the client wants it changed and it moved this week or has a decisive step or a first introduction within 30 days; or high impact with a decisive step or introduction within 10 days, whatever the client's stance.
+- **Monitor:** it moved this week, has a step within 30 days, the client wants it changed, or the impact is high. A bill past the full committee stays here at most.
 - **Watch:** none of the above, or the bill is closed.
 
 | Followed bill | Stage | Level | Reasons |
 |---|---|---|---|
 | Sidewalk robot duties bill (22-S0308) | passed the subcommittee | Act now | moved Nov 12; full committee Nov 19, in 3 days; stance amend; impact high |
-| Robot insurance committee alternative (22-S0518) | in Legislation and Judiciary review | Engage | no move; LJC meeting Nov 23, in 7 days; stance amend (on the issue); impact medium |
-| Foreign test results bill (22-S0336) | in subcommittee review | Monitor | moved Nov 10; subcommittee Nov 24, in 8 days; stance support (on the issue); impact high |
-| Pedestrian priority zones bill (22-S0315) | on the committee agenda | Monitor | no move; subcommittee Nov 26, in 10 days; no stance; impact high |
-| Robot pilot zones bill (22-S0378) | on the committee agenda | Monitor | no move; subcommittee Nov 24, in 8 days; stance support; impact medium |
+| Foreign test results bill (22-S0336) | in subcommittee review | Engage | moved Nov 10; subcommittee Nov 23, in 7 days; stance support (on the issue); impact high |
+| Coverage by weight class bill (22-S0357) | in subcommittee review | Engage | no move; subcommittee Nov 23, in 7 days; stance amend; impact medium |
+| Pedestrian priority zones bill (22-S0315) | on the committee agenda | Engage | no move; subcommittee Nov 26, in 10 days; no stance; impact high |
+| Robot pilot zones bill (22-S0378) | on the committee agenda | Monitor | no move; subcommittee Nov 23, in 7 days; stance support; impact medium |
+| Robot insurance committee alternative (22-S0518) | in Legislation and Judiciary review | Monitor | no move; wording review Nov 23, in 7 days; stance monitor; impact medium. The text is settled, so Aster only tracks wording and delay risk and presses the coverage point on the weight-class bill |
 | Government bill on sidewalk operation standards (no number yet) | legislative notice | Monitor | no move; notice period closes 12-07, in 21 days; no stance yet; impact high |
 
-The government bill has no number because the Assembly assigns one only when the government submits it, after the 40-day notice.
+The government bill has no number because the Assembly assigns one only when the government submits it. That comes months after the 40-day notice closes, once regulatory review, the Ministry of Government Legislation, the Cabinet and presidential approval are done, and the text can still change in any of them.
 
 For comparison, `billRiskScore` (internal; not shown to the client) moved like this:
 
@@ -97,19 +98,19 @@ The score rose by 4.8 in the week the bill most needed action.
 
 ## The decision the assistant raised
 
-The rule: for a followed bill at Act now, take the people who control the agenda of its next meeting (`stageGates`), and pick one the client rates high influence whose stance is opposed or unconfirmed, unless an open plan step already targets that person. For the full committee on Nov 19 those people are Seo Haeun (chair, supportive, already the subject of the open step "Meet Seo Haeun's office on the cargo class"), Ryu Taehwan (secretary, supportive, subject of "Brief Ryu Taehwan on the slow-and-yield wording") and Jang Sora (secretary, unconfirmed, high influence). Jang Sora is the one left.
+The rule: for a followed bill at Act now, take the people who can change its text at the next subcommittee review or full committee vote (the subcommittee chair, then the lead sponsor, then the committee chair; the other secretary only agrees the agenda and can delay, so is never picked), and pick the first one the client rates high influence whose stance fits (opposed or unconfirmed when the client opposes; any stance when it wants amendments, since a supporter can carry the wording), unless an open plan step already targets that person. For the full committee on Nov 19 those people are Seo Haeun (chair, supportive, already the subject of the open step "Meet Seo Haeun's office on the cargo class"), Ryu Taehwan (secretary, supportive, subject of "Brief Ryu Taehwan on the slow-and-yield wording") and Jang Sora (secretary, unconfirmed, high influence). That leaves the lead sponsor, Baek Siwoo. Jang Sora, the other secretary, is not offered: she can only delay.
 
-`dec-r001`, marked `CLIENT:cli-aster`, linked by `raised_by` to `sig-133` (the meeting notice), due 2026-11-18:
+`dec-r001`, marked `CLIENT:cli-aster`, linked by `raised_by` to `sig-135` (the meeting notice), due 2026-11-17, two working days before the vote:
 
-> **Question.** Meet Jang Sora, a secretary of the Public Administration and Security Committee, before the full committee takes up the sidewalk robot duties bill?
+> **Question.** Meet Baek Siwoo, the lead sponsor, before the full committee votes on the sidewalk robot duties bill?
 >
-> **Recommended.** Yes. Jang Sora agrees the full committee agenda with the chair and has not taken a public position on the bill. Aster Robotics backs sidewalk access for cargo-class robots and wants the stop rule replaced by a duty to slow to walking pace and give way.
+> **Recommended.** Yes. Baek Siwoo is the lead sponsor, whose agreement makes a wording change easiest to carry in committee, and supports the bill. Aster Robotics backs sidewalk access for cargo-class robots and wants the stop rule replaced by a duty to slow to walking pace and give way.
 >
-> **Alternatives.** 1) Send Aster Robotics' proposed wording to Jang Sora's office instead of meeting. 2) Accept the bill as it stands and stop pressing for changes.
+> **Alternatives.** 1) Send Aster Robotics' proposed wording to Baek Siwoo's office instead of meeting. 2) Accept the bill as it stands and press for the point in a committee supplementary resolution (부대의견) or in the enforcement decree.
 
 The second alternative is the trade the executive is really weighing: accept the stop rule to keep the cargo class. It is the only item under **Decisions needed** on This week, below the headline "The sidewalk robot duties bill goes to the full committee on Nov 19".
 
-The assistant also found that the robot insurance committee alternative, which Aster wants amended, goes to the Legislation and Judiciary Committee on Nov 23 and has no risk on record, so it proposed one. Proposals from the assistant wait for the lead.
+The assistant also found that the coverage by weight class bill, which Aster wants amended, goes to the bill review subcommittee on Nov 23, where its text can still change, and has no risk on record, so it proposed one. It proposed nothing for the insurance committee alternative: at the Legislation and Judiciary Committee only wording and delay can change. Proposals from the assistant wait for the lead.
 
 ## Who decides, and who matters
 
@@ -130,13 +131,13 @@ The Strategy screen shows the plan for the issue: the outcome ("Aster Robotics r
 
 ## The engagement lead works through the week
 
-**Waiting for your approval.** Two requests sit at the top of This week: "New risk: Robot insurance committee alternative at the Legislation and Judiciary Committee", requested by the assistant, and "Change the client position on the government bill on sidewalk operation standards to Amend", requested by a consultant. **Approve** on each runs the request as its requester with `approvedBy` set to the lead.
+**Waiting for your approval.** Two requests sit at the top of This week: "New risk: Coverage by weight class bill at the bill review subcommittee", requested by the assistant, and "Change the client position on the government bill on sidewalk operation standards to Amend", requested by a consultant. **Approve** on each runs the request as its requester with `approvedBy` set to the lead.
 
-**New items to confirm.** One Aster item is below 0.8: `sig-120` (an industry forum warning on robot operator duties). The city's sidewalk repaving schedule never reaches Aster, because its profile ignores "sidewalk" next to "repaving". **Confirm** on `sig-120` runs `triageSignal` as the lead: links to `iss-01`, Nam Eunbi and the industry forum, each with an Evidence record of method `human`, status `accepted`. The activity-log entry is marked `CLIENT:cli-aster`; Moru's log does not show it.
+**New items to confirm.** One Aster item is below 0.8: `sig-121` (an industry forum warning on robot operator duties). The city's sidewalk repaving schedule never reaches Aster, because its profile ignores "sidewalk" next to "repaving". **Confirm** on `sig-121` runs `triageSignal` as the lead: links to `iss-01`, Nam Eunbi and the industry forum, each with an Evidence record of method `human`, status `accepted`. The activity-log entry is marked `CLIENT:cli-aster`; Moru's log does not show it.
 
-**The decision.** **Approve** runs `resolveDecision` with resolution `approve`. A follow-up task appears on the timeline: "Meet Jang Sora before the Nov 19 full committee", owner `human`, due 2026-11-18, the day before the committee meets. If the lead had first changed Jang Sora's stance, the decision would show **Out of date: stance changed** with **Regenerate**, which withdraws it and raises a new one only if someone on the agenda still needs persuading.
+**The decision.** **Approve** runs `resolveDecision` with resolution `approve`. A follow-up task appears on the timeline: "Meet Baek Siwoo before the Nov 19 full committee", owner `human`, due 2026-11-17, two working days before the committee votes. If the lead had first changed Baek Siwoo's stance, the decision would show **Out of date: stance changed** with **Regenerate**, which withdraws it and raises a new one only if someone on the agenda still needs persuading.
 
-**The report.** On Reports, the assistant's draft `del-r001`, "Weekly report, week ending 2026-11-16", is **In review**. It follows This week in memo form: the headline, then Risks, Opportunities, Coming up, Stakeholder moves and What we need from Aster Robotics, with eight footnotes, each a source document (a meeting notice, the legislative notice, news items). It leaves out the open decision and the team's own tasks. The report is rebuilt after every approval, so the risk approved above and the decision just taken are already in it; had the lead approved the report first, the new risk would have sent it back to review. **Approve** runs `approveDeliverable`; **Send to client** then runs `sendDeliverable`. The status becomes `sent` and nothing leaves the browser.
+**The report.** On Reports, the assistant's draft `del-r001`, "Weekly report, week ending 2026-11-16", is **In review**. It follows This week in memo form: the headline, then Risks, Opportunities, Coming up, Stakeholder moves and What we need from Aster Robotics, with nine footnotes, each a source document (a meeting notice, the legislative notice, news items). It leaves out the open decision and the team's own tasks. The report is rebuilt after every approval, so the risk approved above and the decision just taken are already in it; had the lead approved the report first, the new risk would have sent it back to review. **Approve** runs `approveDeliverable`; **Send to client** then runs `sendDeliverable`. The status becomes `sent` and nothing leaves the browser.
 
 Two refusals the runtime enforces even though the screen never offers the button: the assistant calling `sendDeliverable` gets `PERMISSION_DENIED`, and anyone sending before approval gets `PRECONDITION_FAILED: Blocked until the principal approves the deliverable`. Both are written to the log.
 
@@ -146,11 +147,11 @@ The assistant's run accounts for 26 entries: 21 filings and set-asides, the deci
 
 | Who | What | Result | Decided by |
 |---|---|---|---|
-| Assistant | Proposed a risk: Robot insurance committee alternative at the Legislation and Judiciary Committee | Approved | Engagement lead, Nov 16 |
+| Assistant | Proposed a risk: Coverage by weight class bill at the bill review subcommittee | Approved | Engagement lead, Nov 16 |
 | Consultant | Asked to change the client position on the government bill on sidewalk operation standards to Amend | Approved | Engagement lead, Nov 16 |
 | Assistant | Brought up to date with the latest changes: Weekly report, week ending Nov 16 | Done | |
 | Engagement lead | Filed: Metro Robotics Industry Forum warns against rushing robot operator duties... | Done | |
-| Engagement lead | Approved a decision: Meet Jang Sora... | Done | |
+| Engagement lead | Approved a decision: Meet Baek Siwoo... | Done | |
 | Assistant | Brought up to date with the latest changes: Weekly report, week ending Nov 16 | Done | |
 | Engagement lead | Approved: Weekly report, week ending Nov 16 | Done | |
 | Engagement lead | Sent to the client: Weekly report, week ending Nov 16 | Done | Engagement lead |
@@ -159,4 +160,4 @@ Every row is marked `CLIENT:cli-aster`. A request that waited for approval stays
 
 ## Switch the workspace to Moru Foods
 
-Choose Moru Foods at the top. None of Aster's decision, report, assessments, strategy or log entries is visible, and the links filed on `sig-120` are visible only as public links on a public item, with no sign of which client filed them. Moru's page leads with its own week: the meat terms restriction bill goes to the bill review subcommittee on Nov 18, and the assistant asks whether to meet the subcommittee chair first.
+Choose Moru Foods at the top. None of Aster's decision, report, assessments, strategy or log entries is visible, and the links filed on `sig-121` are visible only as public links on a public item, with no sign of which client filed them. Moru's page leads with its own week: the meat terms restriction bill goes to the bill review subcommittee on Nov 18, and the assistant asks whether to meet the subcommittee chair first.

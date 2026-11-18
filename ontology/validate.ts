@@ -18,6 +18,7 @@ export function validateWorld(world: World): string[] {
   const byId = new Map(world.objects.map((o) => [o.id, o]));
   if (byId.size !== world.objects.length) err('duplicate object ids');
   const typeOf = (id: string) => byId.get(id)?.type;
+  const clientEvidenceUsed = new Set<string>();
   if (world.meta.synthetic !== true) err('meta.synthetic must be true'); // the fictional world; public records ride alongside it
 
   // The client a record belongs to, derived from its markings (undefined = PUBLIC).
@@ -33,8 +34,10 @@ export function validateWorld(world: World): string[] {
     if (isPublic && !PUBLIC_RECORD_TYPES.includes(o.type)) err(`${where}: only Signal and Evidence may be public records`);
     if (isPublic && o.synthetic !== false) err(`${where}: a public record must have synthetic false`);
     if (!isPublic && o.synthetic !== true) err(`${where}: synthetic must be true`);
+    // Evidence may carry one client marking when it backs that client's link (a client's filing); linkage is checked with the links below.
+    const clientEvidence = o.type === 'Evidence' && o.markings?.length === 1 && o.markings[0].startsWith('CLIENT:');
     const expected = def.layer === 'public' ? ['PUBLIC'] : [clientMarking(o.type === 'Client' ? o.id : o.clientId)];
-    if (JSON.stringify(o.markings) !== JSON.stringify(expected)) err(`${where}: markings should be ${expected.join(',')}, got ${o.markings?.join(',')}`);
+    if (!clientEvidence && JSON.stringify(o.markings) !== JSON.stringify(expected)) err(`${where}: markings should be ${expected.join(',')}, got ${o.markings?.join(',')}`);
     const props = Object.fromEntries(Object.entries(o).filter(([k]) => !BASE_KEYS.includes(k)));
     for (const e of checkProps(def.properties, props, typeOf)) err(`${where}.${e}`);
 
@@ -68,7 +71,7 @@ export function validateWorld(world: World): string[] {
     const def = Object.hasOwn(linkTypes, l.type) ? (linkTypes as Record<string, LinkTypeDef>)[l.type] : undefined;
     if (!def) { err(`${where}: unknown link type`); continue; }
     if (l.synthetic !== true) err(`${where}: synthetic must be true`);
-    const key = `${l.type}|${l.from}|${l.to}`;
+    const key = `${l.type}|${l.from}|${l.to}|${clientOfMarkings(l.markings) ?? ""}`; // each client may file the same link for itself
     if (seen.has(key)) err(`${where}: duplicate link`);
     seen.add(key);
     const a = byId.get(l.from);
@@ -81,7 +84,12 @@ export function validateWorld(world: World): string[] {
     const owners = new Set([clientOfMarkings(a.markings), clientOfMarkings(b.markings)].filter(Boolean));
     if (owners.size > 1) err(`${where}: connects two different clients`);
     const linkOwner = clientOfMarkings(l.markings);
-    if (def.layer === 'public' && (owners.size || linkOwner)) err(`${where}: PUBLIC link references a CLIENT object or marking`);
+    // A link between public objects may carry one client marking when all its evidence carries the same marking (a client's filing).
+    const evMarks = l.evidence.map((id) => clientOfMarkings(byId.get(id)?.markings ?? []));
+    if (def.layer === 'public' && owners.size) err(`${where}: PUBLIC link references a CLIENT object`);
+    else if (def.layer === 'public' && linkOwner && (!evMarks.length || evMarks.some((m) => m !== linkOwner))) err(`${where}: a client-marked link needs evidence with the same marking`);
+    if (def.layer === 'public' && !linkOwner && evMarks.some(Boolean)) err(`${where}: PUBLIC link rests on client-marked evidence`);
+    if (def.layer === 'public' && linkOwner) for (const id of l.evidence) clientEvidenceUsed.add(id);
     if (def.layer === 'client' && !linkOwner) err(`${where}: client-layer link needs a CLIENT marking`);
     if (linkOwner && owners.size && !owners.has(linkOwner)) err(`${where}: marking CLIENT:${linkOwner} does not match its endpoints`);
 
@@ -92,6 +100,8 @@ export function validateWorld(world: World): string[] {
     if ((def.cardinality === 'many-to-one' || def.cardinality === 'one-to-one') && out.get(`${l.type}|${l.from}`)! > 1) err(`${where}: ${l.from} has more than one outgoing ${l.type}`);
     if ((def.cardinality === 'one-to-many' || def.cardinality === 'one-to-one') && inn.get(`${l.type}|${l.to}`)! > 1) err(`${where}: ${l.to} has more than one incoming ${l.type}`);
   }
+
+  for (const o of world.objects) if (o.type === 'Evidence' && clientOfMarkings(o.markings ?? []) && !clientEvidenceUsed.has(o.id)) err(`${o.id}: client-marked evidence must back a link with the same marking`);
 
   // Required participation
   for (const [name, def] of Object.entries(linkTypes) as [string, LinkTypeDef][]) {

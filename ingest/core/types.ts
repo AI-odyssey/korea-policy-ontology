@@ -37,6 +37,7 @@ export interface MonitoringProfile {
   agencies: string[];
   sources?: string[]; // connector ids to run; all when omitted
   watchBills?: string[]; // bill numbers (의안번호) whose stage changes are always reported
+  excludeOutlets?: string[]; // news outlets and offices whose items are never kept (commentary columns, think-tank blogs)
 }
 
 export interface Window {

@@ -19,7 +19,7 @@ describe('world.json', () => {
       expect(count(t), t).toBeGreaterThanOrEqual(lo);
       expect(count(t), t).toBeLessThanOrEqual(hi);
     };
-    within('Issue', 9, 12); within('Bill', 25, 35); within('Provision', 15, 25); within('Institution', 15, 20);
+    within('Issue', 9, 12); within('Bill', 25, 35); within('Provision', 15, 25); within('Institution', 15, 40);
     within('Person', 40, 60); within('StakeholderOrg', 10, 15); within('Event', 30, 50); within('Signal', 120, 200); within('Engagement', 3, 3);
     expect(world.objects.filter((o) => o.type === 'Person' && o.kind === 'lawmaker').length).toBeGreaterThanOrEqual(25);
     expect(world.objects.filter((o) => o.type === 'Bill' && o.stage === 'merged_alternative').length).toBeGreaterThan(0);
@@ -80,5 +80,22 @@ describe('validator', () => {
   });
   it('catches a wrong marking', () => {
     expect(mutate((w) => { w.objects.find((o) => o.id === 'pos-aster-1')!.markings = ['PUBLIC']; })).toMatch(/markings should be/);
+  });
+});
+
+describe('validator after the week is opened', () => {
+  it('accepts a client-marked filing: links between public objects and their evidence carry the same client marking', async () => {
+    const { openWeek } = await import('../agent/index.ts');
+    const { freshStore, CLIENTS } = await import('./helpers.ts');
+    const s = freshStore();
+    await openWeek(s, CLIENTS);
+    const w = s.snapshot().world;
+    expect(w.links.some((l) => l.type === 'about' && l.markings.some((m) => m.startsWith('CLIENT:')))).toBe(true);
+    expect(validateWorld(w)).toEqual([]);
+    // A client-marked link whose evidence is public is still an error, and so is client evidence under a public link.
+    const l = w.links.find((x) => x.type === 'about' && x.markings[0] === 'CLIENT:cli-aster')!;
+    const ev = w.objects.find((o) => o.id === l.evidence[0])!;
+    ev.markings = ['PUBLIC'];
+    expect(validateWorld(w).join('\n')).toMatch(/same marking/);
   });
 });

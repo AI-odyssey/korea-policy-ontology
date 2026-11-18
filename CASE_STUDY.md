@@ -1,6 +1,6 @@
 # Case study: an ontology for a policy consultant's week
 
-All clients, people, bills and events in this repository are fictional. Numbers refer to the synthetic world.
+All clients, people, bills and events in this repository are fictional, and numbers refer to the synthetic world. No client or employer data or documents were used: the world is generated from a seed.
 
 ## 1. The problem I kept running into
 
@@ -39,7 +39,7 @@ I started from the nouns and verbs I already used with colleagues and clients, t
 
 Links carry direction, cardinality and whether evidence is mandatory. Links between public objects need at least one Evidence record. Time is explicit: `Bill.stageHistory`, `since` and `until` on `member_of`, `Signal.collectedAt`. That is what makes `whatChanged(since)` a computation. The full schema is in [docs/ontology.md](docs/ontology.md).
 
-Four choices in the client layer came from watching how executives and consultants actually use the material.
+Four choices in the client layer follow from how I expect executives and consultants to use the material.
 
 **A client's read of a person belongs to the client.** Whether a committee secretary is supportive, neutral or opposed on sidewalk robots is one client's judgment, based on what that client has seen. If stance were a property of `Person`, that judgment would sit in the shared layer and show up in every other client's work. So it is a `StakeholderAssessment` in the client's layer: subject, issue, stance, influence, relevance, the records the stance rests on, who assessed it and when ([ADR-0010](docs/decisions/ADR-0010-client-judgments-in-client-layer.md)).
 
@@ -110,14 +110,14 @@ Baselines have to be measured by hand first. I would not promise targets before 
 
 **Templated decisions.** The assistant's first decisions all read "Request a meeting with the chair's office". They ignored who had already been met and who actually held the vote, and they duplicated steps already in the plan. Selecting the target from the agenda-setters and the client's own assessments fixed both.
 
-**A report that duplicated a tracker.** The first weekly report was a bill table with risk scores and a "Who matters" list cited to ontology ids. Executives read the This week page and skipped the table, so the report now renders the same brief and cites source documents.
+**A report that duplicated a tracker.** The first weekly report was a bill table with risk scores and a "Who matters" list cited to ontology ids. It repeated the tracker instead of the brief, and I expect an executive who has read This week to skip a table like that. The report now renders the same brief and cites source documents.
 
 **Synthetic data that did not match the law.** An early version of the world had robots seeking sidewalk access that Korean law already granted in 2023, insurance bills in the wrong committee, a committee alternative existing before the committee adopted it, and committee chairs in their first term. A reader who knows the Assembly would stop trusting the demo at the first of these, so the generator now follows jurisdiction, seniority and procedure.
 
 ### Features I dropped
 
-- **A role switch on screen.** Showing consultant and principal views side by side explained the model to engineers and confused everyone else. The viewer is the engagement lead; the roles stay in the ontology and the activity log.
-- **A quadrant chart of stakeholders, movement arrows and target-stance outlines.** They looked analytical and invited readers to treat a judgment as a measurement. The network keeps size, color and line style only.
+- **A role switch on screen.** Showing consultant and principal views side by side would explain the model to engineers but ask a client executive to learn roles they do not need. The viewer is the engagement lead; the roles stay in the ontology and the activity log.
+- **A quadrant chart of stakeholders, movement arrows and target-stance outlines.** They look analytical and invite readers to treat a judgment as a measurement. The network keeps size, color and line style only.
 - **A bill table on the landing page.** It moved to Issues & bills.
 - **Model-written triage.** Rules plus a person cover the volume in the sample world, and a model adds a data path that needs its own controls.
 
@@ -139,4 +139,4 @@ Baselines have to be measured by hand first. I would not promise targets before 
 3. An evaluation set for triage: labeled items, measuring rule precision and where a model would help.
 4. Staleness rules for stakeholder assessments: flag a stance whose newest basis record is old.
 5. A review of the response-level and decision rules against a year of real bill histories.
-6. Connect to Donaro, my AI task router, so the model choice for each drafting job is a routing decision under the provider gate.
+6. Route the model choice for each drafting job through a task router, under the provider gate.

@@ -4,4 +4,4 @@ export * from './markings.ts';
 export * from './runtime.ts';
 export * from './functions.ts';
 export { validateWorld } from './validate.ts';
-export { addDays, daysBetween, monthDay } from './dates.ts';
+export { addDays, daysBetween, isWeekend, monthDay, workdayOnOrAfter, workdayOnOrBefore, workdaysBefore } from './dates.ts';

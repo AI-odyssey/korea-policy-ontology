@@ -42,6 +42,22 @@ describe('cross-client isolation', () => {
   });
 });
 
+describe('filing is a client judgment', () => {
+  it("one client's filing adds no link or evidence that another client can see", () => {
+    const s = freshStore();
+    const sig = s.as(principal).list('Signal', (x) => x.status === 'new')[0];
+    const before = s.as(moruConsultant).links({ from: sig.id }).length;
+    s.applyAction(asterConsultant, 'triageSignal', { clientId: 'cli-aster', signalId: sig.id, issueId: 'iss-10', relevance: 0.9, confidence: 0.9 });
+    const aster = s.as(asterConsultant);
+    const filed = aster.links({ from: sig.id }).filter((l) => l.to === 'iss-10');
+    expect(filed).toHaveLength(1);
+    expect(filed[0].markings).toEqual(['CLIENT:cli-aster']);
+    const moru = s.as(moruConsultant);
+    expect(moru.links({ from: sig.id })).toHaveLength(before);
+    for (const id of filed[0].evidence) expect(moru.get(id)).toBeUndefined();
+  });
+});
+
 describe('cross-client references', () => {
   // A caller assigned to both clients can see both layers, so only the one-layer-per-call rule stops these.
   const both = ctx('consultant', ['cli-aster', 'cli-moru'], 'consultant-both');

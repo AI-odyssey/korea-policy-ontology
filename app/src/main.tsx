@@ -8,7 +8,7 @@ import '@blueprintjs/core/lib/css/blueprint.css';
 import './styles.css';
 import worldJson from '../../data/world.json';
 import { Store, clientMarking } from '../../ontology/index.ts';
-import type { ActionName, Ctx, World } from '../../ontology/index.ts';
+import type { ActionName, AuditEntry, Ctx, World } from '../../ontology/index.ts';
 import { openWeek, refreshWeeklyReport, runWeeklyAgent } from '../../agent/index.ts';
 import type { AgentRun } from '../../agent/index.ts';
 import { MarkTag, ObjectDrawer, md } from './ui.tsx';
@@ -24,6 +24,7 @@ const world = worldJson as unknown as World;
 const STATE_KEY = `kpo-demo-state-v5-${world.meta.seed}`;
 const RUNS_KEY = `kpo-demo-runs-v5-${world.meta.seed}`;
 const PREFS_KEY = 'kpo-demo-prefs-v3';
+const STAMPS_KEY = `kpo-demo-stamps-v1-${world.meta.seed}`;
 const CLIENT_IDS = world.objects.filter((o) => o.type === 'Client').map((o) => o.id);
 const COLOPHON = `© 2026 AI-odyssey · korea-policy-ontology · build ${__BUILD_HASH__}`;
 
@@ -43,15 +44,30 @@ const write = (key: string, value: unknown) => {
     /* ignore */
   }
 };
+// Saved state is browser-controlled input: use it only if it is the same world and its records and links are well formed.
+// validateWorld is not used here because it rejects the client-marked evidence the assistant writes during a run.
+const usable = (snap?: ReturnType<Store['snapshot']>): boolean => {
+  const w = snap?.world;
+  if (!w || w.meta?.seed !== world.meta.seed || w.meta.baseDate !== world.meta.baseDate || !Array.isArray(snap.audit) || !Array.isArray(snap.pending)) return false;
+  if (!Array.isArray(w.objects) || !Array.isArray(w.links)) return false;
+  const ids = new Set<string>();
+  for (const o of w.objects) {
+    if (!o || typeof o.id !== 'string' || typeof o.type !== 'string' || !Array.isArray(o.markings) || o.markings.some((m) => typeof m !== 'string')) return false;
+    ids.add(o.id);
+  }
+  return ids.size === w.objects.length && w.links.every((l) => l && ids.has(l.from) && ids.has(l.to));
+};
 const loadStore = (): Store => {
   try {
     const snap = read<ReturnType<Store['snapshot']>>(STATE_KEY);
-    if (snap) return Store.fromSnapshot(snap);
+    if (usable(snap)) return Store.fromSnapshot(snap!);
   } catch {
     /* corrupt snapshot: start fresh */
   }
   return new Store(world);
 };
+
+const hhmm = () => new Date().toTimeString().slice(0, 5);
 
 const LEFT = [['week', 'This week'], ['issues', 'Issues & bills'], ['stakeholders', 'Stakeholders'], ['strategy', 'Strategy']] as const;
 const RIGHT = [['reports', 'Reports'], ['activity', 'Activity log'], ['assistant', 'Assistant run'], ['settings', 'Settings'], ['ontology', 'Ontology']] as const;
@@ -80,6 +96,10 @@ function Root() {
   const [notice, setNotice] = useState<{ msg: string; tone: Tone }>();
   const [runs, setRuns] = useState<Record<string, AgentRun>>(() => read(RUNS_KEY) ?? {});
   const version = useSyncExternalStore((cb) => store.subscribe(cb), () => store.version);
+  // The store's clock is fixed so the opening state is the same every time. Entries made after the opening get the
+  // viewer's time of day on the demo date instead of a seeded second.
+  const stamps = useRef<Record<string, string>>(read(STAMPS_KEY) ?? {});
+  const opened = useRef<Set<string> | undefined>(undefined);
 
   useEffect(() => {
     const on = () => (setRoute(parseHash()), setInspect(undefined), window.scrollTo(0, 0));
@@ -89,8 +109,20 @@ function Root() {
   useEffect(() => write(PREFS_KEY, { clientId }), [clientId]);
   useEffect(() => write(RUNS_KEY, runs), [runs]);
   useEffect(() => {
-    prime(store).then((r) => Object.keys(r).length && setRuns(r));
+    opened.current = undefined;
+    prime(store).then((r) => {
+      if (Object.keys(r).length) setRuns(r);
+      opened.current = new Set(store.auditEntries({ actor: 'x', role: 'principal', clientIds: CLIENT_IDS }).map((a) => a.id));
+    });
   }, [store]);
+  useEffect(() => {
+    if (!opened.current) return;
+    let added = false;
+    for (const a of store.auditEntries({ actor: 'x', role: 'principal', clientIds: CLIENT_IDS })) {
+      if (!opened.current.has(a.id) && !stamps.current[a.id]) (stamps.current[a.id] = hhmm(), added = true);
+    }
+    if (added) write(STAMPS_KEY, stamps.current);
+  }, [store, version]);
   useEffect(() => {
     const t = setTimeout(() => write(STATE_KEY, store.snapshot()), 300); // debounced: a snapshot is several hundred KB
     return () => clearTimeout(t);
@@ -114,6 +146,7 @@ function Root() {
 
   const app: App = {
     store, view, ctx, clientId, client: view.get(clientId)!, notify, go, runs,
+    when: (a: AuditEntry) => `${md(a.at)} ${stamps.current[a.id] ?? a.at.slice(11, 16)}`,
     inspect: setInspect,
     act: (name: ActionName, params, ok) => {
       try {
@@ -144,6 +177,12 @@ function Root() {
     } catch {
       /* ignore */
     }
+    stamps.current = {};
+    try {
+      localStorage.removeItem(STAMPS_KEY);
+    } catch {
+      /* ignore */
+    }
     setRuns({});
     setStore(new Store(world));
     notify('Back to the start of the week.', 'primary');
@@ -153,16 +192,16 @@ function Root() {
 
   return (
     <>
-      <div className="banner">Demo with fictional clients. People, bills and events are fictional too, except items marked Public record.</div>
+      <div className="banner">Demo with fictional clients, people, bills and events. Only items marked Public record are real.</div>
       <div className="wrap">
         <header className="top">
           <b className="brand">Korea Policy Ontology <span className="demo-tag">Demo</span></b>
-          <span className="sub nowrap">As of {md(store.baseDate)}, {store.baseDate.slice(0, 4)}</span>
+          <span className="sub nowrap asof">As of {md(store.baseDate)}, {store.baseDate.slice(0, 4)}</span>
           <HTMLSelect minimal value={clientId} onChange={(e) => (setClientId(e.target.value), setNotice(undefined), setInspect(undefined))} options={clients.map((c) => ({ value: c.id, label: `${c.name} (fictional client)` }))} aria-label="Fictional client" className="client" />
           <MarkTag m={clientMarking(clientId)} app={app} />
           <span className="spacer" />
-          <span className="sub nowrap">Viewing as engagement lead</span>
-          <Button size="small" variant="minimal" text="Reset" onClick={reset} />
+          <span className="sub nowrap viewing">Viewing as engagement lead</span>
+          <Button className="reset" size="small" variant="minimal" text="Reset" onClick={reset} />
         </header>
         <nav className="nav" aria-label="Screens">
           <div className="nav-group">{nav(LEFT)}</div>

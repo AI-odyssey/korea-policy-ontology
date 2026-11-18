@@ -54,7 +54,7 @@ describe('matching and merging', () => {
 
 describe('committee scope', () => {
   it('keeps meetings of a watched committee when the agenda hits a keyword, or when no agenda is known, never budget sessions without a hit', () => {
-    const p = profile({ committees: ['국토교통위원회'], keywords: [{ term: '자율주행', priority: 'low' }] });
+    const p = profile({ committees: ['국토교통위원회'], keywords: [{ term: '자율주행', priority: 'medium' }] });
     const m = (title: string) => keep(item({ sourceType: 'minutes', committee: '국토교통위원회', title }), p);
     expect(m('[예정] 제8차 국토교통위원회 (2026.11.18.)')).toBeDefined();
     expect(m('[회의록 게재 전] 제2차 국토교통위원회 예산결산기금심사소위원회 (2026.11.17.)')).toBeUndefined();

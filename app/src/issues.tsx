@@ -41,10 +41,12 @@ function IssueList({ app }: { app: App }) {
   const watchedBills = new Set(eng ? view.targets(eng.id, 'watches').filter((o) => o.type === 'Bill').map((o) => o.id) : []);
   const issues = view.sources(clientId, 'affects').sort((a, b) => ['high', 'medium', 'low'].indexOf(impact.get(a.id)!) - ['high', 'medium', 'low'].indexOf(impact.get(b.id)!) || a.id.localeCompare(b.id));
 
+  const allBills = new Set(issues.flatMap((i) => view.sources(i.id, 'about').filter((o) => o.type === 'Bill').map((o) => o.id))).size;
+
   return (
     <div className="page">
       <h1 className="headline">Issues and bills</h1>
-      <p className="lead">{countWord(issues.length)} issues affect {app.client.name}. We follow {countWord(watchedBills.size).toLowerCase()} bills closely.</p>
+      <p className="lead">{countWord(issues.length)} issues affect {app.client.name}. We follow {countWord(watchedBills.size).toLowerCase()} bills closely and list every bill on these issues below ({allBills} in all).</p>
       {issues.map((issue) => {
         const bills = view.sources(issue.id, 'about').filter((o) => o.type === 'Bill')
           .sort((a, b) => Number(watchedBills.has(b.id)) - Number(watchedBills.has(a.id)) || Number(CLOSED.includes(a.stage)) - Number(CLOSED.includes(b.stage)) || a.id.localeCompare(b.id));
@@ -111,6 +113,8 @@ function levelReasons(app: App, bill: ObjectRecord, f: ResponseFacts, level: str
   const on = pos && pos.targetId !== bill.id ? ' (position on the issue)' : '';
   if (wants) up.push(`${client.name} ${WANTS[pos!.stance]}${on}.`);
   else down.push(pos ? `${client.name} ${WANTS[pos.stance]}${on}.` : `${client.name} has no position on this bill yet.`);
+  if (!f.textOpen) down.push('The full committee has passed the text; only wording and delay risk are left.');
+  if (f.slotKind === 'introduction') down.push('The next meeting only introduces the bill; there is no vote.');
   if (f.impact === 'high') up.push(`High impact on ${client.name}.`);
   else down.push(f.impact ? `${cap(f.impact)} impact on ${client.name}.` : `No direct impact on ${client.name}.`);
   return { up, down };

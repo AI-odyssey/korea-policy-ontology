@@ -3,7 +3,7 @@
 // so the page and the report say the same things in the same order.
 import type { ObjectRecord, View } from '../ontology/runtime.ts';
 import { addDays, monthDay } from '../ontology/dates.ts';
-import { cmp, confirmedSignals, confirmedView, daysToStep, responseFacts, responseLevel, upcomingDeadlines } from '../ontology/functions.ts';
+import { cmp, confirmedSignals, confirmedView, daysToStep, responseFacts, responseLevel, stepKind, upcomingDeadlines } from '../ontology/functions.ts';
 import type { ResponseFacts, ResponseLevel } from '../ontology/functions.ts';
 
 export const LEVEL_RANK: Record<ResponseLevel, number> = { act_now: 0, engage: 1, monitor: 2, watch: 3 };
@@ -49,7 +49,8 @@ export function headline(view: View, clientId: string, top?: RankedBill): { head
   if (!top) return { headline: 'No followed bill moves this week', lead: '' };
   const { bill, facts: f } = top;
   const name = `The ${lower1(billName(bill))}`;
-  const h = f.slot ? `${name} goes to the ${forumOf(view, f.slot)} on ${monthDay(f.slot.date)}` : `${name} is ${NOW[bill.stage] ?? 'pending'}`;
+  const goes = f.slotKind === 'introduction' ? 'is introduced at the' : f.slotKind === 'wording' ? 'goes for wording review to the' : 'goes to the';
+  const h = f.slot ? `${name} ${goes} ${forumOf(view, f.slot)} on ${monthDay(f.slot.date)}` : `${name} is ${NOW[bill.stage] ?? 'pending'}`;
   const lead = f.change ? `It ${PAST[f.change.to] ?? 'moved'} on ${monthDay(f.change.date)}.` : f.position ? `${view.get(clientId)!.name} ${WANTS[f.position.stance]}.` : '';
   return { headline: h, lead };
 }
@@ -93,13 +94,31 @@ export function sourceFor(view: View, id: string): string | undefined {
 }
 const SLOT_KINDS = ['full_committee', 'subcommittee', 'plenary'];
 
-export interface TimelineItem { date: string; title: string; who: string; status: string; id: string }
+export interface TimelineItem { date: string; title: string; who: string; status: string; id: string; urgent?: boolean }
 export const OWNER: Record<string, string> = { human: 'Our team', agent: 'Assistant', client: 'Client' };
+const STEP_NOTE: Record<string, string> = { introduction: 'introduction only, no vote', wording: 'wording review only', plenary: 'plenary vote on the settled text' };
+/** "Full committee: A, B; C (introduction only, no vote)". Bills whose step is a review or a vote are listed plainly. */
+function meetingTitle(view: View, what: string, e: ObjectRecord, billIds: string[]): string {
+  const groups = new Map<string, string[]>();
+  for (const id of billIds) { const k = stepKind(e, view.get(id)!); const g = k === 'review' || k === 'vote' ? '' : STEP_NOTE[k]; groups.set(g, [...(groups.get(g) ?? []), billName(view.get(id))]); }
+  const plain = groups.get('') ?? [];
+  const rest = [...groups].filter(([g]) => g).map(([g, names]) => `${names.join(', ')} (${g})`);
+  if (!plain.length && groups.size === 1) return `${what} (${[...groups.keys()][0]}): ${groups.get([...groups.keys()][0])!.join(', ')}`;
+  return `${what}: ${[plain.join(', '), ...rest].filter(Boolean).join('; ')}`;
+}
 
-/** Dated items in the next 30 days. Client-facing output leaves out the team's own tasks; asks of the client are listed apart. */
-export function timeline(view: View, clientId: string, opts: { clientFacing?: boolean } = {}): TimelineItem[] {
+/**
+ * Dated items in the next 30 days: meetings on any bill that affects the client and is followed or at engage or above, and the
+ * team's tasks. An item is urgent when such a bill is at engage or above and its step falls within 7 days. Client-facing output
+ * leaves out the team's own tasks; asks of the client are listed apart.
+ */
+export function timeline(view: View, clientId: string, opts: { clientFacing?: boolean; since?: string } = {}): TimelineItem[] {
+  const since = opts.since ?? addDays(view.baseDate, -7);
   const eng = view.list('Engagement', (e) => e.clientId === clientId)[0];
   const watched = new Set(eng ? view.targets(eng.id, 'watches').map((o) => o.id) : []);
+  const levels = new Map<string, ResponseLevel>();
+  const levelOf = (id: string) => levels.get(id) ?? levels.set(id, responseLevel(view, id, clientId, since).level).get(id)!;
+  const pressing = (id: string) => LEVEL_RANK[levelOf(id)] <= LEVEL_RANK.engage;
   const items: TimelineItem[] = [];
   for (const d of upcomingDeadlines(view, clientId, 30)) {
     const o = view.get(d.objectId)!;
@@ -108,11 +127,15 @@ export function timeline(view: View, clientId: string, opts: { clientFacing?: bo
       items.push({ date: d.date, title: o.title, who: OWNER[o.owner], status: 'To do', id: o.id });
       continue;
     }
-    const bill = d.billIds.find((b) => watched.has(b));
-    if (!bill && o.kind !== 'hearing') continue;
+    const bills = d.billIds.filter((b) => watched.has(b) || pressing(b));
+    if (!bills.length && o.kind !== 'hearing') continue;
     const inst = view.get(o.institutionId);
     const what = o.kind === 'public_comment' ? 'Notice period closes' : o.kind === 'hearing' ? o.name : cap(forumOf(view, o));
-    items.push({ date: d.date, title: bill && o.kind !== 'hearing' ? `${what}: ${billName(view.get(bill))}` : what, who: inst && ['ministry', 'agency'].includes(inst.kind) ? 'Government' : 'National Assembly', status: 'Scheduled', id: o.id });
+    const plainMeeting = o.kind === 'hearing' || o.kind === 'public_comment';
+    items.push({
+      date: d.date, title: !bills.length || o.kind === 'hearing' ? what : plainMeeting ? `${what}: ${bills.map((id) => billName(view.get(id))).join(', ')}` : meetingTitle(view, what, o, bills), who: inst && ['ministry', 'agency'].includes(inst.kind) ? 'Government' : 'National Assembly', status: 'Scheduled', id: o.id,
+      ...(d.daysLeft <= 7 && bills.some(pressing) ? { urgent: true } : {}),
+    });
   }
   return items;
 }
@@ -179,7 +202,7 @@ export function weeklyBrief(view: View, clientId: string, opts: { since?: string
     decisions: view.list('Decision', (d) => d.clientId === clientId && d.status === 'open').sort((a, b) => cmp(String(a.dueDate ?? '9'), String(b.dueDate ?? '9')) || cmp(a.id, b.id)),
     risks: orderedRiskOpportunities(view, clientId, since, 'risk'),
     opportunities: orderedRiskOpportunities(view, clientId, since, 'opportunity'),
-    timeline: timeline(view, clientId, opts),
+    timeline: timeline(view, clientId, { ...opts, since }),
     moves: moves(view, clientId, since),
     asks: asks(view, clientId),
   };

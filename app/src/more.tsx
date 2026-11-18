@@ -1,8 +1,10 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
 // Secondary screens: Reports, Activity log, Assistant run, Ontology.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@blueprintjs/core';
+import { weeklyBrief } from '../../agent/index.ts';
 import { ACTION_NAMES, LINK_TYPE_NAMES, OBJECT_TYPE_NAMES, ROLES, actionTypes, functionTypes, linkTypes, objectTypes } from '../../ontology/index.ts';
+import type { ObjectRecord } from '../../ontology/index.ts';
 import type { ActionTypeDef, AuditEntry, LinkTypeDef, ObjectTypeDef } from '../../ontology/index.ts';
 import { Empty, Markdown, POSITION, Section, T, cap, md, nameOf, person, pretty, prose } from './ui.tsx';
 import type { App } from './ui.tsx';
@@ -14,6 +16,19 @@ const WHO: Record<string, string> = { system: 'Collector', agent: 'Assistant', c
 const clip = (s: string, n = 80) => (s.length <= n ? s : `${s.slice(0, n).replace(/\s+\S*$/, '')}...`);
 
 // ---------------- Reports ----------------
+/** The agency's own question ("Meet X, a secretary of Y?") is not what a client reads. Show what was decided and what happens next. */
+function clientDecisions(app: App, body: string): string {
+  const since = weeklyBrief(app.view, app.clientId).since;
+  const taken = app.view.list('Decision', (d) => d.clientId === app.clientId && d.status === 'resolved' && d.resolution !== 'withdraw' && String(d.openedAt).slice(0, 10) > since);
+  const line = (d: ObjectRecord) => {
+    const next = String(d.followUp ?? String(d.question).replace(/\?$/, ''));
+    if (d.resolution === 'approve') return `- Agreed: ${next}.`;
+    if (d.resolution === 'alternative') return `- Agreed: ${d.resolutionNote}.`;
+    return `- Not pursued: ${next}.`;
+  };
+  return body.replace(/(## Decisions taken\n\n)(?:- .*\n?)+/, `$1${taken.map(line).join('\n')}\n`);
+}
+
 export function Reports({ app }: { app: App }) {
   const { view, clientId } = app;
   const list = view.list('Deliverable', (d) => d.clientId === clientId).sort((a, b) => (a.status === 'in_review' ? 0 : 1) - (b.status === 'in_review' ? 0 : 1) || (b.id < a.id ? -1 : b.id > a.id ? 1 : 0));
@@ -21,6 +36,11 @@ export function Reports({ app }: { app: App }) {
   const [sel, setSel] = useState<string | undefined>(() => (list.find((x) => x.status === 'in_review') ?? list[0])?.id);
   const [busy, setBusy] = useState(false);
   const d = view.get(sel ?? '') ?? list[0];
+  // Printing shows only the report body; the class lets the print stylesheet hide everything else.
+  useEffect(() => {
+    document.body.classList.add('on-reports');
+    return () => document.body.classList.remove('on-reports');
+  }, []);
   const thisWeek = list.some((x) => x.kind === 'weekly_report' && String(x.title).includes(view.baseDate));
   const draft = async () => {
     setBusy(true);
@@ -52,8 +72,9 @@ export function Reports({ app }: { app: App }) {
               {d.status === 'draft' && <Button size="small" text="Send for review" onClick={() => app.act('submitForReview', { deliverableId: d.id }, 'In review.')} />}
               {d.status === 'in_review' && <Button size="small" intent="primary" text="Approve" onClick={() => app.act('approveDeliverable', { deliverableId: d.id }, 'Approved. Ready to send.')} />}
               {d.status === 'approved' && <Button size="small" intent="primary" text="Send to client" onClick={() => app.act('sendDeliverable', { deliverableId: d.id }, `Sent to ${app.client.name}.`)} />}
+              <Button size="small" variant="minimal" text="Print / Save as PDF" onClick={() => window.print()} />
             </div>
-            <article className="memo"><Markdown text={d.body} app={app} /></article>
+            <article className="memo"><Markdown text={clientDecisions(app, d.body)} app={app} /></article>
           </div>
         )}
       </div>
@@ -112,14 +133,13 @@ export function ActivityLog({ app }: { app: App }) {
           <tbody>
             {entries.map((a) => {
               const done = a.status === 'pending_approval' ? outcome.get(a.pendingId!) : undefined;
-              const when = done?.at;
               return (
                 <tr key={a.id}>
-                  <td className="nowrap sub">{md(a.at)} {a.at.slice(11, 16)}</td>
+                  <td className="nowrap sub">{app.when(a)}</td>
                   <td className="nowrap">{WHO[a.role]}</td>
                   <td>{prose(describe(app, a))}</td>
                   <td className="nowrap">{done ? (done.status === 'executed' ? 'Approved' : 'Declined') : RESULT[a.status]}{a.error && <div className="sub">{a.error.replace(/^[A-Z_]+: /, '')}</div>}</td>
-                  <td className="nowrap">{done ? <>{person(done.approvedBy)}<div className="sub">{md(when!)} {when!.slice(11, 16)}</div></> : person(a.approvedBy)}</td>
+                  <td className="nowrap">{done ? <>{person(done.approvedBy)}<div className="sub">{app.when(done)}</div></> : person(a.approvedBy)}</td>
                 </tr>
               );
             })}
@@ -179,7 +199,7 @@ export function AssistantRun({ app }: { app: App }) {
 // ---------------- Ontology ----------------
 const ROLE: Record<string, string> = WHO;
 // The schema calls the approver 'principal'; on screen that person is the engagement lead.
-const lead = (s: string) => s.replace(/principal/g, 'engagement lead').replace(/Principal/g, 'Engagement lead');
+const lead = (s: string) => s.replace(/\bprincipal\b/g, 'engagement lead').replace(/\bPrincipal\b/g, 'Engagement lead');
 
 export function Ontology() {
   const objs = OBJECT_TYPE_NAMES.map((n) => [n, objectTypes[n] as ObjectTypeDef] as const);

@@ -6,6 +6,8 @@
 import type { Keyword, MonitoringProfile, RawItem } from './types.ts';
 
 export const PRIORITY_WEIGHT: Record<Keyword['priority'], number> = { high: 3, medium: 2, low: 1 };
+/** A lone low-priority keyword (a statute's name, say) is not enough: it needs a medium or high hit, or two low ones. */
+export const MIN_SCORE = 2;
 const esc = (c: string) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export function termPattern(term: string): RegExp {
@@ -18,7 +20,7 @@ export function termPattern(term: string): RegExp {
 }
 
 const patterns = new Map<string, RegExp>();
-const has = (text: string, term: string) => (patterns.get(term) ?? patterns.set(term, termPattern(term)).get(term)!).test(text);
+export const has = (text: string, term: string) => (patterns.get(term) ?? patterns.set(term, termPattern(term)).get(term)!).test(text);
 
 export function matchItem(item: Pick<RawItem, 'title' | 'excerpt' | 'matchText'>, profile: Pick<MonitoringProfile, 'keywords'>): { score: number; matched: string[] } {
   const text = `${item.title} ${item.excerpt ?? ''} ${item.matchText ?? ''}`.toLowerCase().replace(/\s+/g, ' ');

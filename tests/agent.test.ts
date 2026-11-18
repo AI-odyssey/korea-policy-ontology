@@ -19,10 +19,10 @@ describe('weekly agent (offline)', () => {
     expect(run.since).toBe('2026-11-09'); // base date minus 7 days
 
     const decision = v.get(run.decisionId!)!;
-    expect(decision).toMatchObject({ status: 'open', subjectId: 'bill-001', clientId: 'cli-aster', dueDate: '2026-11-18' }); // the day before the full committee
-    expect(decision.question).toBe('Meet Jang Sora, a secretary of the Public Administration and Security Committee, before the full committee takes up the sidewalk robot duties bill?');
-    expect(decision.recommendation).toMatch(/^Yes\. Jang Sora agrees the full committee agenda with the chair and has not taken a public position on the bill\. Aster Robotics /);
-    expect(decision.alternatives).toEqual(["Send Aster Robotics' proposed wording to Jang Sora's office instead of meeting", 'Accept the bill as it stands and stop pressing for changes']);
+    expect(decision).toMatchObject({ status: 'open', subjectId: 'bill-001', clientId: 'cli-aster', dueDate: '2026-11-17' }); // two working days before the full committee, so one is left to act
+    expect(decision.question).toBe('Meet Baek Siwoo, the lead sponsor, before the full committee votes on the sidewalk robot duties bill?');
+    expect(decision.recommendation).toMatch(/^Yes\. Baek Siwoo is the lead sponsor, whose agreement makes a wording change easiest to carry in committee, and supports the bill\. Aster Robotics /);
+    expect(decision.alternatives).toEqual(["Send Aster Robotics' proposed wording to Baek Siwoo's office instead of meeting", 'Accept the bill as it stands and press for the point in a committee supplementary resolution (부대의견) or in the enforcement decree']);
     const [source] = v.targets(decision.id, 'raised_by');
     expect(source).toMatchObject({ type: 'Signal' });
     expect(source.rawText).toContain('22-S0308');
@@ -31,8 +31,11 @@ describe('weekly agent (offline)', () => {
     const d = v.get(run.deliverableId!)!;
     expect(d.status).toBe('in_review'); // the agent never approves or sends
     expect(run.gates.map((g) => g.action)).toEqual(['approveDeliverable', 'resolveDecision', 'addRiskOpportunity']);
+    // The coverage ask belongs where the text is still open: the weight-class bill in subcommittee, not the Legislation and Judiciary Committee.
     const [risk] = s.pendingApprovals(lead('cli-aster')).filter((p) => p.action === 'addRiskOpportunity');
-    expect(risk.params).toMatchObject({ kind: 'risk', subjectIds: ['bill-031'], urgency: 'imminent' });
+    expect(risk.params).toMatchObject({ kind: 'risk', subjectIds: ['bill-008'], urgency: 'imminent' });
+    expect(risk.params.summary).toMatch(/where its text can still change/);
+    expect(JSON.stringify(risk.params)).not.toMatch(/Legislation and Judiciary/);
     const agentWrites = s.auditEntries(principal).filter((a) => a.role === 'agent' && a.status === 'executed').map((a) => a.action);
     expect(new Set(agentWrites)).toEqual(new Set(['triageSignal', 'raiseDecision', 'draftDeliverable', 'submitForReview']));
 
@@ -40,9 +43,9 @@ describe('weekly agent (offline)', () => {
     expect(codeOf(() => s.applyAction(agentContext('cli-aster'), 'approveDeliverable', { deliverableId: d.id }))).toBe('PERMISSION_DENIED');
     s.applyAction(principal, 'approveDeliverable', { deliverableId: d.id });
     s.applyAction(principal, 'resolveDecision', { decisionId: decision.id, resolution: 'approve' });
-    // The follow-up is due before the meeting it prepares for, not three days out.
+    // The follow-up is due before the meeting it prepares for, not three days out, and never on a weekend.
     const [followUp] = v.list('Task', (t) => t.subjectId === decision.id);
-    expect(followUp.dueDate).toBe('2026-11-18');
+    expect(followUp.dueDate).toBe('2026-11-17');
     expect(followUp.dueDate < '2026-11-19').toBe(true);
   });
 
@@ -113,22 +116,25 @@ describe('weekly agent (offline)', () => {
 });
 
 describe('decision target', () => {
-  it('Aster: the sidewalk bill at act now, next meeting the full committee, Jang Sora picked from its agenda-setters', () => {
+  it('Aster: the sidewalk bill at act now, the full committee votes on it, and the lead sponsor is picked because he can change the wording', () => {
     const v = freshStore().as(agentContext('cli-aster'));
     const [c, ...rest] = decisionCandidates(v, 'cli-aster', '2026-11-09');
     expect(rest).toEqual([]);
     expect(c.bill.id).toBe('bill-001');
     expect(c.change).toMatchObject({ from: 'subcommittee', to: 'subcommittee_passed', date: '2026-11-12' });
     expect(c.meeting).toMatchObject({ kind: 'full_committee', date: '2026-11-19', institutionId: 'inst-pasc' });
+    expect(c.step).toBe('vote');
     expect(c.daysToMeeting).toBe(3);
     expect(c.position).toMatchObject({ id: 'pos-aster-1', stance: 'amend' });
-    // The chair and the other secretary are supportive, so the unconfirmed secretary is the one to persuade.
+    // After the subcommittee passed the text, those who can change it are its chair, the lead sponsor and the committee chair. The committee
+    // chair and the subcommittee chair already have open plan steps, so the sponsor is picked. The other secretary (Jang Sora) can only delay.
     expect(c.gate.deciders.map((d) => d.id)).toEqual(['per-001', 'per-005', 'per-004']);
-    expect(c.target.decider).toMatchObject({ id: 'per-005', name: 'Jang Sora', role: 'secretary' });
-    expect(c.target.assessment).toMatchObject({ stance: 'unconfirmed', influence: 'high' });
+    expect(c.target.decider).toMatchObject({ id: 'per-002', name: 'Baek Siwoo', role: 'sponsor' });
+    expect(c.target.reach).toBe('lead_sponsor');
+    expect(c.target.assessment).toMatchObject({ stance: 'supportive', influence: 'high' });
   });
 
-  it('every client: a candidate is a followed act-now bill, and the target controls its next meeting with high influence and an unknown or hostile stance', () => {
+  it('every client: a candidate is a followed act-now bill at a review or a vote, and the target can change its text there with high influence', () => {
     const s = freshStore();
     const targets: Record<string, string[]> = {};
     for (const c of CLIENTS) {
@@ -138,25 +144,37 @@ describe('decision target', () => {
       for (const x of found) {
         expect(watched.has(x.bill.id)).toBe(true);
         expect(responseLevel(v, x.bill.id, c).level).toBe('act_now');
-        expect(stageGates(v, x.bill.id).find((g) => g.institutionId === x.meeting.institutionId)!.deciders.map((d) => d.id)).toContain(x.target.decider.id);
+        expect(['review', 'vote']).toContain(x.step); // a first 상정 is never a decision
+        expect(['subcommittee_chair', 'lead_sponsor', 'committee_chair']).toContain(x.target.reach); // a secretary who can only delay is never picked
+        expect(stageGates(v, x.bill.id).find((g) => g.institutionId === x.meeting.institutionId)).toBeDefined();
         expect(x.target.assessment.influence).toBe('high');
-        expect(['opposed', 'unconfirmed']).toContain(x.target.assessment.stance);
+        if (x.position.stance === 'oppose') expect(['opposed', 'unconfirmed']).toContain(x.target.assessment.stance);
       }
       targets[c] = found.map((x) => x.target.decider.name);
     }
-    expect(targets).toEqual({ 'cli-aster': ['Jang Sora'], 'cli-moru': ['Shin Hyewon'], 'cli-wren': ['Go Mirae'] });
+    expect(targets).toEqual({ 'cli-aster': ['Baek Siwoo'], 'cli-moru': ['Shin Hyewon'], 'cli-wren': ['Hong Jiwan'] });
   });
 
-  it('an opposed agenda-setter comes before an unconfirmed one', () => {
+  it('someone who writes the text comes before someone who only sets the agenda', () => {
     const s = freshStore();
-    s.applyAction(lead('cli-aster'), 'completeTask', { taskId: 'task-aster-4' }); // the open step aimed at the chair
-    s.applyAction(lead('cli-aster'), 'assessStakeholder', { clientId: 'cli-aster', subjectId: 'per-001', issueId: 'iss-01', stance: 'opposed', influence: 'high', relevance: 'high', basisIds: ['evt-031'] });
-    expect(decisionCandidates(s.as(agentContext('cli-aster')), 'cli-aster', '2026-11-09')[0].target.decider.id).toBe('per-001');
+    s.applyAction(lead('cli-aster'), 'completeTask', { taskId: 'task-aster-4' }); // the open step aimed at the committee chair
+    s.applyAction(lead('cli-aster'), 'completeTask', { taskId: 'task-aster-5' }); // the open step aimed at the subcommittee chair
+    // The subcommittee chair (who wrote the text) now outranks the sponsor.
+    expect(decisionCandidates(s.as(agentContext('cli-aster')), 'cli-aster', '2026-11-09')[0].target).toMatchObject({ reach: 'subcommittee_chair', decider: { id: 'per-004' } });
+    // Moru: the sponsor of the meat terms bill is opposed and the subcommittee chair unconfirmed, but the chair writes the text.
+    expect(decisionCandidates(freshStore().as(agentContext('cli-moru')), 'cli-moru', '2026-11-09')[0].target).toMatchObject({ reach: 'subcommittee_chair', decider: { name: 'Shin Hyewon' } });
+  });
+
+  it('the other secretary, who can only delay, is never the target', () => {
+    const s = freshStore();
+    // Cover everyone who can change the text; only the secretary who can delay is left, and she is not offered.
+    for (const subjectId of ['per-002']) s.applyAction(lead('cli-aster'), 'createTask', { clientId: 'cli-aster', title: 'Meet', dueDate: '2026-11-18', owner: 'human', subjectId });
+    expect(decisionCandidates(s.as(agentContext('cli-aster')), 'cli-aster', '2026-11-09')).toEqual([]); // Jang Sora (per-005) is not offered
   });
 
   it('skips a person an open plan step already targets, and raises nothing when nobody is left', () => {
     const s = freshStore();
-    s.applyAction(lead('cli-aster'), 'createTask', { clientId: 'cli-aster', title: 'Meet Jang Sora', dueDate: '2026-11-18', owner: 'human', subjectId: 'per-005' });
+    s.applyAction(lead('cli-aster'), 'createTask', { clientId: 'cli-aster', title: 'Meet Baek Siwoo', dueDate: '2026-11-18', owner: 'human', subjectId: 'per-002' });
     expect(decisionCandidates(s.as(agentContext('cli-aster')), 'cli-aster', '2026-11-09')).toEqual([]);
   });
 
@@ -167,7 +185,7 @@ describe('decision target', () => {
     const s = freshStore();
     s.applyAction(principal, 'setClientPosition', { clientId: 'cli-aster', targetId: 'bill-001', stance: 'support', rationale: 'Changed view' });
     expect(decisionCandidates(s.as(agentContext('cli-aster')), 'cli-aster', '2026-11-09')).toEqual([]);
-    // A bill the engagement does not follow never qualifies: bill-014 passed the health committee on 11-12 and is on the LJC agenda.
+    // A bill the engagement does not follow never qualifies: bill-014 passed the health subcommittee on 11-12 with the lawmaker bills.
     expect(decisionCandidates(freshStore().as(agentContext('cli-moru')), 'cli-moru', '2026-11-09').map((c) => c.bill.id)).toEqual(['bill-018']);
   });
 });

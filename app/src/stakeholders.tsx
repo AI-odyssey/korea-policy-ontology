@@ -21,6 +21,18 @@ const LINE: Record<string, string> = { cosponsor: 'solid', committee: 'dotted', 
 const LINE_LABEL: Record<string, string> = { cosponsor: 'Cosponsors', committee: 'Same committee', event: 'Joint event' };
 const fill = (a: ObjectRecord) => SHADE[a.stance][REL.indexOf(a.relevance)];
 
+/** Moves `n` working days from `date` (negative goes back), skipping weekends. */
+function workday(date: string, n: number): string {
+  let d = date;
+  const step = n < 0 ? -1 : 1;
+  for (let left = Math.abs(n); left > 0; ) {
+    d = addDays(d, step);
+    const wd = new Date(`${d}T00:00:00Z`).getUTCDay();
+    if (wd !== 0 && wd !== 6) left--;
+  }
+  return d;
+}
+
 export function Stakeholders({ app, path }: { app: App; path?: string }) {
   const { view, clientId } = app;
   const mine = view.list('StakeholderAssessment', (a) => a.clientId === clientId);
@@ -39,6 +51,7 @@ export function Stakeholders({ app, path }: { app: App; path?: string }) {
   return (
     <div className="page">
       <h1 className="headline">{issue.title}</h1>
+      <p className="muted small">Names and positions are invented; no real member is assessed.</p>
       <div className="seg" role="tablist">
         {issues.map((i) => <button key={i.id} role="tab" aria-selected={i.id === issueId} className={i.id === issueId ? 'on' : ''} onClick={() => app.go(`stakeholders/${i.id}`)}>{i.title}</button>)}
       </div>
@@ -198,7 +211,14 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
   const { view, clientId } = app;
   const s = view.get(subjectId)!;
   const a = view.list('StakeholderAssessment', (x) => x.clientId === clientId && x.subjectId === subjectId && x.issueId === issueId)[0];
-  const [mode, setMode] = useState<'stance' | 'contact'>();
+  const [mode, setMode] = useState<'stance' | 'contact' | 'meeting'>();
+  // An open meeting task for this person, whoever created it: by subject, or by name in the title.
+  const planned = view.list('Task', (x) => x.clientId === clientId && x.status === 'open' && /\bmeet/i.test(x.title) && (x.subjectId === subjectId || String(x.title).includes(nameOf(s))))[0];
+  // Default due date: the working day before the next meeting where this person decides, else two working days out.
+  const nextMeeting = view.sources(issueId, 'about').filter((b) => b.type === 'Bill')
+    .flatMap((b) => stageGates(view, b.id).filter((g) => g.date && g.date >= view.baseDate && g.deciders.some((d) => d.id === subjectId)).map((g) => g.date!))
+    .sort()[0];
+  const meetingDue = nextMeeting ? workday(nextMeeting, -1) : workday(view.baseDate, 2);
   const net = stakeholderNetwork(view, clientId, issueId);
   const neighbors = net.edges.filter((e) => e.a === subjectId || e.b === subjectId).map((e) => (e.a === subjectId ? e.b : e.a));
   // Only bills on this client's issues are named; others are counted, since naming them reads like another client's file.
@@ -235,12 +255,30 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
       </dl>
       <h3 className="label">Actions</h3>
       <div className="row">
-        <Button size="small" intent="primary" text="Request meeting" onClick={() => app.act('createTask', { clientId, title: `Request a meeting with ${nameOf(s)}`, dueDate: addDays(view.baseDate, 3), owner: 'human', subjectId }, 'Meeting request added to the timeline.')} />
+        {planned
+          ? <Button size="small" text="Meeting already planned" disabled title={`${planned.title}, by ${md(planned.dueDate)}`} />
+          : <Button size="small" intent="primary" text="Request meeting" active={mode === 'meeting'} onClick={() => setMode(mode === 'meeting' ? undefined : 'meeting')} />}
         <Button size="small" text="Update stance" active={mode === 'stance'} onClick={() => setMode(mode === 'stance' ? undefined : 'stance')} />
         {rep && <Button size="small" text="Log contact" active={mode === 'contact'} onClick={() => setMode(mode === 'contact' ? undefined : 'contact')} />}
       </div>
+      {mode === 'meeting' && !planned && <MeetingForm app={app} subject={s} due={meetingDue < view.baseDate ? view.baseDate : meetingDue} reason={nextMeeting ? `the working day before ${md(nextMeeting)}, when ${nameOf(s)} decides` : undefined} done={() => setMode(undefined)} />}
       {mode === 'stance' && <StanceForm app={app} issueId={issueId} subject={s} current={a} done={() => setMode(undefined)} />}
       {mode === 'contact' && rep && <ContactForm app={app} issueId={issueId} person={rep} done={() => setMode(undefined)} />}
+    </div>
+  );
+}
+
+function MeetingForm({ app, subject, due, reason, done }: { app: App; subject: ObjectRecord; due: string; reason?: string; done: () => void }) {
+  const [date, setDate] = useState(due);
+  const add = () => {
+    if (app.act('createTask', { clientId: app.clientId, title: `Request a meeting with ${nameOf(subject)}`, dueDate: date, owner: 'human', subjectId: subject.id }, 'Meeting request added to the timeline.')) done();
+  };
+  return (
+    <div className="add-form">
+      <label className="sub">Request by <InputGroup type="date" value={date} min={app.view.baseDate} onChange={(e) => setDate(e.target.value)} aria-label="Request by" /></label>
+      <Button size="small" intent="primary" text="Add to timeline" disabled={!date} onClick={add} />
+      <Button size="small" variant="minimal" text="Cancel" onClick={done} />
+      {reason && <span className="sub">Suggested: {reason}.</span>}
     </div>
   );
 }

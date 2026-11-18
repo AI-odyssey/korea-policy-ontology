@@ -1,10 +1,11 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
 // Runs connectors for one profile and window. A failing source never stops the others; its error is
-// reported per source. Kept: keyword matches, plus committee-scoped minutes, meetings and press releases for the
-// profile's committees (meetings with a known agenda only when it hits a keyword; no budget sessions), plus
-// stage changes of bills the profile watches.
+// reported per source. Kept: keyword matches that reach MIN_SCORE (one low-priority keyword alone does not), plus
+// committee meetings with no agenda published yet for the profile's committees (no budget sessions; a committee press
+// release with no keyword is never kept), plus stage changes of bills the profile watches. Items from the profile's
+// excluded outlets are dropped.
 import { mergeStories } from './dedup.ts';
-import { matchItem } from './match.ts';
+import { matchItem, MIN_SCORE } from './match.ts';
 import type { Connector, MonitoringProfile, RawItem, ScoredItem, SourceType, Window } from './types.ts';
 
 export interface SourceResult {
@@ -21,9 +22,10 @@ export interface IngestResult {
   perSource: SourceResult[];
 }
 
-const COMMITTEE_SCOPED: ReadonlySet<SourceType> = new Set(['minutes', 'committee_press']);
+const COMMITTEE_SCOPED: ReadonlySet<SourceType> = new Set(['minutes']);
 
 export function keep(item: RawItem, profile: MonitoringProfile): ScoredItem | undefined {
+  if (item.institution && profile.excludeOutlets?.includes(item.institution)) return undefined;
   const { score, matched } = matchItem(item, profile);
   // A watched committee's meeting counts when its agenda hits a keyword (checked above, on the full agenda); one
   // with no agenda yet is kept unless it is a budget or settlement session. Press releases: the same budget rule.
@@ -31,7 +33,7 @@ export function keep(item: RawItem, profile: MonitoringProfile): ScoredItem | un
   const agendaKnown = item.sourceType === 'minutes' && !!item.matchText;
   const scoped = COMMITTEE_SCOPED.has(item.sourceType) && !!item.committee && profile.committees.some((c) => item.committee!.startsWith(c)) && !budgetOnly && !agendaKnown;
   const watched = !!profile.watchBills?.some((n) => n === item.billNo || !!item.excerpt?.includes(n)); // grouped stage items list their numbers
-  return score > 0 || scoped || watched ? { ...item, score, matched } : undefined;
+  return score >= MIN_SCORE || scoped || watched ? { ...item, score, matched } : undefined;
 }
 
 /** Fetches every source once for several profiles (with the union of their keywords and committees) and keeps

@@ -5,9 +5,9 @@ import type { ObjectRecord, Store, View } from '../ontology/runtime.ts';
 import type { Ctx, GateConfig } from '../ontology/markings.ts';
 import { ProviderGateError, defaultGate } from '../ontology/markings.ts';
 import { REVIEW_THRESHOLD } from '../ontology/schema.ts';
-import { clientBills, confirmedView, issueExposure, responseFacts, responseLevel, signalQueue, stageGates, upcomingDeadlines, whatChanged, cmp } from '../ontology/functions.ts';
-import type { Decider, StageGate } from '../ontology/functions.ts';
-import { addDays, monthDay } from '../ontology/dates.ts';
+import { clientBills, confirmedView, issueExposure, responseFacts, responseLevel, signalQueue, stageGates, stepKind, upcomingDeadlines, whatChanged, cmp } from '../ontology/functions.ts';
+import type { Decider, StageGate, StepKind } from '../ontology/functions.ts';
+import { addDays, monthDay, workdaysBefore } from '../ontology/dates.ts';
 import { disabledLlm, guardedComplete, LlmDisabledError } from './llm.ts';
 import type { LlmAdapter } from './llm.ts';
 import { proposeTriage, triageParams } from './triage.ts';
@@ -58,18 +58,41 @@ const verb = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 // ---- Decision rule ----
 // A decision goes to the engagement lead for a followed bill at response level act_now, and it names one person to
-// persuade: among those who control the agenda of the bill's next meeting (stageGates), someone the client rates as
-// high influence whose stance is opposed or not yet known. Anyone an open plan step already targets is skipped.
-export const DECISION_RULE = "For each followed bill at response level act_now, take the people who control the agenda of its next meeting and pick one the client rates high influence whose stance is opposed or unconfirmed, unless an open plan step already covers that person.";
+// persuade at the bill's next decisive step (a subcommittee review or a full committee vote; a first 상정 is not one).
+// Candidates are ranked by what they can do to the text there: the chair of the bill review subcommittee (it writes the
+// text), the lead sponsor (a wording change the sponsor accepts is the easiest to carry), then the committee chair (sets the agenda and the vote).
+// The other secretary only agrees the agenda and can delay, so is never picked. The client rates the person high influence;
+// when the client wants the bill opposed the stance must be opposed or unconfirmed, when it wants amendments any stance
+// qualifies, since a supporter can carry the wording. Anyone an open plan step already targets is skipped.
+export const DECISION_RULE = "For each followed bill at response level act_now, take the people who can change its text at the next subcommittee review or full committee vote (the subcommittee chair, then the lead sponsor, then the committee chair), and pick the first one the client rates high influence whose stance fits, unless an open plan step already covers that person. The other secretary can only delay and is not picked.";
+
+export type TargetReach = 'subcommittee_chair' | 'lead_sponsor' | 'committee_chair';
+export interface DecisionTarget { decider: Decider; assessment: ObjectRecord; reach: TargetReach; bodyId?: string }
+const REACH_RANK: Record<TargetReach, number> = { subcommittee_chair: 0, lead_sponsor: 1, committee_chair: 2 };
 
 export interface DecisionCandidate {
   bill: ObjectRecord;
   meeting: ObjectRecord;
+  step: StepKind;
   daysToMeeting: number;
   change?: { from: string | undefined; to: string; date: string };
   position: ObjectRecord;
   gate: StageGate;
-  target: { decider: Decider; assessment: ObjectRecord };
+  target: DecisionTarget;
+}
+
+/** People who can change the bill's text at its next decisive meeting, with what each can do. */
+function textChangers(view: View, bill: ObjectRecord, gate: StageGate): { decider: Decider; reach: TargetReach; bodyId?: string }[] {
+  const out: { decider: Decider; reach: TargetReach; bodyId?: string }[] = [];
+  const subGate = gate.key === 'subcommittee' ? gate : stageGates(view, bill.id).find((g) => g.key === 'subcommittee');
+  const subChair = subGate?.deciders.find((d) => d.role === 'chair');
+  if (subChair) out.push({ decider: subChair, reach: 'subcommittee_chair', bodyId: subGate!.institutionId });
+  const sponsor = view.sources(bill.id, 'sponsors').find((p) => p.type === 'Person');
+  if (sponsor) out.push({ decider: { id: sponsor.id, name: sponsor.name, role: 'sponsor' }, reach: 'lead_sponsor' });
+  const chair = gate.key === 'committee' ? gate.deciders.find((d) => d.role === 'chair') : undefined;
+  if (chair) out.push({ decider: chair, reach: 'committee_chair', bodyId: gate.institutionId });
+  // One entry per person, keeping the strongest reach (the subcommittee chair who also sponsors the bill is listed as the chair).
+  return out.sort((a, b) => REACH_RANK[a.reach] - REACH_RANK[b.reach]).filter((x, i, all) => all.findIndex((y) => y.decider.id === x.decider.id) === i);
 }
 
 export function decisionCandidates(view: View, clientId: string, since: string): DecisionCandidate[] {
@@ -82,50 +105,67 @@ export function decisionCandidates(view: View, clientId: string, since: string):
   for (const bill of view.targets(eng.id, 'watches').filter((o) => o.type === 'Bill').sort((a, b) => cmp(a.id, b.id))) {
     if (responseLevel(view, bill.id, clientId, since).level !== 'act_now') continue;
     const f = responseFacts(view, bill.id, clientId, since);
-    if (!f.slot) continue; // act now because a notice period closes: there is no agenda-setter to meet
-    const gate = stageGates(view, bill.id).find((g) => g.institutionId === f.slot!.institutionId);
+    if (!f.decisive || !f.position) continue; // act now because a notice period closes: there is no meeting to attend
+    const gate = stageGates(view, bill.id).find((g) => g.institutionId === f.decisive!.institutionId);
     if (!gate) continue;
     const issues = view.targets(bill.id, 'about').map((i) => i.id);
-    const target = gate.deciders
-      .map((decider) => ({ decider, assessment: view.list('StakeholderAssessment', (a) => a.clientId === clientId && a.subjectId === decider.id && issues.includes(a.issueId))[0] }))
-      .filter(({ decider, assessment: a }) => a && a.influence === 'high' && ['opposed', 'unconfirmed'].includes(a.stance) && !covered.has(decider.id))
-      .sort((x, y) => Number(x.assessment.stance !== 'opposed') - Number(y.assessment.stance !== 'opposed'))[0]; // deciders arrive chair first
+    const opposing = f.position.stance === 'oppose';
+    const target = textChangers(view, bill, gate)
+      .map(({ decider, reach, bodyId }) => ({ decider, reach, bodyId, assessment: view.list('StakeholderAssessment', (a) => a.clientId === clientId && a.subjectId === decider.id && issues.includes(a.issueId))[0] }))
+      .filter(({ decider, assessment: a }) => a && a.influence === 'high' && (!opposing || ['opposed', 'unconfirmed'].includes(a.stance)) && !covered.has(decider.id))
+      .sort((x, y) => REACH_RANK[x.reach] - REACH_RANK[y.reach] || Number(x.assessment.stance !== 'opposed') - Number(y.assessment.stance !== 'opposed'))[0];
     if (!target) continue;
-    out.push({ bill, meeting: f.slot!, daysToMeeting: f.daysToSlot!, ...(f.change ? { change: f.change } : {}), position: f.position!, gate, target });
+    out.push({ bill, meeting: f.decisive, step: stepKind(f.decisive, bill), daysToMeeting: f.daysToDecisive!, ...(f.change ? { change: f.change } : {}), position: f.position, gate, target });
   }
   return out;
 }
 
-/** "chair of the Health and Welfare Committee's bill review subcommittee", "a secretary of the Public Administration and Security Committee". */
-function roleText(view: View, gate: StageGate, d: Decider): string {
-  const inst = view.get(gate.institutionId!)!;
-  const body = inst.kind === 'subcommittee' ? `the ${view.get(inst.parentId)!.name}'s ${inst.name.startsWith('Bill Review') ? 'bill review ' : ''}subcommittee` : `the ${inst.name}`;
-  return d.role === 'chair' ? `chair of ${body}` : `a secretary of ${body}`;
+/** "chair of the Health and Welfare Committee's bill review subcommittee", "the lead sponsor", "chair of the Public Administration and Security Committee". */
+function roleText(view: View, c: DecisionCandidate): string {
+  const { reach, bodyId } = c.target;
+  if (reach === 'lead_sponsor') return 'the lead sponsor';
+  const body = view.get(bodyId!)!;
+  if (reach === 'committee_chair') return `chair of the ${body.name}`;
+  return `chair of the ${view.get(body.parentId)!.name}'s ${body.name.startsWith('Bill Review') ? 'bill review ' : ''}subcommittee`;
+}
+
+/** What the person can do to the text, in the words of the recommendation. */
+function reachText(c: DecisionCandidate, forum: string, sponsor: boolean): string {
+  switch (c.target.reach) {
+    case 'subcommittee_chair': return `${c.gate.key === 'subcommittee' ? 'chairs the subcommittee that writes the text' : 'chaired the subcommittee that wrote the text'}${sponsor ? ' and is the lead sponsor' : ''}`;
+    case 'lead_sponsor': return 'is the lead sponsor, whose agreement makes a wording change easiest to carry in committee,';
+    case 'committee_chair': return `sets the ${forum} agenda`;
+  }
 }
 
 export function decisionParams(view: View, clientId: string, c: DecisionCandidate, sourceId: string) {
   const client = view.get(clientId)!;
   const { decider: d, assessment: a } = c.target;
   const forum = forumOf(view, c.meeting);
-  const agenda = d.role === 'chair' ? `sets the ${forum} agenda` : `agrees the ${forum} agenda with the chair`;
-  const sub = view.get(c.gate.institutionId!)?.kind === 'subcommittee';
-  const view_ = a.stance === 'opposed' ? 'is on record against the bill' : 'has not taken a public position on the bill';
+  const takes = c.step === 'vote' ? 'votes on' : 'reviews';
+  const lean: Record<string, string> = {
+    opposed: `is on record against ${client.name}'s position`, supportive: 'supports the bill', neutral: 'has not taken a side', unconfirmed: 'has not taken a public position on the bill',
+  };
+  const subChair = c.target.reach === 'subcommittee_chair' && c.gate.key === 'subcommittee';
+  const amend = c.position.stance === 'amend';
   return {
     clientId,
-    question: `Meet ${d.name}, ${roleText(view, c.gate, d)}, before ${sub ? 'it' : `the ${forum}`} takes up the ${lower1(billName(c.bill))}?`,
-    recommendation: `Yes. ${d.name} ${agenda} and ${view_}. ${c.position.rationale}`,
+    question: `Meet ${d.name}, ${roleText(view, c)}, before ${subChair ? 'it' : `the ${forum}`} ${takes} the ${lower1(billName(c.bill))}?`,
+    recommendation: `Yes. ${d.name} ${reachText(c, forum, view.sources(c.bill.id, 'sponsors').some((p) => p.id === d.id))} and ${lean[a.stance]}. ${c.position.rationale}`,
     alternatives: [
       `Send ${possessive(client.name)} proposed wording to ${possessive(d.name)} office instead of meeting`,
-      c.position.stance === 'oppose' ? 'Stop opposing and prepare to comply if the bill passes' : 'Accept the bill as it stands and stop pressing for changes',
+      amend ? 'Accept the bill as it stands and press for the point in a committee supplementary resolution (부대의견) or in the enforcement decree'
+        : 'Stop opposing and prepare to comply if the bill passes, and press for a workable rule in the enforcement decree',
     ],
     raisedById: sourceId,
     subjectId: c.bill.id,
-    dueDate: [addDays(c.meeting.date, -1), view.baseDate].sort()[1],
+    dueDate: [workdaysBefore(c.meeting.date, 2), view.baseDate].sort()[1], // leaves a working day to act before the meeting
     followUp: `Meet ${d.name} before the ${monthDay(c.meeting.date)} ${forum}`,
     targetId: d.id,
     premiseStance: a.stance,
   };
 }
+
 
 export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<AgentRun> {
   const { clientId } = opts;
@@ -178,8 +218,8 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
   // 3. Decisions
   const candidates = decisionCandidates(view, clientId, since);
   step('tool', 'stageGates', DECISION_RULE,
-    candidates.map((c) => `${billName(c.bill)}: the ${forumOf(view, c.meeting)} meets on ${monthDay(c.meeting.date)}. ${c.target.decider.name} (${c.target.decider.role}, high influence) is ${c.target.assessment.stance === 'opposed' ? 'opposed' : 'unconfirmed'}.`).join(' ')
-      || 'No followed bill at act now has an agenda-setter left to persuade.');
+    candidates.map((c) => `${billName(c.bill)}: the ${forumOf(view, c.meeting)} ${c.step === 'vote' ? 'votes' : 'reviews it'} on ${monthDay(c.meeting.date)}. ${c.target.decider.name} (${roleText(view, c)}, high influence) can change the text there and is ${c.target.assessment.stance}.`).join(' ')
+      || 'No followed bill at act now has someone left to persuade who can change its text at the next meeting.');
   for (const c of candidates) {
     const earlier = view.list('Decision', (d) => d.subjectId === c.bill.id && (d.status === 'open' || (String(d.openedAt).slice(0, 10) > since && d.resolution !== 'withdraw')))[0];
     if (earlier) {
@@ -198,16 +238,16 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
     step('action', 'raiseDecision', `${c.bill.id}; target ${c.target.decider.id}; source ${src}`, `Raised: ${params.question}`);
   }
 
-  // 4. Risks the client has not recorded: a followed bill they want changed, on an agenda within seven days.
+  // 4. Risks the client has not recorded: a followed bill they want changed, with a subcommittee review or full committee vote within seven days (a first 상정 or a wording review does not count).
   const pendingSubjects = new Set(store.pendingApprovals(ctx).filter((p) => p.action === 'addRiskOpportunity').flatMap((p) => p.params.subjectIds as string[]));
   for (const r of brief0.bills) {
     const f = r.facts;
-    if (!f.slot || f.daysToSlot! > 7 || !f.position || !['amend', 'oppose'].includes(f.position.stance)) continue;
+    if (!f.textOpen || !f.decisive || f.daysToDecisive! > 7 || !f.position || !['amend', 'oppose'].includes(f.position.stance)) continue;
     if (view.list('RiskOpportunity', (x) => x.clientId === clientId && (x.subjectIds as string[]).includes(r.bill.id)).length || pendingSubjects.has(r.bill.id)) continue;
-    const forum = forumOf(view, f.slot);
+    const forum = forumOf(view, f.decisive);
     const res = store.applyAction(ctx, 'addRiskOpportunity', {
       clientId, kind: 'risk', title: `${billName(r.bill)} at the ${forum}`,
-      summary: `The ${lower1(billName(r.bill))} is on the ${forum} agenda${forum.startsWith('Legislation') ? ', after which only the plenary vote remains' : ''}. ${f.position.rationale}`,
+      summary: `The ${lower1(billName(r.bill))} is on the ${forum} agenda for ${stepKind(f.decisive, r.bill) === 'vote' ? 'a vote' : 'review'}, where its text can still change. ${f.position.rationale}`,
       impact: f.impact === 'high' ? 'high' : 'medium', urgency: 'imminent', subjectIds: [r.bill.id],
     });
     if (res.pendingId) run.riskRequests.push(res.pendingId);
@@ -217,7 +257,7 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
   const deadlines = upcomingDeadlines(view, clientId, 30);
   step('tool', 'upcomingDeadlines', '30 days', `${Plural(deadlines.length, 'dated item')} in the next 30 days${deadlines[0] ? `; first: ${deadlines[0].title} (${monthDay(deadlines[0].date)})` : ''}.`);
   const exposure = issueExposure(view, clientId);
-  step('tool', 'issueExposure', clientId, `Issues with the most at stake: ${exposure.slice(0, 3).map((e) => e.title).join('; ')}.`);
+  step('tool', 'issueExposure', clientId, `Issues ranked by exposure, the risk of the worst open bill plus a little for each other open bill. This ranking ignores the priority numbers in the monitoring profile: ${exposure.slice(0, 3).map((e) => e.title).join('; ')}.`);
 
   // 5. Optional model help. The gate runs before the adapter; a block falls back to the template.
   const llm = opts.llm ?? disabledLlm;
@@ -309,7 +349,8 @@ export function buildReport(view: View, clientId: string, b: Brief, title: strin
   ro(b.opportunities, 'Opportunities');
 
   L.push('## Coming up', '');
-  for (const t of b.timeline.slice(0, 8)) L.push(`- ${monthDay(t.date)}: ${t.title} (${t.who}).${cite(sourceFor(view, t.id))}`);
+  // Every item the screen lists, urgent ones (a bill at engage or above with a step within seven days) first.
+  for (const t of [...b.timeline.filter((x) => x.urgent), ...b.timeline.filter((x) => !x.urgent)]) L.push(`- ${monthDay(t.date)}: ${t.title} (${t.who}).${cite(sourceFor(view, t.id))}`);
   if (!b.timeline.length) L.push('- No sitting, notice deadline or hearing on the followed bills falls within the next thirty days.');
   L.push('');
 
