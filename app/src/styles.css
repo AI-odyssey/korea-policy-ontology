@@ -29,6 +29,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 /* Header and navigation */
 .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
 .brand { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+.demo-tag { margin-left: 6px; padding: 1px 6px; border: 1px solid var(--hair); border-radius: 3px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); vertical-align: 2px; }
 .top .client select { font-weight: 600; font-size: 14px; color: var(--ink); padding-left: 4px; }
 .spacer { flex: 1; }
 .nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 30px; margin-top: 14px; border-bottom: 1px solid var(--hair); }

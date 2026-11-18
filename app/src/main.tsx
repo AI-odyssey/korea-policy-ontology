@@ -153,12 +153,12 @@ function Root() {
 
   return (
     <>
-      <div className="banner">All clients, people, bills and events are fictional, except items marked Public record.</div>
+      <div className="banner">Demo with fictional clients. People, bills and events are fictional too, except items marked Public record.</div>
       <div className="wrap">
         <header className="top">
-          <b className="brand">Korea Policy Ontology</b>
+          <b className="brand">Korea Policy Ontology <span className="demo-tag">Demo</span></b>
           <span className="sub nowrap">As of {md(store.baseDate)}, {store.baseDate.slice(0, 4)}</span>
-          <HTMLSelect minimal value={clientId} onChange={(e) => (setClientId(e.target.value), setNotice(undefined), setInspect(undefined))} options={clients.map((c) => ({ value: c.id, label: c.name }))} aria-label="Client" className="client" />
+          <HTMLSelect minimal value={clientId} onChange={(e) => (setClientId(e.target.value), setNotice(undefined), setInspect(undefined))} options={clients.map((c) => ({ value: c.id, label: `${c.name} (fictional client)` }))} aria-label="Fictional client" className="client" />
           <MarkTag m={clientMarking(clientId)} app={app} />
           <span className="spacer" />
           <span className="sub nowrap">Viewing as engagement lead</span>

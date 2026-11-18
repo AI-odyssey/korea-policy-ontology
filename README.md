@@ -1,4 +1,4 @@
-# Korea Policy Ontology
+# Korea Policy Ontology (Demo)
 
 For government-relations teams and their client executives: turns a week of Korean bills, notices and news into the few decisions each client has to make, with every step sourced and approved by a person.
 
@@ -8,7 +8,7 @@ For government-relations teams and their client executives: turns a week of Kore
 
 The work is modelled as an ontology of objects, links, actions and approvals that people and a rule-based assistant share. On Monday the assistant has filed the clear items, named the one lawmaker worth meeting before this week's committee vote and drafted the client report. The engagement lead approves or declines each step.
 
-All clients, people, bills and events are fictional; the legislative procedure and institutions are real. The one exception is marked on screen: items with a "Public record" chip are real public records (bills, committee meetings, notices, the Official Gazette, press releases, news headlines) collected for each client's monitoring profile.
+This is a demo built around three fictional clients. The people, bills and events are fictional too; the legislative procedure and institutions are real. The one exception is marked on screen: items with a "Public record" chip are real public records (bills, committee meetings, notices, the Official Gazette, press releases, news headlines) collected for each client's monitoring profile.
 
 It is a sanitized, fictional re-implementation of the ontology behind a system I run for my own policy work, and the domain layer for Donaro, my AI task router (it decides which model or agent takes each piece of work). Read [CASE_STUDY.md](CASE_STUDY.md) for the problem and the design choices, [docs/walkthrough.md](docs/walkthrough.md) for one concrete week, and [docs/ontology.md](docs/ontology.md) for the full schema.
 
