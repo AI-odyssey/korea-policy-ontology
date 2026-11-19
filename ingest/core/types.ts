@@ -25,6 +25,7 @@ export interface RawItem {
 
 export interface Keyword {
   term: string;
+  en?: string; // English name shown in the app next to a match
   priority: 'high' | 'medium' | 'low';
   synonyms?: string[];
   exclude?: string[]; // the keyword does not count when any of these appear

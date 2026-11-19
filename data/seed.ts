@@ -118,8 +118,8 @@ const INSTITUTIONS: [string, string, string, string, string?][] = [
   ['inst-pasc-brs', 'Bill Review Subcommittee, Public Administration and Security Committee', '행정안전위원회 법안심사소위원회', 'subcommittee', 'inst-pasc'],
   ['inst-hwc', 'Health and Welfare Committee', '보건복지위원회', 'committee'],
   ['inst-hwc-brs', 'Bill Review Subcommittee, Health and Welfare Committee', '보건복지위원회 법안심사소위원회', 'subcommittee', 'inst-hwc'],
-  ['inst-pac', 'Political Affairs Committee', '정무위원회', 'committee'],
-  ['inst-pac-brs', 'Bill Review Subcommittee, Political Affairs Committee', '정무위원회 법안심사소위원회', 'subcommittee', 'inst-pac'],
+  ['inst-pac', 'National Policy Committee', '정무위원회', 'committee'],
+  ['inst-pac-brs', 'Bill Review Subcommittee, National Policy Committee', '정무위원회 법안심사소위원회', 'subcommittee', 'inst-pac'],
   ['inst-tiec', 'Trade, Industry, Energy, SMEs and Startups Committee', '산업통상자원중소벤처기업위원회', 'committee'],
   ['inst-tiec-brs', 'Bill Review Subcommittee, Trade, Industry, Energy, SMEs and Startups Committee', '산업통상자원중소벤처기업위원회 법안심사소위원회', 'subcommittee', 'inst-tiec'],
   ['inst-fepc', 'Finance, Economy and Planning Committee', '재정경제기획위원회', 'committee'],
@@ -712,6 +712,36 @@ export function generateWorld(): World {
   ];
   for (const [who, event, excerpt] of SPEAKERS) link('testifies_at', who, eventNamed(event), undefined, { excerpt: `${excerpt}${said(who, eventNamed(event))}`, sourceType: 'public_notice', confidence: 0.97 });
 
+  // Key academics, advisory seats and joint statements, so a stakeholder map holds more than lawmakers. Fixed confidence keeps the random sequence unchanged.
+  const ACADEMICS: [string, string, string, string][] = [
+    ['Han Jiseok', 'Professor of Traffic Engineering, Hanyang University', 'inst-npa', '2025-09-01'],
+    ['Bok Ayeon', 'Professor of Mechanical Engineering, Pusan National University', 'inst-motir', '2025-10-01'],
+    ['Ko Daeun', 'Professor of Food Science, Korea University', 'inst-mfds', '2025-08-01'],
+    ['Sim Hyunwoo', 'Professor of Financial Law, Yonsei University', 'inst-fsc', '2025-11-01'],
+  ];
+  const [hanId, bokId, koId, simId] = ACADEMICS.map(([name, title, inst, from]) => {
+    const p = add('Person', `per-${pad(++nextPer)}`, { name, kind: 'academic', title });
+    link('advises', p.id, inst, { since: from }, { excerpt: `The advisory panel roster of ${label(inst)} lists ${name}.`, sourceType: 'public_notice', confidence: 0.97 });
+    return p.id;
+  });
+  const APPEARANCES: [string, string, string][] = [
+    [hanId, 'Public hearing on sidewalk rules for robots', 'The witness list names Han Jiseok as an expert witness.'],
+    [bokId, 'Seminar: Sidewalk robots and pedestrian safety', 'The programme lists Bok Ayeon as a speaker.'],
+    [koId, 'Forum on cultivated protein governance', 'The programme lists Ko Daeun as a speaker.'],
+    [koId, 'Public hearing on labeling of cultivated protein', 'The hearing notice lists Ko Daeun as an expert witness.'],
+    [simId, 'Public hearing on foreign payment providers', 'The hearing notice lists Sim Hyunwoo as an expert witness.'],
+    [simId, 'Workshop: Safeguarding prepaid balances', 'The programme lists Sim Hyunwoo as a speaker.'],
+  ];
+  for (const [who, event, excerpt] of APPEARANCES) link('testifies_at', who, eventNamed(event), undefined, { excerpt, sourceType: 'public_notice', confidence: 0.97 });
+  const COALITIONS: [string, string, string, string][] = [
+    ['org-02', 'org-03', 'iss-01', 'asks that the stop-for-pedestrians rule apply on every sidewalk'],
+    ['org-01', 'org-05', 'iss-02', 'asks the committee to recognize foreign test results'],
+    ['org-06', 'org-09', 'iss-05', 'asks for a fixed review period for novel food ingredients'],
+    ['org-07', 'org-08', 'iss-06', 'asks for a clear origin line on every label'],
+    ['org-10', 'org-12', 'iss-09', 'asks the commission to accept trust accounts for prepaid balances'],
+  ];
+  for (const [a, b, issue, ask] of COALITIONS) link('coalition_with', a, b, { issueId: issue }, { excerpt: `A joint statement signed by ${label(a)} and ${label(b)} ${ask}.`, sourceType: 'press_release', confidence: 0.96 });
+
   // ---- Client layer ----
   const CLIENTS: [string, string, string, string][] = [
     ['cli-aster', 'Aster Robotics', 'Sidewalk delivery robots', 'Monitoring and advocacy on the outdoor mobile robot rules: sidewalk duties, safety certification, operator insurance and local pilot zones.'],
@@ -817,7 +847,7 @@ export function generateWorld(): World {
   D('aster', 3, 'comment_letter', 'Draft comments on the sidewalk operation standards notice', 'draft', ASTER_LETTER);
   D('moru', 1, 'weekly_report', 'Weekly report, week ending 2026-11-09', 'sent', '# Weekly report, week ending Nov 9: Moru Foods\n\nThe novel ingredient bills were still in subcommittee. The meat terms bill was placed on the committee agenda.', sentExtra);
   D('moru', 2, 'meeting_prep', 'Meeting notes: health committee aide', 'in_review', MORU_NOTES);
-  D('wren', 1, 'weekly_report', 'Weekly report, week ending 2026-11-09', 'sent', '# Weekly report, week ending Nov 9: Wrenfield Pay\n\nThe local presence bill was referred to the Political Affairs Committee.', sentExtra);
+  D('wren', 1, 'weekly_report', 'Weekly report, week ending 2026-11-09', 'sent', '# Weekly report, week ending Nov 9: Wrenfield Pay\n\nThe local presence bill was referred to the National Policy Committee.', sentExtra);
   D('wren', 2, 'issue_brief', 'Issue brief: prepaid balance safeguarding', 'draft', WREN_BRIEF);
 
   const T = (key: string, n: number, title: string, due: string, owner: string, status: string, subject?: string) =>
@@ -885,7 +915,7 @@ export function generateWorld(): World {
     ['moru', 'per-031', 'iss-05', 'neutral', 'medium', 'high', 'Agency director for novel food evaluation.'],
     ['moru', 'org-06', 'iss-05', 'supportive', 'medium', 'high', 'Industry council. Wants the same review deadline.'],
     ['moru', 'org-09', 'iss-07', 'supportive', 'low', 'medium', 'Research hub. Supports supervised trials.'],
-    ['wren', 'per-015', 'iss-08', 'unconfirmed', 'high', 'high', 'Chairs the Political Affairs Committee.'],
+    ['wren', 'per-015', 'iss-08', 'unconfirmed', 'high', 'high', 'Chairs the National Policy Committee.'],
     ['wren', sponsorOf('bill-023'), 'iss-08', 'opposed', 'high', 'high', 'Lead sponsor of the local presence requirement.'],
     ['wren', 'per-016', 'iss-08', 'neutral', 'medium', 'medium', 'Committee member. Asks about consumer redress.'],
     ['wren', 'org-10', 'iss-08', 'supportive', 'medium', 'high', 'Fintech association. Prefers a local agent rule.'],
@@ -895,6 +925,44 @@ export function generateWorld(): World {
     ['wren', 'org-12', 'iss-10', 'supportive', 'low', 'medium', 'Small merchants want cheaper transfers.'],
     ['wren', 'per-034', 'iss-11', 'neutral', 'medium', 'high', 'Data policy director at the commission.'],
     ['wren', 'per-018', 'iss-08', 'unconfirmed', 'high', 'high', 'Chairs the bill review subcommittee that takes up the local presence bill.'],
+    // Officials, associations, civic groups and academics, so each map shows who else shapes the issue, not only lawmakers.
+    ['aster', 'per-061', 'iss-01', 'neutral', 'medium', 'medium', 'Traffic engineer who testified at the Oct 27 hearing and advises the police agency. Prefers width-based limits to a flat stop rule.'],
+    ['aster', 'per-025', 'iss-02', 'unconfirmed', 'high', 'high', 'Chairs the bill review subcommittee that takes up the foreign test results bill.'],
+    ['aster', 'per-035', 'iss-02', 'neutral', 'medium', 'high', 'The ministry division that designates test bodies and runs certification.'],
+    ['aster', 'org-01', 'iss-02', 'supportive', 'medium', 'high', 'Industry forum. Wants foreign test results recognized.'],
+    ['aster', 'per-062', 'iss-02', 'neutral', 'medium', 'medium', 'Robot safety engineer who spoke at the Oct 21 seminar and advises the ministry on test methods.'],
+    ['aster', 'per-022', 'iss-03', 'unconfirmed', 'high', 'medium', 'Chairs the committee that takes up the insurance bills.'],
+    ['aster', 'per-035', 'iss-03', 'unconfirmed', 'medium', 'high', 'The ministry division that would set minimum coverage.'],
+    ['aster', 'org-01', 'iss-03', 'unconfirmed', 'medium', 'medium', 'Industry forum. Wants coverage scaled by robot weight.'],
+    ['aster', 'per-022', 'iss-04', 'unconfirmed', 'high', 'medium', 'Chairs the committee that would take up a pilot zone bill.'],
+    ['aster', 'per-035', 'iss-04', 'unconfirmed', 'medium', 'medium', 'Runs the robotics industry programs that pilot zones would feed.'],
+    ['aster', 'org-01', 'iss-04', 'unconfirmed', 'medium', 'medium', 'Industry forum. Operators plan routes in cities that apply.'],
+    ['moru', 'per-008', 'iss-05', 'unconfirmed', 'high', 'medium', 'Committee chair.'],
+    ['moru', 'per-011', 'iss-05', 'unconfirmed', 'high', 'high', 'Chairs the bill review subcommittee that takes up the recognition bills.'],
+    ['moru', 'org-07', 'iss-05', 'opposed', 'medium', 'medium', 'Livestock producers want a long safety review before approval.'],
+    ['moru', 'org-08', 'iss-05', 'unconfirmed', 'low', 'medium', 'Consumer group. Cares about safety data being public.'],
+    ['moru', 'org-09', 'iss-05', 'supportive', 'medium', 'medium', 'Research hub that supplies safety data to the review.'],
+    ['moru', 'per-063', 'iss-05', 'neutral', 'medium', 'medium', 'Food scientist who spoke at the Nov 10 forum and advises the agency on novel food review.'],
+    ['moru', 'per-031', 'iss-06', 'neutral', 'medium', 'high', 'The agency that would write the label standard.'],
+    ['moru', 'per-063', 'iss-06', 'neutral', 'medium', 'medium', 'Food scientist named as a witness for the Dec 1 hearing on labeling.'],
+    ['moru', 'per-008', 'iss-07', 'unconfirmed', 'high', 'medium', 'Committee chair.'],
+    ['moru', 'per-031', 'iss-07', 'neutral', 'medium', 'high', 'The agency that would issue the temporary permits.'],
+    ['moru', 'org-06', 'iss-07', 'supportive', 'medium', 'high', 'Industry council. Backs the sandbox.'],
+    ['wren', 'per-032', 'iss-08', 'neutral', 'high', 'high', 'The commission registers electronic financial operators and sets the capital rules.'],
+    ['wren', 'per-033', 'iss-08', 'neutral', 'medium', 'medium', 'The supervisory service would oversee registered operators.'],
+    ['wren', 'org-11', 'iss-08', 'neutral', 'medium', 'medium', 'Consumer group. Wants consumer redress settled before registration.'],
+    ['wren', 'per-064', 'iss-08', 'neutral', 'medium', 'medium', 'Financial law scholar named as a witness for the Nov 17 hearing and adviser to the commission.'],
+    ['wren', 'per-032', 'iss-09', 'neutral', 'high', 'high', 'The commission\'s notice on prepaid safeguarding is open for comment.'],
+    ['wren', 'org-10', 'iss-09', 'supportive', 'medium', 'medium', 'Fintech association. Prefers that trust accounts count as segregation.'],
+    ['wren', 'org-12', 'iss-09', 'unconfirmed', 'low', 'medium', 'Small merchants hold prepaid balances for customers.'],
+    ['wren', 'per-015', 'iss-09', 'unconfirmed', 'high', 'medium', 'Chairs the National Policy Committee.'],
+    ['wren', 'per-064', 'iss-09', 'neutral', 'medium', 'medium', 'Financial law scholar who speaks at the Nov 30 workshop on prepaid balances.'],
+    ['wren', 'per-057', 'iss-10', 'unconfirmed', 'high', 'medium', 'Chairs the Finance, Economy and Planning Committee.'],
+    ['wren', 'per-058', 'iss-10', 'unconfirmed', 'high', 'high', 'Chairs the economy and finance subcommittee that takes up the remittance bill.'],
+    ['wren', 'org-10', 'iss-10', 'supportive', 'medium', 'medium', 'Fintech association. Wants a higher limit for small remittance providers.'],
+    ['wren', 'per-015', 'iss-11', 'unconfirmed', 'high', 'medium', 'Chairs the committee that takes up the data transfer bills.'],
+    ['wren', 'org-10', 'iss-11', 'supportive', 'medium', 'medium', 'Fintech association. Backs standard contract clauses.'],
+    ['wren', 'org-11', 'iss-11', 'unconfirmed', 'medium', 'medium', 'Consumer group. Wants consent rules for overseas transfers.'],
   ];
   const saId = new Map<string, string>(); // key|subject|issue -> id
   const saCount: Record<string, number> = {};

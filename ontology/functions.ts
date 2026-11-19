@@ -438,11 +438,23 @@ export function stageGates(view: View, billId: string): StageGate[] {
 }
 
 // ---- stakeholderNetwork: assessed stakeholders on one issue and how they are connected ----
-export type RelationKind = 'cosponsor' | 'committee' | 'event';
-export interface NetworkNode { assessment: ObjectRecord; subject: ObjectRecord }
+export type ActorType = 'lawmaker' | 'official' | 'association' | 'civic' | 'academic';
+export type RelationKind = 'cosponsor' | 'committee' | 'oversight' | 'advises' | 'appeared' | 'coalition';
+export interface NetworkNode { assessment: ObjectRecord; subject: ObjectRecord; actor: ActorType }
 export interface NetworkEdge { a: string; b: string; kind: RelationKind; basisIds: string[] }
 
-/** Edges come only from public links. One edge per pair, strongest relation first: cosponsorship, then committee, then a joint event (only for pairs that include an organization). */
+/** What kind of actor a stakeholder is. Research bodies count as academic, unions and companies as associations. */
+export function actorType(o: ObjectRecord): ActorType {
+  if (o.type === 'StakeholderOrg') return o.kind === 'ngo' ? 'civic' : o.kind === 'research' ? 'academic' : 'association';
+  return ({ lawmaker: 'lawmaker', official: 'official', academic: 'academic' } as Record<string, ActorType>)[o.kind] ?? 'association';
+}
+
+/**
+ * Edges come only from public links, one per pair, and each kind fits the two actor types it joins. In order of strength:
+ * a joint statement (organizations), a shared bill, a shared committee (lawmakers), an advisory seat (academic and the
+ * official or chair of that body), oversight (a lawmaker on the committee whose bills amend the official's provisions),
+ * and appearing at the same event on the issue (any pair that is not two lawmakers).
+ */
 export function stakeholderNetwork(view: View, clientId: string, issueId: string): { nodes: NetworkNode[]; edges: NetworkEdge[] } {
   view = confirmedView(view);
   need(view, clientId);
@@ -450,28 +462,63 @@ export function stakeholderNetwork(view: View, clientId: string, issueId: string
   const nodes = view.list('StakeholderAssessment', (a) => a.clientId === clientId && a.issueId === issueId)
     .map((assessment) => ({ assessment, subject: view.get(assessment.subjectId)! }))
     .filter((n) => n.subject)
+    .map((n) => ({ ...n, actor: actorType(n.subject) }))
     .sort((x, y) => cmp(x.subject.id, y.subject.id));
-  const ids = nodes.map((n) => n.subject.id);
+  const live = (l: { props?: Record<string, any> }) => !(l.props?.until && l.props.until < view.baseDate);
 
-  // For each subject: bills on this issue it sponsors or cosponsors, committees it sits on, events it spoke at.
+  // Which committee oversees which ministry: bills referred to the committee amend provisions the ministry administers.
+  const administers = new Map<string, Set<string>>();
+  for (const l of view.links({ type: 'regulates' })) administers.set(l.to, new Set([...(administers.get(l.to) ?? []), l.from]));
+  const overseers = new Map<string, Set<string>>();
+  for (const r of view.links({ type: 'referred_to' })) {
+    for (const am of view.links({ type: 'amends', from: r.from })) {
+      for (const inst of administers.get(am.to) ?? []) overseers.set(inst, new Set([...(overseers.get(inst) ?? []), r.to]));
+    }
+  }
+  const topBody = (id: string) => (view.get(id)?.kind === 'subcommittee' ? view.get(id)!.parentId : id);
+
   const issueBills = new Set(view.sources(issueId, 'about').filter((o) => o.type === 'Bill').map((o) => o.id));
-  const facts = new Map(ids.map((id) => [id, {
-    bills: [...view.links({ type: 'sponsors', from: id }), ...view.links({ type: 'cosponsors', from: id })].map((l) => l.to).filter((b) => issueBills.has(b)),
-    bodies: view.links({ type: 'member_of', from: id }).filter((l) => !(l.props?.until && l.props.until < view.baseDate))
-      .map((l) => l.to).filter((i) => ['committee', 'subcommittee'].includes(view.get(i)?.kind)),
-    events: view.links({ type: 'testifies_at', from: id }).map((l) => l.to),
-  }]));
+  const issueEvents = new Set(view.sources(issueId, 'about').filter((o) => o.type === 'Event').map((o) => o.id));
+  const statements = view.links({ type: 'coalition_with' }).filter((l) => l.props?.issueId === issueId);
+  const facts = new Map(nodes.map((n) => {
+    const id = n.subject.id;
+    const seats = view.links({ type: 'member_of', from: id }).filter(live);
+    return [id, {
+      bills: [...view.links({ type: 'sponsors', from: id }), ...view.links({ type: 'cosponsors', from: id })].map((l) => l.to).filter((b) => issueBills.has(b)),
+      bodies: seats.map((l) => l.to).filter((i) => ['committee', 'subcommittee'].includes(view.get(i)?.kind)),
+      committees: seats.map((l) => topBody(l.to)).filter((i): i is string => !!i && view.get(i)?.kind === 'committee'),
+      leads: seats.filter((l) => ['chair', 'official'].includes(l.props?.role)).map((l) => l.to),
+      // Oversight runs through the people who set a committee's agenda, not every member.
+      steers: seats.filter((l) => ['chair', 'secretary'].includes(l.props?.role)).map((l) => topBody(l.to)).filter((i): i is string => !!i),
+      advised: view.links({ type: 'advises', from: id }).map((l) => l.to),
+      events: view.links({ type: 'testifies_at', from: id }).map((l) => l.to).filter((e) => issueEvents.has(e)),
+    }];
+  }));
   const common = (x: string[], y: string[]) => [...new Set(x.filter((v) => y.includes(v)))].sort(cmp);
 
   const edges: NetworkEdge[] = [];
-  for (let i = 0; i < ids.length; i++) {
-    for (let j = i + 1; j < ids.length; j++) {
-      const [fa, fb] = [facts.get(ids[i])!, facts.get(ids[j])!];
-      // A shared event links an organization to whoever it appeared with; two officials at the same hearing are not allies.
-      const org = [ids[i], ids[j]].some((id) => view.get(id)?.type === 'StakeholderOrg');
-      const pairs: [RelationKind, string[]][] = [['cosponsor', common(fa.bills, fb.bills)], ['committee', common(fa.bodies, fb.bodies)], ['event', org ? common(fa.events, fb.events) : []]];
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const [x, y] = [nodes[i], nodes[j]];
+      const [fx, fy] = [facts.get(x.subject.id)!, facts.get(y.subject.id)!];
+      const kinds = new Set([x.actor, y.actor]);
+      const both = (t: ActorType) => x.actor === t && y.actor === t;
+      const [lawmaker, official] = x.actor === 'lawmaker' ? [fx, fy] : [fy, fx];
+      const [academic, other] = x.actor === 'academic' ? [fx, fy] : [fy, fx];
+      const ministry = [...(overseers.keys())].filter((m) => official.leads.includes(m));
+      const coalition = statements.filter((l) => [x.subject.id, y.subject.id].every((id) => id === l.from || id === l.to)).flatMap((l) => l.evidence);
+      const oversight = kinds.has('lawmaker') && kinds.has('official') && !both('lawmaker') && !both('official')
+        ? ministry.flatMap((m) => common(lawmaker.steers, [...(overseers.get(m) ?? [])]).map((c) => [c, m])).flat() : [];
+      const pairs: [RelationKind, string[]][] = [
+        ['coalition', coalition],
+        ['cosponsor', both('lawmaker') ? common(fx.bills, fy.bills) : []],
+        ['advises', kinds.has('academic') && !both('academic') ? common(academic.advised, other.leads) : []],
+        ['oversight', [...new Set(oversight)]],
+        // Lawmakers at a hearing chair or question it; a line to every witness would only add noise.
+        ['appeared', kinds.has('lawmaker') ? [] : common(fx.events, fy.events)],
+      ];
       const hit = pairs.find(([, basis]) => basis.length);
-      if (hit) edges.push({ a: ids[i], b: ids[j], kind: hit[0], basisIds: hit[1] });
+      if (hit) edges.push({ a: x.subject.id, b: y.subject.id, kind: hit[0], basisIds: hit[1] });
     }
   }
   return { nodes, edges };

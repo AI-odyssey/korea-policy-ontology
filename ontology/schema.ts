@@ -104,10 +104,10 @@ export const objectTypes = {
   },
   Person: {
     layer: 'public',
-    description: 'A lawmaker, official, legislative aide or organization representative.',
+    description: 'A lawmaker, official, legislative aide, organization representative or academic.',
     properties: {
       name: req('string'),
-      kind: req('enum', { values: ['lawmaker', 'official', 'staffer', 'org_rep'] }),
+      kind: req('enum', { values: ['lawmaker', 'official', 'staffer', 'org_rep', 'academic'] }),
       party: opt('string', { note: 'Neutral labels: Party A, Party B, Party C.' }),
       district: opt('string'),
       terms: opt('number'),
@@ -393,6 +393,16 @@ export const linkTypes = {
   testifies_at: {
     description: 'A person or organization speaking at an event.',
     from: ['Person', 'StakeholderOrg'], to: ['Event'], cardinality: 'many-to-many', layer: 'public', evidenceRequired: true,
+  },
+  advises: {
+    description: 'An academic who sits on an advisory panel of a committee, ministry or agency.',
+    from: ['Person'], to: ['Institution'], cardinality: 'many-to-many', layer: 'public', evidenceRequired: true,
+    props: { since: req('date') },
+  },
+  coalition_with: {
+    description: 'Two organizations that signed one joint statement on an issue.',
+    from: ['StakeholderOrg'], to: ['StakeholderOrg'], cardinality: 'many-to-many', layer: 'public', evidenceRequired: true,
+    props: { issueId: req('ref', { refTypes: ['Issue'] }) },
   },
   regulates: {
     description: 'The institution that administers a provision.',

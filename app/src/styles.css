@@ -296,6 +296,7 @@ button.pp:hover { border-color: var(--ink-2); }
 .cov-warn { grid-column: 1 / -1; }
 .cov-warn p { margin: 2px 0; }
 .rec-gloss { margin-top: 1px; font-size: 12.5px; }
+.rec-ko { margin-top: 1px; font-size: 12px; }
 
 /* Print: only the open report and the small colophon. Without .on-reports (any other screen) the page prints as is. */
 @media print {

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Checkbox, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import cytoscape from 'cytoscape';
-import { addDays, clientBills, stageGates, stakeholderNetwork } from '../../ontology/index.ts';
+import { actorType, addDays, clientBills, stageGates, stakeholderNetwork } from '../../ontology/index.ts';
+import type { ActorType, RelationKind } from '../../ontology/index.ts';
 import { subcommitteeName } from '../../agent/index.ts';
 import type { ObjectRecord } from '../../ontology/index.ts';
-import { Empty, LEVEL3, MemberOf, ObjLink, STANCE, Section, billName, cap, kindOf, md, memberships, nameOf, roleOf } from './ui.tsx';
+import { Empty, LEVEL3, MemberOf, ObjLink, STANCE, Section, billName, cap, md, memberships, nameOf, roleOf } from './ui.tsx';
 import type { App } from './ui.tsx';
 
 // Hue = stance, lightness = relevance (high, medium, low).
@@ -18,9 +19,43 @@ const SHADE: Record<string, string[]> = {
 };
 const REL = ['high', 'medium', 'low'];
 const SIZE: Record<string, number> = { high: 46, medium: 32, low: 22 };
-const LINE: Record<string, string> = { cosponsor: 'solid', committee: 'dotted', event: 'dashed' };
-const LINE_LABEL: Record<string, string> = { cosponsor: 'Cosponsors', committee: 'Same committee', event: 'Joint event' };
+// Shape = actor type, so the mix of lawmakers, officials and groups reads at a glance.
+const ACTOR: Record<ActorType, string> = { lawmaker: 'Lawmaker', official: 'Official', association: 'Association', civic: 'Civic group', academic: 'Academic' };
+const SHAPE: Record<ActorType, string> = { lawmaker: 'ellipse', official: 'round-rectangle', association: 'hexagon', civic: 'triangle', academic: 'diamond' };
+const CLIP: Record<ActorType, string> = {
+  lawmaker: '', official: '', association: 'polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%)',
+  civic: 'polygon(50% 0, 100% 100%, 0 100%)', academic: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
+};
+// Six kinds of tie, drawn in four line styles. The kind itself shows in the line's tooltip and in the person panel.
+const KIND_LABEL: Record<RelationKind, string> = {
+  cosponsor: 'Co-sponsored a bill', committee: 'Same committee', oversight: 'Oversight', advises: 'Advises', appeared: 'Testified or spoke together', coalition: 'Joint statement',
+};
+type TieGroup = 'legislative' | 'oversight' | 'appeared' | 'coalition';
+const TIE: Record<RelationKind, TieGroup> = { cosponsor: 'legislative', committee: 'legislative', oversight: 'oversight', advises: 'oversight', appeared: 'appeared', coalition: 'coalition' };
+const TIE_STYLE: Record<TieGroup, { line: string; width: number; label: string }> = {
+  legislative: { line: 'solid', width: 1.4, label: 'Legislative tie' },
+  oversight: { line: 'dashed', width: 1.4, label: 'Oversight or advice' },
+  appeared: { line: 'dotted', width: 1.8, label: 'Testified or spoke together' },
+  coalition: { line: 'solid', width: 3.4, label: 'Joint statement' },
+};
 const fill = (a: ObjectRecord) => SHADE[a.stance][REL.indexOf(a.relevance)];
+
+/** Names of the public records a tie rests on (bills, events, committees), for a tooltip. */
+function basisNote(view: App['view'], ids: string[]): string {
+  return ids.map((id) => view.get(id)).filter((o) => o && o.type !== 'Evidence').slice(0, 2).map((o) => nameOf(o!)).join('; ');
+}
+
+const ministryOf = (view: App['view'], s: ObjectRecord) => {
+  const l = view.links({ type: 'member_of', from: s.id }).find((x) => x.props?.role === 'official');
+  return l ? view.get(l.to) : undefined;
+};
+
+/** What follows the actor type on a list row: committee seat, ministry post or kind of body. */
+function detailOf(view: App['view'], s: ObjectRecord, actor: ActorType): string {
+  if (s.type === 'StakeholderOrg') return ({ union: 'Union', research: 'Research body', company: 'Company' } as Record<string, string>)[s.kind] ?? '';
+  if (actor === 'official') return [s.title, ministryOf(view, s)?.name].filter(Boolean).join(', ');
+  return roleOf(view, s);
+}
 
 /** Moves `n` working days from `date` (negative goes back), skipping weekends. */
 function workday(date: string, n: number): string {
@@ -85,11 +120,11 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
     const n = net.nodes.length;
     // Start on a circle so the force layout has no random seed: the same data always gives the same picture.
     const elements = [
-      ...net.nodes.map(({ assessment: a, subject: s }, i) => ({
-        data: { id: s.id, label: nameOf(s), color: fill(a), size: SIZE[a.influence], border: a.stance === 'unconfirmed' ? SHADE.neutral[REL.indexOf(a.relevance)] : fill(a) },
+      ...net.nodes.map(({ assessment: a, subject: s, actor }, i) => ({
+        data: { id: s.id, label: nameOf(s), shape: SHAPE[actor], color: fill(a), size: SIZE[a.influence], border: a.stance === 'unconfirmed' ? SHADE.neutral[REL.indexOf(a.relevance)] : fill(a) },
         position: { x: 200 + 160 * Math.cos((2 * Math.PI * i) / n), y: 200 + 160 * Math.sin((2 * Math.PI * i) / n) },
       })),
-      ...net.edges.map((e) => ({ data: { id: `${e.a}~${e.b}`, source: e.a, target: e.b, line: LINE[e.kind] } })),
+      ...net.edges.map((e) => ({ data: { id: `${e.a}~${e.b}`, source: e.a, target: e.b, line: TIE_STYLE[TIE[e.kind]].line, w: TIE_STYLE[TIE[e.kind]].width, tip: `${nameOf(app.view.get(e.a))} and ${nameOf(app.view.get(e.b))}: ${KIND_LABEL[e.kind]}${basisNote(app.view, e.basisIds) ? ` (${basisNote(app.view, e.basisIds)})` : ''}` } })),
     ];
     const cy = cytoscape({
       container: ref.current,
@@ -99,24 +134,26 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
       maxZoom: 2,
       layout: {
         name: 'cose', randomize: false, animate: false, nodeDimensionsIncludeLabels: true, padding: 24,
-        idealEdgeLength: () => 120, nodeRepulsion: () => 26000, edgeElasticity: () => 60, gravity: 0.3, numIter: 2000, componentSpacing: 50, nodeOverlap: 24,
+        idealEdgeLength: (e: cytoscape.EdgeSingular) => (e.data('w') > 3 ? 45 : 80), nodeRepulsion: () => 12000, edgeElasticity: (e: cytoscape.EdgeSingular) => (e.data('w') > 3 ? 300 : 80), gravity: 1, numIter: 2500, componentSpacing: 40, nodeOverlap: 24,
       } as cytoscape.LayoutOptions,
       style: [
         { selector: 'node', style: {
-          'background-color': 'data(color)', width: 'data(size)', height: 'data(size)', 'border-width': 1.5, 'border-color': 'data(border)',
+          'background-color': 'data(color)', shape: 'data(shape)' as never, width: 'data(size)', height: 'data(size)', 'border-width': 1.5, 'border-color': 'data(border)',
           label: 'data(label)', color: '#1B2430', 'font-size': narrow ? 22 : 11, 'font-family': 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif', 'text-valign': 'bottom', 'text-margin-y': 5,
           'text-wrap': 'wrap', 'text-max-width': narrow ? '150px' : '96px', 'text-background-color': '#F7F6F2', 'text-background-opacity': 0.85, 'text-background-padding': '1px',
         } },
         { selector: 'node.sel', style: { 'border-width': 3, 'border-color': '#1B2430', 'font-weight': 600 } },
-        { selector: 'edge', style: { width: 1.4, 'line-color': '#8E97A3', 'line-style': 'data(line)' as never, 'curve-style': 'straight' } },
+        { selector: 'edge', style: { width: 'data(w)', 'line-color': '#8E97A3', 'line-style': 'data(line)' as never, 'curve-style': 'straight' } },
         { selector: 'edge.near', style: { 'line-color': '#1B2430' } },
       ],
     });
+    cy.on('mouseover', 'edge', (e) => { if (ref.current) ref.current.title = e.target.data('tip'); });
+    cy.on('mouseout', 'edge', () => { if (ref.current) ref.current.title = ''; });
     cy.on('tap', 'node', (e) => pick.current(e.target.id()));
     cy.on('tap', (e) => e.target === cy && pick.current(undefined));
     cyRef.current = cy;
     return () => cy.destroy();
-  }, [net, narrow]);
+  }, [net, narrow, app.view]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -135,11 +172,11 @@ function PeopleList({ app, issueId, selected, onSelect }: { app: App; issueId: s
   const rows = [...nodes].sort((x, y) => rank(x.assessment) - rank(y.assessment) || x.subject.id.localeCompare(y.subject.id));
   return (
     <ul className="people" aria-label="Stakeholders on this issue">
-      {rows.map(({ assessment: a, subject: s }) => (
+      {rows.map(({ assessment: a, subject: s, actor }) => (
         <li key={s.id} className={s.id === selected ? 'on' : ''}>
           <i className={`dot dot-${a.stance}`} />
           <a onClick={() => onSelect(s.id)}><b>{nameOf(s)}</b></a>
-          <span className="sub"> {STANCE[a.stance]}, {LEVEL3[a.influence].toLowerCase()} impact · {roleOf(app.view, s)}</span>
+          <span className="sub"> {STANCE[a.stance]}, {LEVEL3[a.influence].toLowerCase()} impact · {ACTOR[actor]}{detailOf(app.view, s, actor) && ` · ${detailOf(app.view, s, actor)}`}</span>
         </li>
       ))}
     </ul>
@@ -154,7 +191,12 @@ function Legend() {
       </span>
       <span className="lg-group"><span>Circle size: impact</span><span>Shade: relevance</span></span>
       <span className="lg-group">
-        {Object.entries(LINE).map(([k, style]) => <span key={k}><i className="ln" style={{ borderTopStyle: style as 'solid' }} />{LINE_LABEL[k]}</span>)}
+        {(Object.keys(ACTOR) as ActorType[]).map((t) => (
+          <span key={t}><i className="sw" style={{ borderRadius: t === 'lawmaker' ? '50%' : t === 'official' ? 2 : 0, clipPath: CLIP[t] || undefined, background: '#59616B' }} />{ACTOR[t]}</span>
+        ))}
+      </span>
+      <span className="lg-group">
+        {(Object.keys(TIE_STYLE) as TieGroup[]).map((g) => <span key={g}><i className="ln" style={{ borderTopStyle: TIE_STYLE[g].line as 'solid', borderTopWidth: Math.round(TIE_STYLE[g].width) }} />{TIE_STYLE[g].label}</span>)}
       </span>
     </div>
   );
@@ -216,7 +258,10 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
     .sort()[0];
   const meetingDue = nextMeeting ? workday(nextMeeting, -1) : workday(view.baseDate, 2);
   const net = stakeholderNetwork(view, clientId, issueId);
-  const neighbors = net.edges.filter((e) => e.a === subjectId || e.b === subjectId).map((e) => (e.a === subjectId ? e.b : e.a));
+  const ties = net.edges.filter((e) => e.a === subjectId || e.b === subjectId).map((e) => ({ id: e.a === subjectId ? e.b : e.a, kind: e.kind, basisIds: e.basisIds }));
+  const advises = view.links({ type: 'advises', from: subjectId }).map((l) => l.to);
+  const actor = actorType(s);
+  const ministry = s.kind === 'official' ? ministryOf(view, s) : undefined;
   // Only bills on this client's issues are named; others are counted, since naming them reads like another client's file.
   const allBills = [...new Set([...view.links({ type: 'sponsors', from: subjectId }), ...view.links({ type: 'cosponsors', from: subjectId })].map((l) => l.to))];
   const ours = new Set(clientBills(view, clientId).map((b) => b.id));
@@ -230,11 +275,12 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
 
   return (
     <div className="panel">
-      <div className="sub">{kindOf(s)}</div>
+      <div className="sub">{ACTOR[actor]}</div>
       <h2 className="panel-name">{nameOf(s)}</h2>
       <h3 className="label">Properties</h3>
       <dl className="kv">
         <div><dt>Role</dt><dd>{roleOf(view, s)}</dd></div>
+        {ministry && <div><dt>Organization</dt><dd><ObjLink id={ministry.id} app={app} /></dd></div>}
         <div><dt>Stance</dt><dd>{a ? <><i className={`dot dot-${a.stance}`} />{STANCE[a.stance]}</> : 'Not assessed'}</dd></div>
         {a && <div><dt>Impact</dt><dd>{LEVEL3[a.influence]}</dd></div>}
         {a && <div><dt>Relevance</dt><dd>{LEVEL3[a.relevance]}</dd></div>}
@@ -245,9 +291,10 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
       <dl className="kv">
         {allBills.length > 0 && <div><dt>Bills</dt><dd>{list(sponsored)}{otherBills > 0 && <span className="sub">{sponsored.length ? ' · ' : ''}{otherBills} other {otherBills === 1 ? 'bill' : 'bills'}</span>}</dd></div>}
         {seats.length > 0 && <div><dt>Member of</dt><dd><MemberOf app={app} personId={subjectId} /></dd></div>}
+        {advises.length > 0 && <div><dt>Advises</dt><dd>{list(advises)}</dd></div>}
         {spoke.length > 0 && <div><dt>Spoke at</dt><dd>{list(spoke)}</dd></div>}
         <div><dt>Contacts</dt><dd>{contacts.length ? contacts.map((c, i) => <span key={c.id}>{i ? ', ' : ''}<ObjLink id={c.id} app={app} label={`${c.kind === 'call' ? 'Call' : 'Meeting'} ${md(c.date)}`} /></span>) : 'None yet'}</dd></div>
-        {neighbors.length > 0 && <div><dt>Connected to</dt><dd>{neighbors.map((id, i) => <span key={id}>{i ? ', ' : ''}<a onClick={() => onSelect(id)}>{nameOf(view.get(id))}</a></span>)}</dd></div>}
+        {ties.length > 0 && <div><dt>Connected to</dt><dd>{ties.map((t) => <div key={t.id}><a onClick={() => onSelect(t.id)}>{nameOf(view.get(t.id))}</a> <span className="sub">{KIND_LABEL[t.kind].toLowerCase()}</span></div>)}</dd></div>}
       </dl>
       <h3 className="label">Actions</h3>
       <div className="row">

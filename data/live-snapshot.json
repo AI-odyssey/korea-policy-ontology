@@ -200,7 +200,10 @@
    "cli-moru": {
     "terms": [
      "대체단백질"
-    ]
+    ],
+    "termsEn": {
+     "대체단백질": "alternative proteins"
+    }
    }
   },
   "sig-live-262873e8": {
@@ -208,35 +211,50 @@
     "terms": [
      "전자금융거래법"
     ],
-    "line": "전자금융거래법 일부개정법률안 2건"
+    "line": "전자금융거래법 일부개정법률안 2건",
+    "termsEn": {
+     "전자금융거래법": "Electronic Financial Transactions Act"
+    }
    }
   },
   "sig-live-9c3b42a1": {
    "cli-wren": {
     "terms": [
      "선불충전금"
-    ]
+    ],
+    "termsEn": {
+     "선불충전금": "prepaid balances"
+    }
    }
   },
   "sig-live-a8ab2925": {
    "cli-moru": {
     "terms": [
      "대체단백질"
-    ]
+    ],
+    "termsEn": {
+     "대체단백질": "alternative proteins"
+    }
    }
   },
   "sig-live-0cab7a88": {
    "cli-wren": {
     "terms": [
      "선불충전금"
-    ]
+    ],
+    "termsEn": {
+     "선불충전금": "prepaid balances"
+    }
    }
   },
   "sig-live-bdaf280c": {
    "cli-aster": {
     "terms": [
      "지능형로봇법"
-    ]
+    ],
+    "termsEn": {
+     "지능형로봇법": "Intelligent Robots Act"
+    }
    }
   },
   "sig-live-ba258b4d": {
@@ -244,63 +262,90 @@
     "terms": [
      "지능형로봇법"
     ],
-    "line": "지능형 로봇 개발 및 보급 촉진법 일부개정법률안 2건"
+    "line": "지능형 로봇 개발 및 보급 촉진법 일부개정법률안 2건",
+    "termsEn": {
+     "지능형로봇법": "Intelligent Robots Act"
+    }
    }
   },
   "sig-live-3d56c76f": {
    "cli-wren": {
     "terms": [
      "외국환거래법"
-    ]
+    ],
+    "termsEn": {
+     "외국환거래법": "Foreign Exchange Transactions Act"
+    }
    }
   },
   "sig-live-e4c3c444": {
    "cli-wren": {
     "terms": [
      "외국환거래법"
-    ]
+    ],
+    "termsEn": {
+     "외국환거래법": "Foreign Exchange Transactions Act"
+    }
    }
   },
   "sig-live-85f3dd3c": {
    "cli-aster": {
     "terms": [
      "실외이동로봇"
-    ]
+    ],
+    "termsEn": {
+     "실외이동로봇": "outdoor mobile robots"
+    }
    }
   },
   "sig-live-079bcd26": {
    "cli-wren": {
     "terms": [
      "전자금융거래법"
-    ]
+    ],
+    "termsEn": {
+     "전자금융거래법": "Electronic Financial Transactions Act"
+    }
    }
   },
   "sig-live-b1357ce4": {
    "cli-aster": {
     "terms": [
      "지능형로봇법"
-    ]
+    ],
+    "termsEn": {
+     "지능형로봇법": "Intelligent Robots Act"
+    }
    }
   },
   "sig-live-b213cc9b": {
    "cli-aster": {
     "terms": [
      "실외이동로봇"
-    ]
+    ],
+    "termsEn": {
+     "실외이동로봇": "outdoor mobile robots"
+    }
    }
   },
   "sig-live-9b56caf2": {
    "cli-moru": {
     "terms": [
      "대체단백질"
-    ]
+    ],
+    "termsEn": {
+     "대체단백질": "alternative proteins"
+    }
    }
   },
   "sig-live-6f21af21": {
    "cli-aster": {
     "terms": [
      "실외이동로봇"
-    ]
+    ],
+    "termsEn": {
+     "실외이동로봇": "outdoor mobile robots"
+    }
    }
   },
   "sig-live-a4a43d3f": {
@@ -308,28 +353,41 @@
     "terms": [
      "배양육",
      "대체단백질"
-    ]
+    ],
+    "termsEn": {
+     "배양육": "cultivated meat",
+     "대체단백질": "alternative proteins"
+    }
    }
   },
   "sig-live-d8523e30": {
    "cli-aster": {
     "terms": [
      "지능형로봇법"
-    ]
+    ],
+    "termsEn": {
+     "지능형로봇법": "Intelligent Robots Act"
+    }
    }
   },
   "sig-live-d0fba530": {
    "cli-moru": {
     "terms": [
      "배양육"
-    ]
+    ],
+    "termsEn": {
+     "배양육": "cultivated meat"
+    }
    }
   },
   "sig-live-6cd2c559": {
    "cli-wren": {
     "terms": [
      "선불충전금"
-    ]
+    ],
+    "termsEn": {
+     "선불충전금": "prepaid balances"
+    }
    }
   }
  },
@@ -344,6 +402,7 @@
    "provenance": "public",
    "sourceType": "seminar",
    "title": "(농축산업 고도화를 위한) 푸드테크 산업 육성 전략과 정책 과제",
+   "titleEn": "Food Tech Industry Fostering Strategy and Policy Tasks (for Advancing Agriculture and Livestock)",
    "url": "https://ampos.nanet.go.kr:7443/seminarList.do#fromDate=20261125&endDate=20261125&searchGubun=search",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "Assembly seminars",
@@ -362,6 +421,7 @@
    "provenance": "public",
    "sourceType": "minutes",
    "title": "[회의록 게재 전] 제3차 정무위원회 법안심사제1소위원회 (2026.11.17.)",
+   "titleEn": "[Before minutes are published] Third Meeting of the Bill Review Subcommittee 1, National Policy Committee (Nov. 17, 2026)",
    "url": "https://policy.na.go.kr/cmmit/schl/cmitSchl/view.do?menuNo=2000048&cmtSchSn=10121539",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "Committee website",
@@ -380,6 +440,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "안 쓴 선불충전금 환급 안내, 배달·쇼핑앱까지 넓힌다",
+   "titleEn": "Refund notices for unused prepaid balances to extend to delivery and shopping apps",
    "url": "https://news.google.com/rss/articles/CBMia0FVX3lxTE90ZjlUX0t2ZGlYeTZaYUFNMUZpcks2SUpaUUJiaDZGT0tGdkV6SGdjU0RkRWV2X1ltZ2hBRGFTYk5WbHUtXy1VdE1yMW1fSU5IUWxxelZUdEkzR0tkektheUZxc3d5UzQzNG1B?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -398,6 +459,7 @@
    "provenance": "public",
    "sourceType": "seminar",
    "title": "푸드테크산업법 제정 1년 성과 및 발전방향",
+   "titleEn": "One Year of the Food Tech Industry Act: Results and the Way Forward",
    "url": "https://ampos.nanet.go.kr:7443/seminarList.do#fromDate=20261116&endDate=20261116&searchGubun=search",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "Assembly seminars",
@@ -416,6 +478,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "1년 넘게 잠든 선불충전금…3개월마다 주인에게 알린다",
+   "titleEn": "Prepaid balances dormant for over a year: owners to be notified every three months",
    "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE12MFNZaXB1MlZzT25RTlFJWVUxa1NxV3pNVEZqQVhZZVlhYnZUYURRSS1OM0VZWmxibWF5SVRpdWxJZV9XNkpiSFUyMDZLaWFrUVZnUjhNNUp1aEJDTkk5T3RUam9Td3dQZHZDOXpibnNRWmPSAXNBVV95cUxNdjBTWWlwdTJWc09uUU5RSVlVMWtTcVd6TVRGakFYWWVZYWJ2VGFEUUktTjNFWVpsYm1heUlUaXVsSWVfVzZKYkhVMjA2S2lha1FWZ1I4TTVKdWhCQ05JOU90VGpvU3d3UGR2Qzl6Ym5zUVpj?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -434,6 +497,7 @@
    "provenance": "public",
    "sourceType": "bill_update",
    "title": "[소관위 상정] 지능형 로봇 개발 및 보급 촉진법 일부개정법률안 (2건)",
+   "titleEn": "[Referred to committee] Intelligent Robots Development and Distribution Promotion Act, Partial Amendment Bills (2 bills)",
    "url": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_C2J6K0I9J0H3I1G7O0P5N3N3L7N8L5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "Assembly bill tracker",
@@ -451,6 +515,7 @@
    "provenance": "public",
    "sourceType": "minutes",
    "title": "[회의록 게재 전] 제7차 산업통상자원중소벤처기업위원회 (2026.11.13.)",
+   "titleEn": "[Before minutes are published] Seventh Meeting of the Trade, Industry, Energy, SMEs and Startups Committee (Nov. 13, 2026)",
    "url": "https://industry.na.go.kr/cmmit/schl/cmitSchl/view.do?menuNo=2000048&cmtSchSn=10121521",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "Committee website",
@@ -469,6 +534,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "[속보]재경부 “디지털자산기본법 연계해 외국환거래법 개정”",
+   "titleEn": "[Breaking] Ministry of Finance: Foreign Exchange Transactions Act to be amended in line with the Digital Asset Basic Act",
    "url": "https://news.google.com/rss/articles/CBMigAFBVV95cUxQaV9pMWZ4T0FDWTBvTW1aRFpMTnpkV0xENjlDa0FwRy02VnhBNVZLMk8xa0lXdDZZSG5BY1Q4RmduaVY3LUtRY1NNSU1jaXZxaS11Uk5fc3hmYmtacFFCbDZvVkFwUUhjd3dpU1BGWFNCeTlaNkJVazl2UTVrT3JEWQ?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -487,6 +553,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "재경부 \"스테이블코인 국경간 이전, 외국환거래법으로 규율\"",
+   "titleEn": "Ministry of Finance: Cross-border stablecoin transfers to be regulated under the Foreign Exchange Transactions Act",
    "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE81UXNBTDZmaWNQVWJ2VHhHNE5GV0ZGLUVqbExxUURpX2RLdXIyTV9TM2FiU2FoQXNRNFV5UW5fZkhOb3JrdjFXbkVzTkxXMTNxOThwdS0wWFpuNTTSAWBBVV95cUxQNFlyYnBMXzlWNlZndWw0dzRGemV0MWUxQWJLSFNUWDhQdDRiYTRudG1rdkFNMlk4UGhzaTdqU180V21nU0hFR25VczE1TE96OWNQb0xsbElsTGwwNmJvMTQ?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -505,6 +572,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "[채널Who] 무심코 양보한 걸음에 인도 활보하는 배달 로봇, 시민들 인도 통행에 또 다른 장벽 될까",
+   "titleEn": "[Channel Who] Delivery robots on sidewalks after pedestrians casually step aside: another barrier to pedestrian traffic?",
    "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5KaXNfYXpQbDB2M2V6b1gxQzg1U19YZnNXRnJkUE9WQkdrcDc1WUs2ZS16ejJuV196TVJJQW1neTh0U2tuZG12eWRkZHl5cXNtRzB4d3FmMEx0LUxOVDROWjlHSHVoWDNzcThjeW9vRm1xa0k?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -523,6 +591,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "금감원 \"스테이블코인 결제, 전자금융거래법 적용 불가피\"",
+   "titleEn": "Financial Supervisory Service: Applying the Electronic Financial Transactions Act to stablecoin payments is unavoidable",
    "url": "https://news.google.com/rss/articles/CBMickFVX3lxTFBQNHRZcDM4WWE0TXplV1hqQ0gxYU9rc3BsQ2lOalhzNXVuQWZCMTh2Qzl6c183OUdmTWpUbnlubXNQaGk4UnBCR2lVYzNvSTJXUXp4bEhra3NRYU1jamlXUUhfNVJXd05CcXlRYVBMVnZiZw?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -541,6 +610,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "[국회와 경제] 로봇산업 법체계 전면 개편 시동··· '지능형 로봇산업 진흥법'이 바꿀 것들",
+   "titleEn": "[National Assembly and the Economy] Overhaul of the robot industry legal framework begins: what the Intelligent Robot Industry Promotion Act would change",
    "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE8zclJBQmlyTUFJNkNjQWVfbThRaUExNWJLMnViSzR0UFFUN0dacHE2MXdGby1aVzlsRFdYRGJBekw1LUsxeWdRNkRtcGNzb2x4NS1GMTFCMUROR24tODFQUXJETmEyR2xib2xId2Jn?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -559,6 +629,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "\"사람이 먼저? 로봇이 먼저?\"…배송 로봇과 부딪히면 누가 배상하나",
+   "titleEn": "\"People first or robots first?\" Who pays damages when a delivery robot hits someone?",
    "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxQcWZodkpFU2xDXy1wRk82dFc5bkpsYzMzX2I1aGYzeEVZSTd2X2c1RWFCMTJsaUM2YUR1Smp3MktSNjR0QzJIbGdRdjhVMFZ2VWJSemFENlo4ekxNbk9Tc1MtNFotMkFKRGI2Yks3UmxodURjMVUyUjMxZ21sVnRiX2s5VQ?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -577,6 +648,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "대체단백질 안전성 평가, 새 기술보다 검증이 먼저",
+   "titleEn": "Safety assessment of alternative proteins: verification comes before new technology",
    "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTFBWMjJrQ1UzSkFodV9QMl9DRGF0Y05FaFZMdm1zV1R0a1Y2WnBDUGxodUl1OUx1WWhjLWJpSXhIUzhURDRsQXdhWUxxaXh6Z1BpTTg1TFJqRVFrRHBrNHVJZmF3RHQ0UQ?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -595,6 +667,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "자율주행 로봇, 일상 인프라 자리매김 [2026 로보월드]",
+   "titleEn": "Autonomous robots establish themselves as everyday infrastructure [2026 Robo World]",
    "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTFA3aXdrSEVBTGREYVJnUWFvWmtlZnVQOUJsNHVUcFdBbG5SRVpjejJUVkhnZjVCcVdlSnAtMGx0c1VTbFhBNXVhcTZVeXBPSktxRmR0M2thWUY3Zw?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -613,6 +686,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "‘K-푸드테크’ 식물성 대체육·세포배양육, 기후·식량안보 위한 ‘전략적 단백질 공급원’으로 키워야",
+   "titleEn": "Plant-based meat and cultivated meat of \"K-Food Tech\" should be nurtured as a strategic protein source for climate and food security",
    "url": "https://news.google.com/rss/articles/CBMiZEFVX3lxTFBaekJnNzk4NGtCU3ZYNmJRZXgtOVFiYVJFdnp0WUFzZnA1ZEVjZmx1ZHpCbUNPc3Jac1AzX3d4R2xqLWdBc2VGYllTdVZ0UEpCWWZaVVlNajk4NUpCV19BRmRhM2s?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -631,6 +705,7 @@
    "provenance": "public",
    "sourceType": "bill_update",
    "title": "지능형 로봇 개발 및 보급 촉진법 전부개정법률안",
+   "titleEn": "Intelligent Robots Development and Distribution Promotion Act, Full Amendment Bill",
    "url": "https://likms.assembly.go.kr/bill/billDetail.do?billId=PRC_A0B6B0016E0647C58525C5E2207503",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "Assembly bill tracker",
@@ -648,6 +723,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "[기자수첩] 배양육 시장은 답보중? 국내연구팀 성공스토리에 관심 부활",
+   "titleEn": "[Reporter's notebook] Is the cultivated meat market stalled? A domestic research team's success story revives interest",
    "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE1MN0cyZHZzdVRtUUJSUTRFWVdiM2dFSnFXekdvNjMwaDF2aE9HOS05OWIwWjB1WEt2QmVocVBmZ25lT0NYUFFHT1pEVkhFR0ZLbzR5bWVtVjRXb3Uya3gwSGRINVZiU3FwMDVWbTRR?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",
@@ -666,6 +742,7 @@
    "provenance": "public",
    "sourceType": "news",
    "title": "충전해놓고 잊은 선불금만 250억…잠자는 돈 찾아가세요",
+   "titleEn": "KRW 25 billion in forgotten prepaid balances alone: come and claim your dormant money",
    "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE54MUktTi1WWl9zLXktX1ZQSWRxbGpXaXZxM1hvYl9wY0pnMWFLcklpOGloV1BSLUxKX1hqYWNSZXpXck1NVDZTRUd3Z0FoclduUHUtNkhVTWhZQQ?oc=5",
    "collectedAt": "2026-11-18T00:13:57.097Z",
    "sourceName": "News",

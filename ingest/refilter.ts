@@ -6,6 +6,7 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { has, MIN_SCORE, PRIORITY_WEIGHT } from './core/match.ts';
 import type { MonitoringProfile } from './core/types.ts';
+import { termsEnOf } from './snapshot.ts';
 import type { LiveSnapshot } from './snapshot.ts';
 
 /** The connector an item most likely came from, to adjust the per-source counts. */
@@ -31,7 +32,8 @@ export function refilterSnapshot(snap: LiveSnapshot, profiles: MonitoringProfile
       const outlet = sig.publisher && profile.excludeOutlets?.includes(sig.publisher);
       if (outlet || score < MIN_SCORE) { dropped.push({ id: sig.id, clientId, title: sig.title }); continue; }
       (matches[sig.id] ??= []).push(clientId);
-      (why[sig.id] ??= {})[clientId] = { ...w, terms };
+      const termsEn = termsEnOf(profile, terms);
+      (why[sig.id] ??= {})[clientId] = { ...w, terms, ...(Object.keys(termsEn).length ? { termsEn } : {}) };
     }
   }
   const signals = snap.signals.filter((s) => matches[s.id]);

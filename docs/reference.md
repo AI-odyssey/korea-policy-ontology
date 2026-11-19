@@ -44,7 +44,7 @@ Objects become screens, actions become buttons, and approvals become entries in 
 | **Filed automatically**, **Undo** | Items the assistant filed at 0.8 or above; `reopenSignal` returns one to this client's queue |
 | Issues & bills, bill profile | `Issue` (through `affects`), `Bill` (through `about`), `stageHistory`, `stageGates`, `mentions`, `ClientPosition` (every issue shows Support, Amend, Oppose or No position), and the facts behind `responseLevel`, split into why the bill matters and why it is not higher |
 | **Change position** | `setClientPosition` |
-| Stakeholders graph | `stakeholderNetwork`: `StakeholderAssessment` nodes, edges from public cosponsor, committee and event links |
+| Stakeholders graph | `stakeholderNetwork`: `StakeholderAssessment` nodes (lawmakers, officials, associations, civic groups, academics), edges typed by the actors they join and derived from public links: co-sponsored bill, oversight (the chair or a secretary of the committee whose jurisdiction, from `referred_to`, `amends` and `regulates`, covers the official's agency), `advises`, shared `testifies_at` events on the issue between non-lawmakers, `coalition_with` joint statements |
 | **Who decides at each stage** | `stageGates`: date and the chair and secretaries for the subcommittee, full committee, Legislation and Judiciary Committee and plenary |
 | Object panel: Properties, Links, Actions | The selected object, its links, and **Request meeting** (`createTask`), **Update stance** (`assessStakeholder`), **Log contact** (`logInteraction`) |
 | Strategy, **Edit** | `Strategy` with targets (`StakeholderAssessment`), allies (`StakeholderOrg`) and plan (`Task`); `updateStrategy` |
@@ -148,6 +148,8 @@ erDiagram
   Bill }o--o{ Issue : about
   Event }o--o{ Bill : agenda_item
   Person }o--o{ Event : testifies_at
+  Person }o--o{ Institution : advises
+  StakeholderOrg }o--o{ StakeholderOrg : coalition_with
   Signal }o--o{ Issue : about
   Signal }o--o{ Bill : mentions
   Issue }o--o{ Client : affects

@@ -39,7 +39,10 @@ export function validateWorld(world: World): string[] {
     const expected = def.layer === 'public' ? ['PUBLIC'] : [clientMarking(o.type === 'Client' ? o.id : o.clientId)];
     if (!clientEvidence && JSON.stringify(o.markings) !== JSON.stringify(expected)) err(`${where}: markings should be ${expected.join(',')}, got ${o.markings?.join(',')}`);
     const props = Object.fromEntries(Object.entries(o).filter(([k]) => !BASE_KEYS.includes(k)));
-    for (const e of checkProps(def.properties, props, typeOf)) err(`${where}.${e}`);
+    // A public Signal may carry titleEn, the hand-written English title the demo shows above the Korean one.
+    const extra = isPublic && o.type === 'Signal' ? ['titleEn'] : [];
+    for (const e of checkProps(def.properties, props, typeOf, extra)) err(`${where}.${e}`);
+    if (extra.length && o.titleEn !== undefined && (typeof o.titleEn !== 'string' || !o.titleEn.trim())) err(`${where}.titleEn: must be a non-empty string`);
 
     // Reference isolation: public objects never point at client objects; client objects only at their own client.
     const owner = clientOfMarkings(o.markings ?? []);

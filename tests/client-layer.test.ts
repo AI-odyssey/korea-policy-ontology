@@ -178,24 +178,60 @@ describe('stageGates', () => {
 });
 
 describe('stakeholderNetwork', () => {
-  const v = freshStore().as(lead('cli-aster'));
+  const v = freshStore().as(principal);
   const net = stakeholderNetwork(v, 'cli-aster', 'iss-01');
+  const type = (id: string) => net.nodes.find((n) => n.subject.id === id)!.actor;
+  const KEY: [string, string][] = [['cli-aster', 'iss-01'], ['cli-moru', 'iss-06'], ['cli-wren', 'iss-08'], ['cli-moru', 'iss-05'], ['cli-wren', 'iss-09']];
 
-  it("returns Aster's assessed stakeholders on the issue with one edge per connected pair", () => {
-    expect(net.nodes).toHaveLength(9);
+  it('maps lawmakers, officials, associations, civic groups and academics, each issue with a few key actors', () => {
+    expect(net.nodes).toHaveLength(10);
     expect(net.nodes.every((n) => n.assessment.issueId === 'iss-01' && n.subject.id === n.assessment.subjectId)).toBe(true);
-    const pairs = net.edges.map((e) => `${e.a}|${e.b}`);
-    expect(new Set(pairs).size).toBe(pairs.length);
-    expect(new Set(net.edges.map((e) => e.kind))).toEqual(new Set(['cosponsor', 'committee', 'event']));
+    expect(net.nodes.map((n) => n.actor).sort()).toEqual(['academic', 'association', 'civic', 'civic', 'lawmaker', 'lawmaker', 'lawmaker', 'lawmaker', 'lawmaker', 'official']);
+    for (const [c, i] of KEY) {
+      const n = stakeholderNetwork(v, c, i).nodes;
+      expect(n.length).toBeGreaterThanOrEqual(6);
+      expect(n.length).toBeLessThanOrEqual(10);
+      expect(new Set(n.map((x) => x.actor)).size).toBeGreaterThanOrEqual(4);
+      expect(n.some((x) => x.actor === 'lawmaker') && n.some((x) => x.actor === 'official') && n.some((x) => x.actor === 'association')).toBe(true);
+    }
   });
 
-  it('every edge rests on visible public records, and event edges always include an organization', () => {
+  it('draws one edge per pair, and each kind fits the actor types it joins', () => {
+    const pairs = net.edges.map((e) => `${e.a}|${e.b}`);
+    expect(new Set(pairs).size).toBe(pairs.length);
+    expect(new Set(net.edges.map((e) => e.kind))).toEqual(new Set(['cosponsor', 'oversight', 'advises', 'appeared', 'coalition']));
+    // Shared committee seats are shown in each person's role, not as lines; lawmakers draw no line to witnesses.
+    expect(net.edges.length).toBeLessThanOrEqual(15);
+    for (const [c, i] of KEY) {
+      for (const e of stakeholderNetwork(v, c, i).edges) {
+        const t = [e.a, e.b].map((id) => stakeholderNetwork(v, c, i).nodes.find((n) => n.subject.id === id)!.actor).sort();
+        if (e.kind === 'cosponsor') expect(t).toEqual(['lawmaker', 'lawmaker']);
+        if (e.kind === 'oversight') expect(t).toEqual(['lawmaker', 'official']);
+        if (e.kind === 'advises') expect(t).toContain('academic');
+        if (e.kind === 'coalition') expect(t.every((x) => x !== 'lawmaker' && x !== 'official')).toBe(true);
+        if (e.kind === 'appeared') expect(t).not.toContain('lawmaker');
+      }
+    }
+  });
+
+  it('every edge rests on visible public records', () => {
     for (const e of net.edges) {
       expect(e.basisIds.length).toBeGreaterThan(0);
       expect(e.basisIds.every((id) => v.get(id)?.markings[0] === 'PUBLIC')).toBe(true);
-      if (e.kind === 'event') expect([e.a, e.b].some((id) => id.startsWith('org-'))).toBe(true);
     }
     expect(net.edges.find((e) => e.a === 'per-001' && e.b === 'per-004')).toMatchObject({ kind: 'cosponsor', basisIds: ['bill-001'] });
-    expect(net.edges.find((e) => e.a === 'per-004' && e.b === 'per-005')).toMatchObject({ kind: 'committee', basisIds: ['inst-pasc', 'inst-pasc-brs'] });
+  });
+
+  it('links an official to the committee that oversees the ministry, an academic to the body they advise, and organizations by joint statement', () => {
+    expect(type('per-061')).toBe('academic');
+    expect(net.edges.find((e) => e.a === 'per-001' && e.b === 'per-030')).toMatchObject({ kind: 'oversight', basisIds: ['inst-pasc', 'inst-npa'] });
+    expect(net.edges.find((e) => e.a === 'per-030' && e.b === 'per-061')).toMatchObject({ kind: 'advises', basisIds: ['inst-npa'] });
+    expect(net.edges.find((e) => e.a === 'org-02' && e.b === 'org-03')).toMatchObject({ kind: 'coalition' });
+    expect(net.edges.some((e) => e.kind === 'appeared')).toBe(true);
+  });
+
+  it('only counts events on the issue, so an appearance elsewhere draws no line', () => {
+    const wren = stakeholderNetwork(v, 'cli-wren', 'iss-11');
+    expect(wren.edges.some((e) => e.kind === 'appeared' && [e.a, e.b].includes('org-11'))).toBe(false);
   });
 });

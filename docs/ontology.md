@@ -69,12 +69,12 @@ Public layer. A committee, subcommittee, ministry, agency or the plenary session
 
 ### `Person`
 
-Public layer. A lawmaker, official, legislative aide or organization representative.
+Public layer. A lawmaker, official, legislative aide, organization representative or academic.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
 | `name` | string | yes |  |
-| `kind` | enum(lawmaker / official / staffer / org_rep) | yes |  |
+| `kind` | enum(lawmaker / official / staffer / org_rep / academic) | yes |  |
 | `party` | string |  | Neutral labels: Party A, Party B, Party C. |
 | `district` | string |  |  |
 | `terms` | number |  |  |
@@ -345,6 +345,8 @@ Cardinality reads from source to target. `requiredFrom` / `requiredTo` list obje
 | `about` | Bill, Event, Signal | Issue | many-to-many | public | yes | Bill (from) |  |
 | `agenda_item` | Event | Bill | many-to-many | public | yes |  |  |
 | `testifies_at` | Person, StakeholderOrg | Event | many-to-many | public | yes |  |  |
+| `advises` | Person | Institution | many-to-many | public | yes |  | since: date |
+| `coalition_with` | StakeholderOrg | StakeholderOrg | many-to-many | public | yes |  | issueId: ref -> Issue |
 | `regulates` | Institution | Provision | many-to-many | public | yes |  |  |
 | `mentions` | Signal | Bill, Person, Institution, StakeholderOrg | many-to-many | public | yes |  |  |
 | `affects` | Issue | Client | many-to-many | client | no |  | impact: enum(high / medium / low) |
@@ -394,7 +396,7 @@ Create a public-layer link (if absent) and attach one Evidence record to it.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
-| `linkType` | enum(sponsors / cosponsors / member_of / referred_to / amends / about / agenda_item / testifies_at / regulates / mentions) | yes |  |
+| `linkType` | enum(sponsors / cosponsors / member_of / referred_to / amends / about / agenda_item / testifies_at / advises / coalition_with / regulates / mentions) | yes |  |
 | `from` | ref | yes |  |
 | `to` | ref | yes |  |
 | `excerpt` | text | yes |  |

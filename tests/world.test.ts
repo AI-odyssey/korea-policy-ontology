@@ -20,7 +20,7 @@ describe('world.json', () => {
       expect(count(t), t).toBeLessThanOrEqual(hi);
     };
     within('Issue', 9, 12); within('Bill', 25, 35); within('Provision', 15, 25); within('Institution', 15, 40);
-    within('Person', 40, 60); within('StakeholderOrg', 10, 15); within('Event', 30, 50); within('Signal', 120, 200); within('Engagement', 3, 3);
+    within('Person', 40, 70); within('StakeholderOrg', 10, 15); within('Event', 30, 50); within('Signal', 120, 200); within('Engagement', 3, 3);
     expect(world.objects.filter((o) => o.type === 'Person' && o.kind === 'lawmaker').length).toBeGreaterThanOrEqual(25);
     expect(world.objects.filter((o) => o.type === 'Bill' && o.stage === 'merged_alternative').length).toBeGreaterThan(0);
     expect(world.objects.filter((o) => o.type === 'Client').every((o) => !('isFictional' in o))).toBe(true); // synthetic: true already says it

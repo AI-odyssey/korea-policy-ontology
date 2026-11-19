@@ -14,7 +14,7 @@ export interface LiveSnapshot {
   generatedAt: string;
   sources: { id: string; name: string; signalType: string; ok: boolean; fetched: number; error?: string }[];
   matches: Record<string, string[]>;
-  why?: Record<string, Record<string, { terms: string[]; line?: string; committee?: string }>>;
+  why?: Record<string, Record<string, { terms: string[]; termsEn?: Record<string, string>; line?: string; committee?: string }>>;
   signals: ObjectRecord[];
 }
 
@@ -59,19 +59,23 @@ const gloss = (s: ObjectRecord) => {
   const n = String(s.title).match(/\((\d+)건\)/)?.[1];
   return n ? `${GLOSS[s.sourceType]}, ${n} bills grouped` : GLOSS[s.sourceType];
 };
+/** With an English title: it leads, the original Korean follows in small muted text. Without one: the Korean title and the kind line. */
+const titleOf = (s: ObjectRecord) => (s.titleEn ? { main: String(s.titleEn), ko: String(s.title) } : { main: String(s.title), ko: '' });
 
 /** One record: what matched first (the keyword, and the agenda line it sits on), then a one-line excerpt. */
 function RecordItem({ s, clientId }: { s: ObjectRecord; clientId: string }) {
   const why = LIVE?.why?.[s.id]?.[clientId];
   const excerpt = why?.line ? '' : excerptOf(s);
-  const en = gloss(s);
+  const { main, ko } = titleOf(s);
+  const en = s.titleEn ? GLOSS[s.sourceType] ?? '' : gloss(s);
   return (
     <div className="item rec">
-      <div className="item-title">{/^https:\/\//.test(String(s.url)) ? <a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a> : s.title}</div>
+      <div className="item-title" lang={ko ? 'en' : undefined}>{/^https:\/\//.test(String(s.url)) ? <a href={s.url} target="_blank" rel="noopener noreferrer">{main}</a> : main}</div>
+      {ko && <div className="sub rec-ko" lang="ko">{ko}</div>}
       {en && <div className="sub rec-gloss" lang="en">{en}</div>}
       <div className="rec-meta">
         <span className="chip chip-record">Public record · {s.sourceName}</span>
-        {why && (why.terms.length ? <span className="chip chip-match">Matched: {why.terms.join(', ')}</span> : why.committee && <span className="chip chip-match">Watched committee: {why.committee}</span>)}
+        {why && (why.terms.length ? <span className="chip chip-match">Matched: {why.terms.map((t) => why.termsEn?.[t] ?? t).join(', ')}</span> : why.committee && <span className="chip chip-match">Watched committee: {why.committee}</span>)}
         <span className="sub">{md(s.publishedAt)}{s.publisher ? ` · ${s.publisher}` : ''}</span>
       </div>
       {why?.line && <p className="sub rec-line">{shorten(why.line)}</p>}

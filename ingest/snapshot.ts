@@ -3,7 +3,7 @@
 // Fetches every source once for all profiles in ingest/profiles/, keeps each client's items and writes
 // data/live-snapshot.json: public Signal records (titles, links, dates, institutions, short official excerpts;
 // for news only title, link, outlet and date), which clients each one matched, and every source's fetch result.
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { CONNECTORS } from './connectors/index.ts';
 import { runIngestMany } from './core/runner.ts';
@@ -36,20 +36,24 @@ export interface LiveSnapshot {
 /** Why an item was kept for a client: the keywords that hit and the one agenda or text line where the first hit appears
  * (a meeting agenda or a grouped bill notice is long, so readers see the matching line, not the whole list), or the
  * watched committee when the item was kept for its committee alone. */
-export interface Why { terms: string[]; line?: string; committee?: string }
+export interface Why { terms: string[]; termsEn?: Record<string, string>; line?: string; committee?: string }
+
+/** The English names the profile gives for the terms that hit (only those it has). */
+export const termsEnOf = (profile: MonitoringProfile | undefined, terms: string[]) =>
+  Object.fromEntries(terms.flatMap((t) => { const en = profile?.keywords.find((k) => k.term === t)?.en; return en ? [[t, en]] : []; }));
 
 const MAX_LINE = 140;
-export function why(item: ScoredItem, synonymsOf: (term: string) => string[]): Why {
+export function why(item: ScoredItem, synonymsOf: (term: string) => string[], termsEn: Record<string, string> = {}): Why {
   if (!item.matched.length) return { terms: [], ...(item.committee ? { committee: item.committee } : {}) };
   const pats = item.matched.flatMap((t) => [t, ...synonymsOf(t)]).map((t) => termPattern(t));
   const lines = `${item.excerpt ?? ''}\n${item.matchText ?? ''}`.split(/\n| · |; |, (?=\S+법)/).map((x) => x.trim()).filter(Boolean);
   const hit = lines.find((x) => pats.some((re) => re.test(x.toLowerCase())));
   const line = hit && hit !== item.title ? (hit.length > MAX_LINE ? `${hit.slice(0, MAX_LINE - 1)}…` : hit) : undefined;
-  return { terms: item.matched, ...(line ? { line } : {}) };
+  return { terms: item.matched, ...(Object.keys(termsEn).length ? { termsEn } : {}), ...(line ? { line } : {}) };
 }
 
 /** Picks each client's latest items (at most PER_CLIENT), then the union capped at MAX_ITEMS, newest first. */
-export function buildSnapshot(window: { from: string; to: string }, generatedAt: string, fetched: { sourceId: string; ok: boolean; count: number; error?: string }[], byClient: Map<string, ScoredItem[]>, kept: Map<string, Record<string, number>>, profiles: MonitoringProfile[] = []): LiveSnapshot {
+export function buildSnapshot(window: { from: string; to: string }, generatedAt: string, fetched: { sourceId: string; ok: boolean; count: number; error?: string }[], byClient: Map<string, ScoredItem[]>, kept: Map<string, Record<string, number>>, profiles: MonitoringProfile[] = [], titlesEn: Record<string, string> = {}): LiveSnapshot {
   const synonyms = (clientId: string) => (term: string) => profiles.find((p) => p.clientId === clientId)?.keywords.find((k) => k.term === term)?.synonyms ?? [];
   const reasons: Record<string, Record<string, Why>> = {};
   const newest = (a: ScoredItem, b: ScoredItem) => b.publishedAt.localeCompare(a.publishedAt) || b.score - a.score || a.id.localeCompare(b.id);
@@ -59,7 +63,7 @@ export function buildSnapshot(window: { from: string; to: string }, generatedAt:
     for (const item of [...items].sort(newest).slice(0, PER_CLIENT)) {
       chosen.set(item.id, chosen.get(item.id) ?? item);
       (matches[signalId(item)] ??= []).push(clientId);
-      (reasons[signalId(item)] ??= {})[clientId] = why(item, synonyms(clientId));
+      (reasons[signalId(item)] ??= {})[clientId] = why(item, synonyms(clientId), termsEnOf(profiles.find((p) => p.clientId === clientId), item.matched));
     }
   }
   const items = [...chosen.values()].sort(newest).slice(0, MAX_ITEMS);
@@ -73,10 +77,12 @@ export function buildSnapshot(window: { from: string; to: string }, generatedAt:
     })),
     matches: Object.fromEntries(Object.entries(matches).filter(([id]) => ids.has(id))),
     why: Object.fromEntries(Object.entries(reasons).filter(([id]) => ids.has(id))),
-    signals: toOntology(items).filter((o) => o.type === 'Signal'),
+    // titleEn is an English translation kept by hand in the snapshot; a rebuilt snapshot keeps the ones already written.
+    signals: toOntology(items).filter((o) => o.type === 'Signal').map((o) => (titlesEn[o.id] ? { ...o, titleEn: titlesEn[o.id] } : o)),
   };
 }
 
+const OUT = new URL('../data/live-snapshot.json', import.meta.url);
 if (import.meta.main) {
   const { values } = parseArgs({ options: { from: { type: 'string' }, to: { type: 'string' }, out: { type: 'string' } } });
   const to = values.to ?? kstDate(new Date().toISOString());
@@ -85,7 +91,9 @@ if (import.meta.main) {
   const profiles: MonitoringProfile[] = readdirSync(dir).filter((f) => f.endsWith('.json')).sort().map((f) => JSON.parse(readFileSync(new URL(f, dir), 'utf8')));
   const { fetched, byProfile } = await runIngestMany({ from, to }, profiles, CONNECTORS);
   const kept = new Map([...byProfile].map(([c, r]) => [c, Object.fromEntries(r.perSource.map((s) => [s.sourceId, s.kept]))]));
-  const snap = buildSnapshot({ from, to }, new Date().toISOString(), fetched, new Map([...byProfile].map(([c, r]) => [c, r.items])), kept, profiles);
+  const previous = existsSync(OUT) ? (JSON.parse(readFileSync(OUT, 'utf8')) as LiveSnapshot).signals : [];
+  const titlesEn = Object.fromEntries(previous.filter((s) => s.titleEn).map((s) => [s.id, String(s.titleEn)]));
+  const snap = buildSnapshot({ from, to }, new Date().toISOString(), fetched, new Map([...byProfile].map(([c, r]) => [c, r.items])), kept, profiles, titlesEn);
   const pad = (s: string | number, n: number) => String(s).padEnd(n);
   console.log(`${from} ~ ${to}\n\n${pad('source', 32)}${pad('ok', 5)}${pad('fetched', 9)}${profiles.map((p) => pad(`kept ${p.clientId}`, 16)).join('')}error`);
   for (const s of snap.sources) console.log(`${pad(s.id, 32)}${pad(s.ok ? 'yes' : 'NO', 5)}${pad(s.fetched, 9)}${profiles.map((p) => pad(s.kept[p.clientId], 16)).join('')}${s.error ?? ''}`);

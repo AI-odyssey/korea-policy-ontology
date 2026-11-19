@@ -93,7 +93,7 @@ export const MemberOf = ({ app, personId }: { app: App; personId: string }) => (
 );
 
 export const kindOf = (o: ObjectRecord) =>
-  o.type === 'StakeholderOrg' ? 'Organization' : ({ lawmaker: 'Lawmaker', official: 'Government official', staffer: 'Legislative aide', org_rep: 'Organization representative' } as Record<string, string>)[o.kind] ?? o.type;
+  o.type === 'StakeholderOrg' ? 'Organization' : ({ lawmaker: 'Lawmaker', official: 'Government official', staffer: 'Legislative aide', org_rep: 'Organization representative', academic: 'Academic' } as Record<string, string>)[o.kind] ?? o.type;
 
 // ---- Components ----
 export function MarkTag({ m, app }: { m: Marking; app: App }) {
@@ -184,7 +184,7 @@ const LINK_LABEL: Record<string, [string, string]> = {
   referred_to: ['Referred to', 'Bills referred'], amends: ['Amends', 'Amended by'], about: ['About', 'Related'],
   agenda_item: ['On the agenda', 'On the agenda of'], testifies_at: ['Spoke at', 'Speakers'], regulates: ['Administers', 'Administered by'],
   mentions: ['Names', 'Named in'], affects: ['Affects', 'Affected by'], watches: ['Follows', 'Followed by'],
-  produced_for: ['Prepared for', 'Reports'], raised_by: ['Raised by', 'Raised'],
+  produced_for: ['Prepared for', 'Reports'], raised_by: ['Raised by', 'Raised'], advises: ['Advises', 'Advisers'], coalition_with: ['Joint statement with', 'Joint statement with'],
 };
 // A 0-1 number reads better as a word.
 const strength = (n: number) => (n >= 0.8 ? 'High' : n >= 0.5 ? 'Medium' : 'Low');

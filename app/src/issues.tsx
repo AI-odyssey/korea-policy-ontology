@@ -98,28 +98,28 @@ function nextStep(view: App['view'], f: ResponseFacts): string {
 const days = (n: number) => `${countWord(n).toLowerCase()} day${n === 1 ? '' : 's'}`;
 
 /** The facts behind the level, split into those that raise it and those that keep it from going higher. */
-function levelReasons(app: App, bill: ObjectRecord, f: ResponseFacts, level: string, pos?: ObjectRecord): { up: string[]; down: string[] } {
+function levelReasons(app: App, bill: ObjectRecord, f: ResponseFacts, level: string, since: string, pos?: ObjectRecord): { up: string[]; down: string[] } {
   const { view, client } = app;
   const up: string[] = [];
   const down: string[] = [];
-  if (f.change) up.push(`${STAGE[f.change.to]} on ${md(f.change.date)}.`);
-  else down.push('No change in stage this week.');
+  if (f.change) up.push(`Stage update on ${md(f.change.date)}: ${STAGE[f.change.to]}.`);
+  else down.push(`No change in stage since ${md(since)}.`);
   const near = (n?: number) => n !== undefined && n <= 30;
-  if (near(f.daysToSlot)) up.push(`${cap(forumOf(view, f.slot!))} meets ${md(f.slot!.date)}, in ${days(f.daysToSlot!)}.`);
+  if (near(f.daysToSlot)) up.push(`${cap(forumOf(view, f.slot!))} is scheduled to meet on ${md(f.slot!.date)}, in ${days(f.daysToSlot!)}.`);
   if (near(f.daysToNotice)) {
     const agency = view.sources(bill.id, 'sponsors').find((x) => x.type === 'Institution')?.kind === 'ministry' ? 'ministry' : 'agency';
-    up.push(`The notice period for comments closes ${md(f.notice!.date)}, in ${days(f.daysToNotice!)}; after that the ${agency} finalizes the bill, which reaches the Assembly months later.`);
+    up.push(`The comment period on the legislative notice closes on ${md(f.notice!.date)}, in ${days(f.daysToNotice!)}. The ${agency} then finalizes the bill, which reaches the Assembly months later.`);
   }
-  if (!near(f.daysToSlot) && !near(f.daysToNotice)) down.push('No meeting or notice deadline in the next 30 days.');
-  else if (level !== 'act_now' && Math.min(f.daysToSlot ?? 99, f.daysToNotice ?? 99) > 7) down.push('The next step is more than a week away.');
+  if (!near(f.daysToSlot) && !near(f.daysToNotice)) down.push('No meeting or notice deadline falls within the next 30 days.');
+  else if (level !== 'act_now' && Math.min(f.daysToSlot ?? 99, f.daysToNotice ?? 99) > 7) down.push('The next step is more than seven days away.');
   const wants = pos && ['amend', 'oppose'].includes(pos.stance);
-  const on = pos && pos.targetId !== bill.id ? ' (position on the issue)' : '';
+  const on = pos && pos.targetId !== bill.id ? ' (position set on the issue)' : '';
   if (wants) up.push(`${client.name} ${WANTS[pos!.stance]}${on}.`);
-  else down.push(pos ? `${client.name} ${WANTS[pos.stance]}${on}.` : `${client.name} has no position on this bill yet.`);
-  if (!f.textOpen) down.push('The full committee has passed the text; only wording and delay risk are left.');
-  if (f.slotKind === 'introduction') down.push('The next meeting only introduces the bill; there is no vote.');
-  if (f.impact === 'high') up.push(`High impact on ${client.name}.`);
-  else down.push(f.impact ? `${cap(f.impact)} impact on ${client.name}.` : `No direct impact on ${client.name}.`);
+  else down.push(pos ? `${client.name} ${WANTS[pos.stance]}${on}.` : `${client.name} has no recorded position on this bill.`);
+  if (!f.textOpen) down.push('The full committee has passed the text; only wording and delay risk remain.');
+  if (f.slotKind === 'introduction') down.push('The next meeting is an introduction only; no vote is scheduled.');
+  if (f.impact === 'high') up.push(`Impact on ${client.name} is high.`);
+  else down.push(f.impact ? `Impact on ${client.name} is ${f.impact}.` : `No direct impact on ${client.name} is recorded.`);
   return { up, down };
 }
 
@@ -139,7 +139,7 @@ function BillProfile({ app, bill }: { app: App; bill: ObjectRecord }) {
   const [stance, setStance] = useState(pos?.stance ?? 'monitor');
   const [why, setWhy] = useState('');
 
-  const reasons = levelReasons(app, bill, f, level, pos);
+  const reasons = levelReasons(app, bill, f, level, since, pos);
 
   return (
     <div className="page">
@@ -158,10 +158,10 @@ function BillProfile({ app, bill }: { app: App; bill: ObjectRecord }) {
           <Section title="Status"><p>{STAGE[bill.stage]}{bill.mergedInto ? <> into the <ObjLink id={bill.mergedInto} app={app} /></> : ''}.</p></Section>
         ) : (
           <Section title={`Response level: ${LEVEL[level]}`}>
-            <h3 className="label minor">Why it matters</h3>
-            {reasons.up.length ? <ul className="plain">{reasons.up.map((r) => <li key={r}>{r}</li>)}</ul> : <p className="sub">Nothing on this bill needs attention this week.</p>}
+            <h3 className="label minor">Grounds for this level</h3>
+            {reasons.up.length ? <ul className="plain">{reasons.up.map((r) => <li key={r}>{r}</li>)}</ul> : <p className="sub">No factor on record calls for action on this bill.</p>}
             {level !== 'act_now' && reasons.down.length > 0 && <>
-              <h3 className="label minor">Why not higher</h3>
+              <h3 className="label minor">Factors against a higher level</h3>
               <ul className="plain">{reasons.down.map((r) => <li key={r}>{r}</li>)}</ul>
             </>}
           </Section>

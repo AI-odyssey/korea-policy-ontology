@@ -7,7 +7,7 @@ import { groupSameName } from '../ingest/connectors/assembly-bill-stages.ts';
 import { mergeStories } from '../ingest/core/dedup.ts';
 import { matchItem } from '../ingest/core/match.ts';
 import { keep, runIngestMany } from '../ingest/core/runner.ts';
-import { toOntology } from '../ingest/map.ts';
+import { signalId, toOntology } from '../ingest/map.ts';
 import { buildSnapshot, MAX_ITEMS } from '../ingest/snapshot.ts';
 import type { LiveSnapshot } from '../ingest/snapshot.ts';
 import { validateWorld } from '../ontology/validate.ts';
@@ -145,6 +145,19 @@ describe('snapshot for the demo', () => {
       expect(snap.matches[s.id]?.length).toBeGreaterThan(0);
     }
     expect(snap.sources.length).toBe(11);
+  });
+
+  it('carries English titles and English keyword names through a rebuild and a refilter', async () => {
+    const it1 = scored('n1', '2026-11-10', { title: '실외이동로봇 시범', sourceType: 'news' });
+    const prof = { clientId: 'cli-a', keywords: [{ term: '실외이동로봇', en: 'outdoor mobile robots', priority: 'high' as const }], committees: [], agencies: [] };
+    const id = signalId(it1);
+    const snap = buildSnapshot({ from: '2026-11-04', to: '2026-11-17' }, fetchedAt, [], new Map([['cli-a', [{ ...it1, matched: ['실외이동로봇'], score: 10 }]]]), new Map(), [prof], { [id]: 'Outdoor robot pilot' });
+    expect(snap.signals[0].titleEn).toBe('Outdoor robot pilot');
+    expect(snap.why[id]['cli-a'].termsEn).toEqual({ '실외이동로봇': 'outdoor mobile robots' });
+    const { refilterSnapshot } = await import('../ingest/refilter.ts');
+    const out = refilterSnapshot(snap, [prof]).snapshot;
+    expect(out.signals[0].titleEn).toBe('Outdoor robot pilot');
+    expect(out.why[id]['cli-a'].termsEn).toEqual({ '실외이동로봇': 'outdoor mobile robots' });
   });
 
   it('a trial uses the live fetch results for sources reached when they are supplied', () => {
