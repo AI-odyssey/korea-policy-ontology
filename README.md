@@ -4,7 +4,7 @@ A tool for a company's in-house government-affairs (대관) team, modelled as an
 
 **[Live demo](https://ai-odyssey.github.io/korea-policy-ontology/)** · runs in the browser, no sign-in
 
-![Main flow: approve the week's decision, open the stakeholder it names, approve and send the weekly report](docs/img/main-flow.gif)
+![Main flow: approve the week's decision, open the stakeholder it names, approve the weekly report and send it to leadership](docs/img/main-flow.gif)
 
 The demo opens on a Monday morning at one of three fictional companies, each an example deployment of the same system. A rule-based assistant has already sorted the week's items, picked the one lawmaker worth meeting before this week's committee vote, and drafted the weekly report for leadership. You are the head of government affairs: you review what the assistant and an analyst prepared, and the activity log records who decided what.
 

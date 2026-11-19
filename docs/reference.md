@@ -12,7 +12,7 @@ The app is used directly by a company's in-house government-affairs team, and th
 
 | Stakeholders | Strategy |
 |---|---|
-| ![Stakeholder network and who decides at each stage, with Baek Siwoo selected](img/stakeholders.png) | ![Strategy for one issue: outcome, position, messages, who to persuade, allies, plan](img/strategy.png) |
+| ![Stakeholder map by actor type, with who decides at each stage and Baek Siwoo selected](img/stakeholders.png) | ![Strategy for one issue: outcome, position, messages, who to persuade, allies, plan](img/strategy.png) |
 
 | Ontology | This week at phone width |
 |---|---|
