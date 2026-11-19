@@ -1,6 +1,6 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
-// App shell: one in-memory Store persisted to localStorage. The viewer is the engagement lead for one client:
-// they see the public record plus that client's confidential layer, and they approve what the assistant proposes.
+// App shell: one in-memory Store persisted to localStorage. The viewer is the head of government affairs at one company:
+// they see the public record plus that company's confidential layer, and they review what the assistant and the analysts propose.
 import { StrictMode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button, HTMLSelect } from '@blueprintjs/core';
@@ -70,7 +70,7 @@ const loadStore = (): Store => {
 const hhmm = () => new Date().toTimeString().slice(0, 5);
 
 const LEFT = [['week', 'This week'], ['issues', 'Issues & bills'], ['stakeholders', 'Stakeholders'], ['strategy', 'Strategy']] as const;
-const RIGHT = [['reports', 'Reports'], ['activity', 'Activity log'], ['assistant', 'Assistant run'], ['settings', 'Settings'], ['ontology', 'Ontology']] as const;
+const RIGHT = [['reports', 'Reports'], ['activity', 'Activity log'], ['assistant', 'AI work log'], ['settings', 'Settings'], ['ontology', 'Ontology']] as const;
 const SCREENS: string[] = [...LEFT, ...RIGHT].map(([id]) => id);
 
 const parseHash = () => {
@@ -79,7 +79,7 @@ const parseHash = () => {
 };
 
 // When the demo opens it is Monday morning: the weekly assistant has filed clear matches, raised decisions and drafted
-// reports for each client, and a consultant has asked for a position change. All of it waits for the engagement lead.
+// reports for each company, and an analyst has asked for a position change. All of it waits for the head of government affairs.
 const primed = new WeakSet<Store>();
 async function prime(store: Store): Promise<Record<string, AgentRun>> {
   if (primed.has(store) || store.auditEntries({ actor: 'x', role: 'principal', clientIds: CLIENT_IDS }).length) return {};
@@ -192,15 +192,15 @@ function Root() {
 
   return (
     <>
-      <div className="banner">Demo with fictional clients, people, bills and events. Only items marked Public record are real.</div>
+      <div className="banner">Demo with fictional companies, people, bills and events. Only items marked Public record are real.</div>
       <div className="wrap">
         <header className="top">
           <b className="brand">Korea Policy Ontology <span className="demo-tag">Demo</span></b>
           <span className="sub nowrap asof">As of {md(store.baseDate)}, {store.baseDate.slice(0, 4)}</span>
-          <HTMLSelect minimal value={clientId} onChange={(e) => (setClientId(e.target.value), setNotice(undefined), setInspect(undefined))} options={clients.map((c) => ({ value: c.id, label: `${c.name} (fictional client)` }))} aria-label="Fictional client" className="client" />
+          <HTMLSelect minimal value={clientId} onChange={(e) => (setClientId(e.target.value), setNotice(undefined), setInspect(undefined))} options={clients.map((c) => ({ value: c.id, label: `${c.name} (fictional company)` }))} aria-label="Fictional company" className="client" />
           <MarkTag m={clientMarking(clientId)} app={app} />
           <span className="spacer" />
-          <span className="sub nowrap viewing">Viewing as engagement lead</span>
+          <span className="sub nowrap viewing">Head of government affairs</span>
           <Button className="reset" size="small" variant="minimal" text="Reset" onClick={reset} />
         </header>
         <nav className="nav" aria-label="Screens">

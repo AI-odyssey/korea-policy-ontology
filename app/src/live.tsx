@@ -1,7 +1,7 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
 // Latest public records: real items from data/live-snapshot.json (built by `npm run ingest:snapshot`). They are public
 // Signal records kept apart from the fictional store, so the assistant, briefs and reports never read them. Each item
-// shows its source and opens the official page; the list is filtered by the selected client's monitoring profile.
+// shows its source and opens the official page; the list is filtered by the selected company's monitoring profile.
 import { useState } from 'react';
 import { Button } from '@blueprintjs/core';
 import type { ObjectRecord } from '../../ontology/index.ts';
@@ -84,7 +84,7 @@ function RecordItem({ s, clientId }: { s: ObjectRecord; clientId: string }) {
   );
 }
 
-/** The client's latest public records; with `filters`, a row of source buttons above the list. */
+/** The company's latest public records; with `filters`, a row of source buttons above the list. */
 export function PublicRecords({ app, limit, filters }: { app: App; limit: number; filters?: boolean }) {
   const [kind, setKind] = useState('all');
   const [all, setAll] = useState(false);

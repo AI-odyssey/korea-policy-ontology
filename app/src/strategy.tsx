@@ -50,7 +50,7 @@ function Plan({ app, s, impact }: { app: App; s: ObjectRecord; impact?: string }
           <h3 className="label">Desired outcome</h3>
           {editing ? <TextArea fill autoResize value={outcome} onChange={(e) => setOutcome(e.target.value)} aria-label="Desired outcome" /> : <p className="outcome">{s.desiredOutcome}</p>}
           {pos && <>
-            <h3 className="label">Client position</h3>
+            <h3 className="label">Company position</h3>
             <p className="sub">{pos.rationale}</p>
           </>}
           <h3 className="label">Key messages</h3>

@@ -4,11 +4,11 @@ Details behind the [README](../README.md): how each screen maps to the ontology,
 
 ## Screens
 
-The viewer is the engagement lead for one client at a time: Aster Robotics (sidewalk delivery robots), Moru Foods (cultivated protein) or Wrenfield Pay (a foreign payments firm entering Korea). Every screen shows the records shared across clients plus that client's confidential layer; an object's panel says which one it belongs to. When the demo opens it is Monday morning: the weekly assistant has run for each client, and a consultant has asked to change one of Aster's positions. Their work waits for the lead's approval.
+The app is used directly by a company's in-house government-affairs team, and the viewer is its head of government affairs. The header select switches between three example deployments: Aster Robotics (sidewalk delivery robots), Moru Foods (cultivated protein) and Wrenfield Pay (a foreign payments firm entering Korea). Every screen shows the records shared across deployments plus that company's confidential layer; an object's panel says which one it belongs to. When the demo opens it is Monday morning: the weekly assistant has run for each company, and an analyst has asked to change one of Aster's positions. Their work waits for the head of government affairs to review.
 
 | This week | Issues & bills |
 |---|---|
-| ![This week: headline, requests waiting for approval, the decision needed](img/this-week.png) | ![Issues and bills with response levels and next steps](img/issues-bills.png) |
+| ![This week: headline, items to review, the decision for leadership](img/this-week.png) | ![Issues and bills with response levels and next steps](img/issues-bills.png) |
 
 | Stakeholders | Strategy |
 |---|---|
@@ -32,38 +32,38 @@ Objects become screens, actions become buttons, and approvals become entries in 
 
 | On screen | In the ontology |
 |---|---|
-| This week: headline | `responseLevel` on the bills the engagement follows; the most pressing one leads |
-| **Waiting for your approval** | Pending requests (`addRiskOpportunity` from the assistant, `setClientPosition` or `updateStrategy` from a consultant, each with its requester) and reports in review. The Assistant run screen shows the same list |
-| **Decisions needed**: **Approve**, **Choose an alternative**, **Decline**, **Source** | Open `Decision` objects and the meeting notice they were raised from; `resolveDecision`, which creates a short follow-up `Task` due before the meeting. A decision whose premise changed (the stance of the person it names) is marked **Out of date** and can be regenerated |
+| This week: headline | `responseLevel` on the bills the team follows; the most pressing one leads |
+| **To review** | What the assistant or an analyst changed or drafted: pending requests (`addRiskOpportunity` from the assistant, `setClientPosition` or `updateStrategy` from an analyst, each saying who proposed it) and reports in review. The head of government affairs approves or declines. The AI work log screen shows the same list |
+| **Decisions for leadership**: **Approve**, **Choose an alternative**, **Decline**, **Source** | Open `Decision` objects and the meeting notice they were raised from; `resolveDecision`, which creates a short follow-up `Task` due before the meeting. A decision whose premise changed (the stance of the person it names) is marked **Out of date** and can be regenerated |
 | **Risks** and **Opportunities** | `RiskOpportunity`, tagged high or medium impact and imminent, in progress or ongoing, in the order of the bills they concern |
-| **Timeline and actions** | Everything dated from the as-of date through the next 30 days, none cut: scheduled `Event`s, open `Task`s (the team's, the assistant's and the client's) and the due date of each open `Decision`. The report's Coming up lists the same window and leaves out the team's own work and open decisions |
+| **Timeline and actions** | Everything dated from the as-of date through the next 30 days, none cut: scheduled `Event`s, open `Task`s (the team's, the assistant's and the ones needed from other teams) and the due date of each open `Decision`. The report's Coming up lists the same window and leaves out the team's own work and open decisions |
 | **Stakeholder moves** | What assessed people and organizations said or did this week: the subject of a confirmed item, a speaker in the minutes, a remark on record at a meeting, or an `Interaction` |
-| **Asks of the client**, **Mark received** | `Task` with owner `client`; `completeTask` |
-| **New items to confirm**, **Confirm**, **Not relevant** | The assistant's triage proposals below 0.8 confidence for this client; `triageSignal` writes a `SignalTriage` in the client's layer and never edits the shared item, so one client's filing does not change another client's queue. Items waiting here feed no report, move or decision |
-| **Latest public records** (This week, Issues & bills) | Public `Signal` records (`provenance: public`) from `data/live-snapshot.json` that matched the client's monitoring profile, newest first, each with the keyword that matched and the agenda line it sits on; kept out of the fictional store, so the assistant, briefs and reports never use them |
-| **Filed automatically**, **Undo** | Items the assistant filed at 0.8 or above; `reopenSignal` returns one to this client's queue |
+| **Needed from other teams**, **Mark received** | `Task` with owner `client`, whose title ends with the team that has to provide it (for example "Cargo model width and stopping-distance data · Engineering"); `completeTask` |
+| **New items to confirm**, **Confirm**, **Not relevant** | The assistant's triage proposals below 0.8 confidence for this company; `triageSignal` writes a `SignalTriage` in the company's layer and never edits the shared item, so one company's filing does not change another's queue. Items waiting here feed no report, move or decision |
+| **Latest public records** (This week, Issues & bills) | Public `Signal` records (`provenance: public`) from `data/live-snapshot.json` that matched the company's monitoring profile, newest first, each with the keyword that matched and the agenda line it sits on; kept out of the fictional store, so the assistant, briefs and reports never use them |
+| **Filed automatically**, **Undo** | Items the assistant filed at 0.8 or above; `reopenSignal` returns one to this company's queue |
 | Issues & bills, bill profile | `Issue` (through `affects`), `Bill` (through `about`), `stageHistory`, `stageGates`, `mentions`, `ClientPosition` (every issue shows Support, Amend, Oppose or No position), and the facts behind `responseLevel`, split into why the bill matters and why it is not higher |
 | **Change position** | `setClientPosition` |
 | Stakeholders graph | `stakeholderNetwork`: `StakeholderAssessment` nodes (lawmakers, officials, associations, civic groups, academics), edges typed by the actors they join and derived from public links: co-sponsored bill, oversight (the chair or a secretary of the committee whose jurisdiction, from `referred_to`, `amends` and `regulates`, covers the official's agency), `advises`, shared `testifies_at` events on the issue between non-lawmakers, `coalition_with` joint statements |
 | **Who decides at each stage** | `stageGates`: date and the chair and secretaries for the subcommittee, full committee, Legislation and Judiciary Committee and plenary |
 | Object panel: Properties, Links, Actions | The selected object, its links, and **Request meeting** (`createTask`), **Update stance** (`assessStakeholder`), **Log contact** (`logInteraction`) |
 | Strategy, **Edit** | `Strategy` with targets (`StakeholderAssessment`), allies (`StakeholderOrg`) and plan (`Task`); `updateStrategy` |
-| Reports: **Send for review**, **Approve**, **Send to client** | `Deliverable`; `submitForReview`, `approveDeliverable`, `sendDeliverable` (simulated). The weekly report renders the same brief as This week and is rebuilt after every approval (`redraftDeliverable`); an approved report that changes goes back to review, so a stale one cannot be sent |
-| Activity log | The audit log: when, who (collector, assistant, consultant, engagement lead), what, result, decided by. A request that waited for approval shows its outcome, who decided and when on its own row |
-| Assistant run | The steps of `runWeeklyAgent` in plain words, and what still waits for approval |
-| Settings: **Objectives**, **Keywords**, **Coverage** | `MonitoringProfile`: objectives with priority 1 to 3, keywords with priority, synonyms and exclusions, committees, agencies and source types; `updateMonitoringProfile` (a consultant's change waits for the lead). Triage scores each new item for the client with `profileMatch` |
-| Settings: **Trial** | `PilotEvaluation`: the client's must-catch list (`addExpectedItem`), what the profile caught in the window (`startPilot`), **Relevant** / **Irrelevant** (`markRelevance`), targets (`setPilotCriteria`), `pilotMetrics` against them, `closePilot` |
+| Reports: **Send for review**, **Approve**, **Send to leadership** | `Deliverable`; `submitForReview`, `approveDeliverable`, `sendDeliverable` (simulated). The weekly report renders the same brief as This week and is rebuilt after every approval (`redraftDeliverable`); an approved report that changes goes back to review, so a stale one cannot be sent |
+| Activity log | The audit log: when, who (collector, assistant, analyst, head of government affairs), what, result, decided by. A request that waited for approval shows its outcome, who decided and when on its own row |
+| AI work log | The steps of `runWeeklyAgent` in plain words, and what still waits for review |
+| Settings: **Objectives**, **Keywords**, **Coverage** | `MonitoringProfile`: objectives with priority 1 to 3, keywords with priority, synonyms and exclusions, committees, agencies and source types; `updateMonitoringProfile` (an analyst's change waits for the head of government affairs). Triage scores each new item for the company with `profileMatch` |
+| Settings: **Trial** | `PilotEvaluation`: the team's must-catch list (`addExpectedItem`), what the profile caught in the window (`startPilot`), **Relevant** / **Irrelevant** (`markRelevance`), targets (`setPilotCriteria`), `pilotMetrics` against them, `closePilot` |
 | Ontology | `ontology/schema.ts`, rendered |
 
 A bill carries a response level (**Act now**, **Engage**, **Monitor**, **Watch**) with its reasons. A meeting with the bill on the agenda and the close of a legislative notice period both count as a scheduled step. The rules are in `ontology/functions.ts` and [ADR-0009](decisions/ADR-0009-categorical-response-levels.md), including a case the first rule got wrong.
 
 ## How the assistant picks a decision
 
-For each followed bill at Act now, the assistant looks at the bill's next meeting, takes the people who control that agenda from `stageGates`, and picks one the client rates high influence whose stance is opposed or unconfirmed. It skips anyone an open plan step already covers. For Aster this week that is Baek Siwoo, the lead sponsor of the sidewalk robot duties bill; the committee chair and the subcommittee chair already have plan steps (a briefing on timing, a briefing on the wording). The decision names him, says why, states what Aster wants, offers the trade of accepting the bill as it stands, and is due two working days before the committee meets, or today when the meeting is too close.
+For each followed bill at Act now, the assistant looks at the bill's next meeting, takes the people who control that agenda from `stageGates`, and picks one the company rates high influence whose stance is opposed or unconfirmed. It skips anyone an open plan step already covers. For Aster this week that is Baek Siwoo, the lead sponsor of the sidewalk robot duties bill; the committee chair and the subcommittee chair already have plan steps (a briefing on timing, a briefing on the wording). The decision names him, says why, states what Aster wants, offers the trade of accepting the bill as it stands, and is due two working days before the committee meets, or today when the meeting is too close.
 
 ## Live data
 
-`ingest/` collects real public items for each client profile in `ingest/profiles/` and maps them to `Signal` and `Evidence` records with `provenance: public`, `synthetic: false` and the official link. The validator accepts public records only for those two types; people, clients and the whole client layer stay synthetic, and nothing collected becomes a stakeholder assessment or a stance.
+`ingest/` collects real public items for each company profile in `ingest/profiles/` and maps them to `Signal` and `Evidence` records with `provenance: public`, `synthetic: false` and the official link. The validator accepts public records only for those two types; people, companies and the whole company layer stay synthetic, and nothing collected becomes a stakeholder assessment or a stance.
 
 | Source | What it adds | Connector |
 |---|---|---|
@@ -104,14 +104,14 @@ flowchart LR
   subgraph ONT[Ontology]
     direction TB
     PUB["Public layer: Issue, Bill, Provision, Institution, Person, StakeholderOrg, Event, Signal, Evidence"]
-    CLI["Client layer: Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation, SignalTriage"]
+    CLI["Company layer: Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation, SignalTriage"]
     CLI -->|refers to| PUB
   end
   FN["Functions: whatChanged, responseLevel, stageGates, stakeholderNetwork, keyPeople, upcomingDeadlines, issueExposure, billRiskScore, profileMatch, pilotMetrics"]
   UI["Screens"]
   AG["Assistant"]
   ACT["Actions: role-checked, validated"]
-  LEAD["Engagement lead"]
+  LEAD["Head of government affairs"]
   LOG[("Activity log")]
   GATE["Provider gate"]
   LLM["Language model adapter (off)"]
@@ -166,24 +166,24 @@ erDiagram
 | | |
 |---|---|
 | Public layer (marking `PUBLIC`) | Issue, Bill, Provision, Institution, Person, StakeholderOrg, Event, Signal, Evidence |
-| Client layer (marking `CLIENT:<clientId>`) | Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation, SignalTriage |
-| Roles | `system` (collector), `agent` (assistant), `consultant`, `principal` (shown as engagement lead) |
+| Company layer (marking `CLIENT:<clientId>`; the type names keep the word client) | Client, Engagement, ClientPosition, Interaction, Deliverable, Decision, Task, StakeholderAssessment, RiskOpportunity, Strategy, MonitoringProfile, PilotEvaluation, SignalTriage |
+| Roles | `system` (collector), `agent` (assistant), `consultant` (shown as analyst), `principal` (shown as head of government affairs) |
 
-Every link between public objects needs at least one `Evidence` record (source, excerpt, method, confidence); the validator enforces it. A client's read of a public person is a separate `StakeholderAssessment` in that client's layer, never a property of the `Person` ([ADR-0010](decisions/ADR-0010-client-judgments-in-client-layer.md)). A stance other than `unconfirmed` needs at least one basis record, and only people can set it.
+Every link between public objects needs at least one `Evidence` record (source, excerpt, method, confidence); the validator enforces it. The company's read of a public person is a separate `StakeholderAssessment` in the company's layer, never a property of the `Person` ([ADR-0010](decisions/ADR-0010-client-judgments-in-client-layer.md)). A stance other than `unconfirmed` needs at least one basis record, and only people can set it.
 
 ## Security model in brief
 
-Objects carry markings. Every read goes through `store.as(ctx)`, where the context is the actor, the role and the client ids the caller is assigned to; the filter sits in the runtime, below the screens. The assistant's context holds one client. One action call may touch only one client layer, so an Aster record cannot cite a Moru meeting. Activity-log entries are filed under the client whose workspace the action ran in, even when the action touched only public objects. Client-marked objects reach a language model only if the provider is on an allow-list, which is empty by default. Approval rules and the full permission matrix are in [docs/ontology.md](ontology.md#permission-matrix); threats and tests are in [docs/security-model.md](security-model.md).
+Objects carry markings. Every read goes through `store.as(ctx)`, where the context is the actor, the role and the company ids the caller is assigned to; the filter sits in the runtime, below the screens. The assistant's context holds one company. One action call may touch only one company layer, so an Aster record cannot cite a Moru meeting. Activity-log entries are filed under the company whose workspace the action ran in, even when the action touched only public objects. Objects with a company marking reach a language model only if the provider is on an allow-list, which is empty by default. Approval rules and the full permission matrix are in [docs/ontology.md](ontology.md#permission-matrix); threats and tests are in [docs/security-model.md](security-model.md).
 
 ## The fictional world
 
 Generated by `data/seed.ts` with seed `20261116`, as of 2026-11-16, and committed as `data/world.json`. The institutions, their jurisdiction and the procedure are real: bills go to the standing committee that holds the law (robot certification and insurance to the trade and industry committee, foreign exchange to the finance, economy and planning committee), the majority secretary chairs the bill review subcommittee, committee chairs have three or more terms, government bills have no number until they leave the 40-day notice, and a committee alternative exists only once the full committee adopts it. The robot bills amend the rules in force since November 2023. Invented names were checked against the 22nd National Assembly member list and against existing companies.
 
-| Public layer | Count | Client layer | Count |
+| Public layer | Count | Company layer | Count |
 |---|---|---|---|
-| Issues | 11 | Clients | 3 |
-| Bills | 33 (4 folded into an alternative, 1 withdrawn, 1 passed, 2 in legislative notice) | Engagements | 3 |
-| Provisions | 18 | Client positions | 12 |
+| Issues | 11 | Companies (`Client`) | 3 |
+| Bills | 33 (4 folded into an alternative, 1 withdrawn, 1 passed, 2 in legislative notice) | Monitoring setups (`Engagement`) | 3 |
+| Provisions | 18 | Company positions | 12 |
 | Institutions | 20 | Interactions | 10 |
 | People | 60 (36 lawmakers) | Deliverables | 7 |
 | Stakeholder organizations | 13 | Decisions | 3 (the assistant raises three more on Monday) |
@@ -193,7 +193,7 @@ Generated by `data/seed.ts` with seed `20261116`, as of 2026-11-16, and committe
 | Links | 890 | Strategies | 11 |
 | | | Monitoring profiles | 3 |
 | | | Trials | 1 (Wrenfield Pay, Oct 12 to 25: 12 must-catch items, 3 missed; ended, not yet closed) |
-| | | Signal triage records | none in the seed; each client's filings this week are written by its assistant and people |
+| | | Signal triage records | none in the seed; each company's filings this week are written by its assistant and people |
 
 ## Tests
 
@@ -203,13 +203,13 @@ Generated by `data/seed.ts` with seed `20261116`, as of 2026-11-16, and committe
 | `tests/client-layer.test.ts` | Assessments, risks, strategies, the stance-needs-a-basis rule, activity-log markings, `stageGates`, `stakeholderNetwork` |
 | `tests/approval.test.ts` | Approval gate, send blocked until approval, audit log, stage rules, numbering on submission, undoing a triage |
 | `tests/settings.test.ts` | Settings and trial permissions and approval, isolation, `pilotMetrics` on the seeded trial, `profileMatch` priorities, synonyms and exclusions, triage reading the profile |
-| `tests/agent.test.ts` | The weekly run, decision target selection, no duplicate of a plan step, follow-up due before the meeting, the report's order and exclusions, the opening state, client scope, the provider gate in a run |
+| `tests/agent.test.ts` | The weekly run, decision target selection, no duplicate of a plan step, follow-up due before the meeting, the report's order and exclusions, the opening state, company scope, the provider gate in a run |
 | `tests/functions.test.ts` | Determinism, risk breakdown, `responseLevel` rules including the opposed-without-a-move case, review-queue evidence ignored |
 | `tests/world.test.ts` | `world.json` equals the generator output, size ranges, validator catches each rule violation |
-| `tests/isolation.test.ts` | No cross-client reads, writes or references; frozen records; audit-log isolation |
+| `tests/isolation.test.ts` | No cross-company reads, writes or references; frozen records; audit-log isolation |
 | `tests/ingest.test.ts` | Assembly Open API and news parsers on recorded responses, story merging, keyword matching, the runner, mapping to `Signal` and `Evidence` |
 | `tests/live.test.ts` | Matching across word boundaries, committee scope, merging differently worded copies, one fetch for several profiles, public records in the validator, the committed snapshot, trial reach from live fetch results |
-| `tests/consistency.test.ts` | Per-client triage queues, citations that name the right notice, moves only where the person is the subject or speaker, unconfirmed items kept out, the report rebuilt after approvals, out-of-date decisions, notice periods in `responseLevel`, the run's wording, why a live record matched |
+| `tests/consistency.test.ts` | Per-company triage queues, citations that name the right notice, moves only where the person is the subject or speaker, unconfirmed items kept out, the report rebuilt after approvals, out-of-date decisions, notice periods in `responseLevel`, the run's wording, why a live record matched |
 | `tests/gate.test.ts` | The provider gate itself |
 | `tests/docs.test.ts` | `docs/ontology.md` is the generated file and lists exactly the schema |
 | `tests/provenance.test.ts` | Every source file carries the copyright header |
@@ -235,13 +235,13 @@ tests/      vitest
 | [0001](decisions/ADR-0001-ontology-over-dashboard.md) | Ontology instead of a dashboard or a chatbot |
 | [0002](decisions/ADR-0002-signal-and-evidence.md) | Signal as an object, Evidence on every public link |
 | [0003](decisions/ADR-0003-markings-and-caller-context.md) | Markings and caller-context filtering |
-| [0004](decisions/ADR-0004-approval-gates.md) | Approval gates for client-facing actions |
+| [0004](decisions/ADR-0004-approval-gates.md) | Approval gates for actions that reach leadership |
 | [0005](decisions/ADR-0005-rules-first-triage.md) | Rules and human review for triage; the model only behind a provider gate |
 | [0006](decisions/ADR-0006-static-demo.md) | Static, serverless demo |
 | [0007](decisions/ADR-0007-deterministic-synthetic-world.md) | Deterministic synthetic world |
 | [0008](decisions/ADR-0008-fictional-data-policy.md) | Fictional data policy |
 | [0009](decisions/ADR-0009-categorical-response-levels.md) | Categorical response levels on screen, and the case the first rule missed |
-| [0010](decisions/ADR-0010-client-judgments-in-client-layer.md) | Client judgments about public stakeholders live in the client layer |
+| [0010](decisions/ADR-0010-client-judgments-in-client-layer.md) | The company's judgments about public stakeholders live in the company layer |
 
 ## Limits
 

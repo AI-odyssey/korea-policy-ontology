@@ -1,5 +1,5 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
-// The weekly brief: what the client's executives read. The This week screen and the weekly report both render it,
+// The weekly brief: what the head of government affairs works from and what company leadership reads. The This week screen and the weekly report both render it,
 // so the page and the report say the same things in the same order.
 import type { ObjectRecord, View } from '../ontology/runtime.ts';
 import { addDays, monthDay } from '../ontology/dates.ts';
@@ -37,7 +37,7 @@ const WANTS: Record<string, string> = { amend: 'wants it amended', oppose: 'oppo
 
 export interface RankedBill { bill: ObjectRecord; level: ResponseLevel; facts: ResponseFacts }
 
-/** Open bills the engagement follows, most pressing first: response level, then the nearest meeting. */
+/** Open bills the team follows, most pressing first: response level, then the nearest meeting. */
 export function rankedBills(view: View, clientId: string, since: string): RankedBill[] {
   const eng = view.list('Engagement', (e) => e.clientId === clientId)[0];
   if (!eng) return [];
@@ -57,7 +57,7 @@ export function headline(view: View, clientId: string, top?: RankedBill): { head
   return { headline: h, lead };
 }
 
-export const decisionsLine = (n: number) => (n === 0 ? 'No decision is needed this week.' : `${countWord(n)} decision${n === 1 ? ' is' : 's are'} needed this week.`);
+export const decisionsLine = (n: number) => (n === 0 ? 'No decision for leadership this week.' : `${countWord(n)} decision${n === 1 ? '' : 's'} for leadership this week.`);
 
 /** Risks or opportunities in the order of the bills they concern: response level, then impact, then urgency. */
 export function orderedRiskOpportunities(view: View, clientId: string, since: string, kind: 'risk' | 'opportunity'): ObjectRecord[] {
@@ -98,9 +98,14 @@ const SLOT_KINDS = ['full_committee', 'subcommittee', 'plenary'];
 
 /** The timeline and the report's Coming up list both cover this many days from the as-of date, that date included. */
 export const TIMELINE_DAYS = 30;
-/** internal: the team's own work and open decisions; client-facing output leaves them out. */
+/** internal: the GR team's own work and open decisions; the report to leadership leaves them out. */
 export interface TimelineItem { date: string; title: string; who: string; status: string; id: string; urgent?: boolean; internal?: boolean }
-export const OWNER: Record<string, string> = { human: 'Our team', agent: 'Assistant', client: 'Client' };
+export const OWNER: Record<string, string> = { human: 'Our team', agent: 'Assistant', client: 'Other teams' };
+/** A task needed from another team names it after a middle dot: "Cargo model data · Engineering". */
+export const splitTeam = (title: string): { what: string; team?: string } => {
+  const [what, team] = title.split(' · ');
+  return { what, team };
+};
 const STEP_NOTE: Record<string, string> = { introduction: 'introduction only, no vote', wording: 'wording review only', plenary: 'plenary vote on the settled text' };
 /** "Full committee: A, B; C (introduction only, no vote)". Bills whose step is a review or a vote are listed plainly. */
 function meetingTitle(view: View, what: string, e: ObjectRecord, billIds: string[]): string {
@@ -113,9 +118,9 @@ function meetingTitle(view: View, what: string, e: ObjectRecord, billIds: string
 }
 
 /**
- * Dated items from the as-of date through the next TIMELINE_DAYS days: meetings on any bill that affects the client and is followed
- * or at engage or above, tasks (the team's and the client's), and open decisions. An item is urgent when such a bill is at engage
- * or above and its step falls within 7 days. Client-facing output leaves out the team's own tasks and open decisions.
+ * Dated items from the as-of date through the next TIMELINE_DAYS days: meetings on any bill that affects the company and is followed
+ * or at engage or above, tasks (the GR team's and the ones needed from other teams), and open decisions. An item is urgent when such a bill
+ * is at engage or above and its step falls within 7 days. Output for leadership leaves out the GR team's own tasks and open decisions.
  */
 export function timeline(view: View, clientId: string, opts: { clientFacing?: boolean; since?: string } = {}): TimelineItem[] {
   const since = opts.since ?? addDays(view.baseDate, -7);
@@ -126,12 +131,13 @@ export function timeline(view: View, clientId: string, opts: { clientFacing?: bo
   const pressing = (id: string) => LEVEL_RANK[levelOf(id)] <= LEVEL_RANK.engage;
   const items: TimelineItem[] = [];
   for (const x of view.list('Decision', (d) => d.clientId === clientId && d.status === 'open' && d.dueDate && d.dueDate <= addDays(view.baseDate, TIMELINE_DAYS))) {
-    items.push({ date: x.dueDate, title: `Decision due: ${String(x.followUp ?? x.question).replace(/\?$/, '')}`, who: 'Engagement lead', status: 'To decide', id: x.id, internal: true });
+    items.push({ date: x.dueDate, title: `Decision due: ${String(x.followUp ?? x.question).replace(/\?$/, '')}`, who: 'Leadership', status: 'To decide', id: x.id, internal: true });
   }
   for (const d of upcomingDeadlines(view, clientId, TIMELINE_DAYS)) {
     const o = view.get(d.objectId)!;
     if (d.kind === 'task') {
-      items.push({ date: d.date, title: o.title, who: OWNER[o.owner], status: 'To do', id: o.id, ...(o.owner === 'client' ? {} : { internal: true }) });
+      const { what, team } = splitTeam(o.title);
+      items.push({ date: d.date, title: what, who: o.owner === 'client' ? team ?? OWNER.client : OWNER[o.owner], status: 'To do', id: o.id, ...(o.owner === 'client' ? {} : { internal: true }) });
       continue;
     }
     const bills = d.billIds.filter((b) => watched.has(b) || pressing(b));

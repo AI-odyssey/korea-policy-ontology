@@ -766,7 +766,7 @@ export function generateWorld(): World {
     for (const n of WATCHED_BILLS[id]) link('watches', `eng-${key}`, billId(n), undefined, false, m);
   }
 
-  // Position rationales name the client: "we" on screen is the consulting team.
+  // Position rationales name the company; "we" on screen is the company's government-affairs team.
   const P = (clientKey: string, n: number, target: string, stance: string, rationale: string) =>
     add('ClientPosition', `pos-${clientKey}-${n}`, { clientId: `cli-${clientKey}`, targetId: target, stance, rationale, setBy: `consultant-${clientKey}-1`, approvedBy: 'principal-1' });
   P('aster', 1, 'bill-001', 'amend', 'Aster Robotics backs sidewalk access for cargo-class robots and wants the stop rule replaced by a duty to slow to walking pace and give way.');
@@ -801,7 +801,7 @@ export function generateWorld(): World {
     add('Deliverable', `del-${key}-${n}`, { clientId: `cli-${key}`, kind, title, status, body, createdBy: kind === 'weekly_report' ? 'agent-1' : `consultant-${key}-1`, ...extra });
     link('produced_for', `del-${key}-${n}`, `eng-${key}`, undefined, false, clientMarking(`cli-${key}`));
   };
-  const RESEARCH_DUE = '2026-11-17'; // Moru's label comprehension research: the client ask, and the date its meeting notes quote
+  const RESEARCH_DUE = '2026-11-17'; // Moru's label comprehension research: the Marketing ask, and the date its meeting notes quote
   const COMMENTS_BY = '2026-11-26'; // Wrenfield's comments on the prepaid notice: the plan step, and the date its brief quotes
   const sentExtra = { approvedBy: 'principal-1', sentAt: '2026-11-09T10:00:00Z' };
   const md = (d: string) => monthDay(d);
@@ -810,7 +810,7 @@ export function generateWorld(): World {
     '# Issue brief: sidewalk rules for outdoor mobile robots', '',
     '## Situation', '',
     `Since November 2023, certified outdoor mobile robots of up to 500 kg and 15 km/h count as pedestrians and may use sidewalks. The sidewalk robot duties bill (${billNo(1)}) passed the Public Administration and Security bill review subcommittee on ${md(lastOf(1))} and goes to the full committee on ${md(meetingOf('inst-pasc'))}.`, '',
-    '## Client position', '',
+    '## Company position', '',
     'Aster Robotics backs sidewalk access for cargo-class robots and wants the stop rule replaced by a duty to slow to walking pace and give way.', '',
     '## What changes', '',
     'The subcommittee text lets cargo-class robots up to 1,000 mm wide use sidewalks at least 3 m wide, but makes them stop for any pedestrian within 2 m. On narrower sidewalks that would stall most of Aster Robotics\' city routes.', '',
@@ -827,7 +827,7 @@ export function generateWorld(): World {
   const MORU_NOTES = [
     '# Meeting notes: health committee aide', '',
     'The aide asked for evidence that shoppers understand descriptive terms on cultivated products. Talking points for the follow-up meeting:', '',
-    `- Lead with the label comprehension research Moru Foods is preparing (due ${md(RESEARCH_DUE)}), in particular what it shows about the origin line on the front label.`,
+    `- Lead with the label comprehension research that Marketing is preparing (due ${md(RESEARCH_DUE)}), in particular what it shows about the origin line on the front label.`,
     '- Moru Foods opposes a blanket ban on meat terms because it would block accurate descriptive labels; it supports a mandatory origin line instead.',
     `- The bill review subcommittee takes up the meat terms restriction bill on ${md(meetingOf('inst-hwc-brs'))}, so the research summary should reach the office before then.`,
   ].join('\n');
@@ -835,12 +835,12 @@ export function generateWorld(): World {
     '# Issue brief: prepaid balance safeguarding', '',
     '## Situation', '',
     `The Financial Services Commission has put a government bill on prepaid balance safeguarding out for legislative notice. Comments close on ${md(B.find((b) => b.n === 26)!.noticeEnd!)}. The commission must consider them but is not bound, and the text can still change in regulatory review, the Ministry of Government Legislation and the Cabinet before the bill reaches the National Assembly, usually months later.`, '',
-    '## Client position', '',
+    '## Company position', '',
     'Wrenfield Pay already keeps prepaid funds in a segregated trust account and has no position on the bill until the final standard is known.', '',
     '## What changes', '',
     'The bill would require every prepaid issuer to hold customer funds apart from operating funds, through a trust account or a payment guarantee.', '',
     '## Next steps', '',
-    `We file comments by ${md(COMMENTS_BY)} asking that existing trust accounts count as compliant, and send the supervisory service the fund segregation procedure once Wrenfield Pay provides it.`,
+    `We file comments by ${md(COMMENTS_BY)} asking that existing trust accounts count as compliant, and send the supervisory service the fund segregation procedure once Compliance provides it.`,
   ].join('\n');
   D('aster', 1, 'weekly_report', 'Weekly report, week ending 2026-11-09', 'sent', '# Weekly report, week ending Nov 9: Aster Robotics\n\nThe sidewalk robot duties bill stayed in subcommittee review. The police agency notice on sidewalk operation standards is open until Dec 7.', sentExtra);
   D('aster', 2, 'issue_brief', 'Issue brief: sidewalk rules for outdoor mobile robots', 'approved', ASTER_BRIEF, { approvedBy: 'principal-1' });
@@ -852,7 +852,7 @@ export function generateWorld(): World {
 
   const T = (key: string, n: number, title: string, due: string, owner: string, status: string, subject?: string) =>
     add('Task', `task-${key}-${n}`, { clientId: `cli-${key}`, title, dueDate: due, owner, status, ...(subject ? { subjectId: subject } : {}) });
-  // owner client = what the team needs from the client. A subject that is a person marks who the step is aimed at.
+  // owner client = what the GR team needs from another team in the company; the title ends with " · Team". A subject that is a person marks who the step is aimed at.
   T('aster', 1, 'Draft comments on the sidewalk operation standards notice', '2026-12-02', 'human', 'open', 'bill-004');
   T('aster', 2, 'Circulate the certification brief to the industry forum', '2026-11-06', 'human', 'done', 'iss-02');
   T('aster', 3, 'Update the sidewalk bill brief with the subcommittee text', '2026-11-18', 'agent', 'open', 'bill-001');
@@ -860,23 +860,23 @@ export function generateWorld(): World {
   T('aster', 5, 'Brief Ryu Taehwan on the slow-and-yield wording', '2026-11-18', 'human', 'open', 'per-004');
   T('aster', 6, 'Send test results to the industry subcommittee members', '2026-11-20', 'human', 'open', 'bill-005');
   T('aster', 7, 'Draft a coverage table scaled by robot weight', '2026-11-20', 'human', 'open', 'bill-008');
-  T('aster', 8, 'Cargo model width and stopping-distance data', '2026-11-17', 'client', 'open', 'bill-001');
-  T('aster', 9, 'Name who attends the meeting with the lead sponsor (CEO or CTO)', '2026-11-18', 'client', 'open', 'bill-001');
-  T('aster', 10, 'List of cities for pilot zones', '2026-12-01', 'client', 'open', 'bill-004');
+  T('aster', 8, 'Cargo model width and stopping-distance data · Engineering', '2026-11-17', 'client', 'open', 'bill-001');
+  T('aster', 9, "Name who attends the meeting with the lead sponsor, CEO or CTO · CEO's office", '2026-11-18', 'client', 'open', 'bill-001');
+  T('aster', 10, 'List of cities for pilot zones · Operations', '2026-12-01', 'client', 'open', 'bill-004');
   T('aster', 11, 'Meet the Pedestrian Rights Network on the slow-and-yield wording', '2026-11-20', 'human', 'open', 'org-02');
   T('moru', 1, 'Prepare a position note for the sandbox coalition', '2026-11-20', 'human', 'open', 'bill-021');
   T('moru', 2, 'Send thanks to the agency contact after the October meeting', '2026-10-20', 'human', 'done');
   T('moru', 3, "Send review-deadline wording to Oh Yeeun's office", '2026-11-20', 'human', 'open', 'per-009');
   T('moru', 4, 'Meet Consumer Labeling Watch on origin-label wording', '2026-11-17', 'human', 'open', 'org-08');
-  T('moru', 5, 'Consumer research on label comprehension', RESEARCH_DUE, 'client', 'open', 'bill-018');
-  T('moru', 6, 'Sign off the coalition letter wording', '2026-11-19', 'client', 'open', 'bill-021');
+  T('moru', 5, 'Consumer research on label comprehension · Marketing', RESEARCH_DUE, 'client', 'open', 'bill-018');
+  T('moru', 6, 'Sign off the coalition letter wording · Legal', '2026-11-19', 'client', 'open', 'bill-021');
   T('wren', 1, 'Draft the local agent proposal for the committee', '2026-11-18', 'human', 'open', 'bill-023');
   T('wren', 2, 'Track comments filed on the prepaid safeguarding notice', '2026-11-27', 'agent', 'open', 'bill-026');
   T('wren', 3, 'File the data transfer clause comparison', '2026-11-02', 'human', 'done', 'iss-11');
   T('wren', 4, 'File comments on the prepaid safeguarding notice', COMMENTS_BY, 'human', 'open', 'bill-026');
   T('wren', 5, 'Brief the economy and finance subcommittee members on reporting', '2026-11-19', 'human', 'open', 'bill-028');
-  T('wren', 6, 'Cost estimate for opening a local office', '2026-11-18', 'client', 'open', 'bill-023');
-  T('wren', 7, 'Fund segregation procedure in Korean and English', '2026-11-20', 'client', 'open', 'bill-026');
+  T('wren', 6, 'Cost estimate for opening a local office · Finance', '2026-11-18', 'client', 'open', 'bill-023');
+  T('wren', 7, 'Fund segregation procedure in Korean and English · Compliance', '2026-11-20', 'client', 'open', 'bill-026');
 
   // Stakeholder assessments. A stance needs a basis: a sponsorship, a statement at an event, a meeting or a news item.
   const issueOfBill = (b: string) => billSpec(b).iss;
@@ -1032,7 +1032,7 @@ export function generateWorld(): World {
     ['Standard clauses protect data abroad without forcing local servers.', 'Clear clauses make supervision easier for the commission.'],
     ['per-034'], ['org-10'], [3]);
 
-  // Monitoring profiles: what each client asked us to watch.
+  // Monitoring profiles: what each company's team watches.
   const K = (term: string, priority: string, synonyms: string[] = [], exclude: string[] = []) => ({ term, priority, ...(synonyms.length ? { synonyms } : {}), ...(exclude.length ? { exclude } : {}) });
   const MP = (key: string, objectives: [string, number][], keywords: ReturnType<typeof K>[], committees: string[], agencies: string[]) =>
     add('MonitoringProfile', `mp-${key}`, {
@@ -1079,13 +1079,13 @@ export function generateWorld(): World {
     K('personal information', 'low'),
   ], ['inst-pac', 'inst-pac-brs', 'inst-fepc', 'inst-fepc-brs'], ['inst-fsc', 'inst-fss', 'inst-mofe', 'inst-pipc']);
 
-  // Wrenfield Pay's two-week trial. The client listed twelve must-catch items: nine were caught (seven matched by link,
+  // Wrenfield Pay's two-week trial. The team listed twelve must-catch items: nine were caught (seven matched by link,
   // two by headline), three never reached the collector. Of the other caught items, two were judged irrelevant.
   const PILOT_FROM = '2026-10-12';
   const PILOT_TO = '2026-10-25';
   const caughtIds = pilotCatch(objects.filter((o) => o.type === 'Signal'), byId.get('mp-wren')!, PILOT_FROM, PILOT_TO);
   const sigUrl = (id: string) => { if (!caughtIds.includes(id)) throw new Error(`pilot: ${id} is not caught`); return byId.get(id)!.url as string; };
-  const EXPECTED: [string, string, number, string?][] = [ // [client's title, caught signal (or source type when missed), days from publication to collection, missed url]
+  const EXPECTED: [string, string, number, string?][] = [ // [the team's title, caught signal (or source type when missed), days from publication to collection, missed url]
     ['Data transfer bill goes to subcommittee review', 'sig-020', 0],
     ['Capital requirement bill goes to subcommittee review', 'sig-021', 1],
     [byId.get('sig-022')!.title, 'sig-022', 0],
@@ -1133,7 +1133,7 @@ export function generateWorld(): World {
   const typeRank = Object.keys(objectTypes);
   objects.sort((a, b) => typeRank.indexOf(a.type) - typeRank.indexOf(b.type) || cmp(a.id, b.id));
   return {
-    meta: { baseDate: BASE_DATE, seed: SEED, synthetic: true, description: 'Synthetic sample world. All clients, people, bills, events and signals are fictional.' },
+    meta: { baseDate: BASE_DATE, seed: SEED, synthetic: true, description: 'Synthetic sample world. All companies, people, bills, events and signals are fictional.' },
     objects, links,
   };
 }

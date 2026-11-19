@@ -43,19 +43,19 @@ export function confirmedView(view: View): View {
   return v;
 }
 
-/** Ids of signals the caller's clients have handled (filed or set aside), from their SignalTriage records. */
+/** Ids of signals the caller's companies have handled (filed or set aside), from their SignalTriage records. */
 export function handledSignals(view: View, status: readonly string[] = ['filed', 'set_aside']): Set<string> {
   return new Set(view.list('SignalTriage', (t) => status.includes(t.status)).map((t) => t.signalId));
 }
 
-/** Items a brief, report or decision may rest on: routed by the collector before this week, or filed for the client. Items still waiting to be confirmed do not count. */
+/** Items a brief, report or decision may rest on: routed by the collector before this week, or filed for the company. Items still waiting to be confirmed do not count. */
 export function confirmedSignals(view: View): ObjectRecord[] {
   const filed = handledSignals(view, ['filed']);
   const setAside = handledSignals(view, ['set_aside']);
   return view.list('Signal', (s) => !setAside.has(s.id) && (s.status === 'triaged' || filed.has(s.id)));
 }
 
-/** The client's queue: new items its triage has not handled yet. The same for every client, since triage never edits the public Signal. */
+/** The company's queue: new items its triage has not handled yet. The same for every company, since triage never edits the public Signal. */
 export function signalQueue(view: View): ObjectRecord[] {
   const handled = handledSignals(view);
   return view.list('Signal', (s) => s.status === 'new' && !handled.has(s.id)).sort((a, b) => cmp(a.collectedAt, b.collectedAt) || cmp(a.id, b.id));
@@ -115,8 +115,8 @@ export function billRiskScore(view: View, billId: string, clientId: string, asOf
   const components = [
     mk('stage', 'Stage progress', STAGE_PROGRESS[stage] ?? 0, `Stage '${stage}' as of ${asOf}`),
     mk('calendar', 'Committee calendar', calendar, nextSlot ? `${nextSlot.name} in ${days} days (${nextSlot.date})` : 'Nothing scheduled in the next 30 days'),
-    mk('position', 'Client position', pos ? POSITION_VALUE[pos.stance] : NO_POSITION_VALUE, pos ? `Client stance: ${pos.stance} (${pos.targetId})` : 'No stated position; treated as monitor'),
-    mk('impact', 'Issue impact', impact, impact ? `Strongest linked issue impact: ${Object.entries(IMPACT_VALUE).find(([, v]) => v === impact)?.[0]}` : 'No linked issue affects this client'),
+    mk('position', 'Company position', pos ? POSITION_VALUE[pos.stance] : NO_POSITION_VALUE, pos ? `Company stance: ${pos.stance} (${pos.targetId})` : 'No stated position; treated as monitor'),
+    mk('impact', 'Issue impact', impact, impact ? `Strongest linked issue impact: ${Object.entries(IMPACT_VALUE).find(([, v]) => v === impact)?.[0]}` : 'No linked issue affects this company'),
   ];
   return { billId, clientId, asOf, stage, score: round(components.reduce((s, c) => s + c.points, 0)), components };
 }
@@ -237,8 +237,8 @@ export function responseLevel(view: View, billId: string, clientId: string, sinc
   reasons.push(moved ? `Moved to ${f.change!.to} on ${f.change!.date}` : 'No stage change this week');
   reasons.push(f.slot && f.daysToSlot! <= 30 ? `${f.slot.name} on ${f.slot.date} (${f.daysToSlot} days; ${STEP_NOTE[f.slotKind!]})` : 'No committee, subcommittee or plenary slot in the next 30 days');
   if (f.notice && f.daysToNotice! <= 30) reasons.push(`Notice period closes on ${f.notice.date} (${f.daysToNotice} days)`);
-  reasons.push(f.position ? `Client stance: ${f.position.stance}${f.position.targetId === billId ? '' : ` (on ${f.position.targetId})`}` : 'No client stance recorded');
-  reasons.push(f.impact ? `Issue impact: ${f.impact}` : 'No linked issue affects this client');
+  reasons.push(f.position ? `Company stance: ${f.position.stance}${f.position.targetId === billId ? '' : ` (on ${f.position.targetId})`}` : 'No company stance recorded');
+  reasons.push(f.impact ? `Issue impact: ${f.impact}` : 'No linked issue affects this company');
   if (!f.textOpen) reasons.push('The text is settled: only wording and delay risk are left, so the level stays at monitor or below');
   const within = (d: number | undefined, n: number) => d !== undefined && d <= n;
   const level: ResponseLevel = f.textOpen && within(decisive, 7) && wantsChange && (moved || (f.position!.stance === 'oppose' && high)) ? 'act_now'

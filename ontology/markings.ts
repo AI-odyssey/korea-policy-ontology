@@ -25,7 +25,7 @@ export interface GateConfig {
   approvedClientDataProviders: readonly string[];
 }
 
-/** Default: no provider is approved for client data. */
+/** Default: no provider is approved for company data. */
 export const defaultGate: GateConfig = { approvedClientDataProviders: [] };
 
 export class ProviderGateError extends Error {
@@ -46,7 +46,7 @@ export function assertProviderAllowed(provider: string, objects: readonly Marked
       throw new ProviderGateError(`${o.id} has no markings; refusing to send it to '${provider}'`);
     }
     if (o.markings.some((m) => m !== 'PUBLIC') && !cfg.approvedClientDataProviders.includes(provider)) {
-      throw new ProviderGateError(`${o.id} is ${o.markings.join(',')}; provider '${provider}' is not approved for client data`);
+      throw new ProviderGateError(`${o.id} is ${o.markings.join(',')}; provider '${provider}' is not approved for company data`);
     }
   }
 }

@@ -6,7 +6,7 @@
 export const ROLES = ['system', 'agent', 'consultant', 'principal'] as const;
 export type Role = (typeof ROLES)[number];
 
-/** A marking restricts who can see an object: PUBLIC, or one client's layer. */
+/** A marking restricts who can see an object: PUBLIC, or one company's layer. */
 export type Marking = 'PUBLIC' | `CLIENT:${string}`;
 export type Layer = 'public' | 'client';
 
@@ -64,13 +64,13 @@ export interface ObjectTypeDef {
 }
 
 // Every object also carries: id, type, markings, synthetic, and optionally provenance. Only Signal and Evidence may be
-// public records (provenance public, synthetic false); everything else, people and the whole client layer included, is synthetic.
+// public records (provenance public, synthetic false); everything else, people and the whole company layer included, is synthetic.
 export const objectTypes = {
   // ---- Public layer ----
   Issue: {
     layer: 'public',
     description: 'A policy topic that bills, events and signals are about.',
-    properties: { title: req('string'), summary: req('text'), keywords: req('string[]', { note: "Routes an item to an issue. How much the item matters to a client comes from that client's MonitoringProfile." }) },
+    properties: { title: req('string'), summary: req('text'), keywords: req('string[]', { note: "Routes an item to an issue. How much the item matters to a company comes from the company's MonitoringProfile." }) },
   },
   Bill: {
     layer: 'public',
@@ -146,7 +146,7 @@ export const objectTypes = {
       publishedAt: opt('date'),
       collectedAt: req('datetime'),
       rawText: req('text'),
-      status: req('enum', { values: ['new', 'triaged', 'dismissed'], note: 'Set by the collector only. How each client filed the item is a SignalTriage record in that client layer.' }),
+      status: req('enum', { values: ['new', 'triaged', 'dismissed'], note: "Set by the collector only. How each company filed the item is a SignalTriage record in that company's layer." }),
       relevance: opt('number', { min: 0, max: 1 }),
       dismissReason: opt('string'),
     },
@@ -164,20 +164,20 @@ export const objectTypes = {
       reviewStatus: req('enum', { values: ['accepted', 'review', 'rejected'], note: 'review = waiting in the human review queue; functions ignore links supported only by review evidence.' }),
     },
   },
-  // ---- Client layer (marking CLIENT:<clientId>) ----
+  // ---- Company layer (marking CLIENT:<clientId>) ----
   Client: {
     layer: 'client',
-    description: 'A client organization.',
+    description: 'The company the deployment serves.',
     properties: { name: req('string'), sector: req('string') },
   },
   Engagement: {
     layer: 'client',
-    description: 'The consulting engagement for one client: scope, team and what is watched.',
+    description: "The government-affairs team's monitoring setup for the company: scope, team and what is watched.",
     properties: { clientId: req('ref', { refTypes: ['Client'] }), scope: req('text'), team: req('string[]'), startDate: req('date') },
   },
   SignalTriage: {
     layer: 'client',
-    description: "One client's filing of a collected item: filed under an issue, set aside, or returned to the queue. The public Signal is never changed, so one client's triage does not touch another client's queue.",
+    description: "One company's filing of a collected item: filed under an issue, set aside, or returned to the queue. The public Signal is never changed, so one company's triage does not touch another company's queue.",
     properties: {
       clientId: req('ref', { refTypes: ['Client'] }),
       signalId: req('ref', { refTypes: ['Signal'] }),
@@ -191,7 +191,7 @@ export const objectTypes = {
   },
   ClientPosition: {
     layer: 'client',
-    description: "The client's stance on an issue or bill.",
+    description: "The company's stance on an issue or bill.",
     properties: {
       clientId: req('ref', { refTypes: ['Client'] }),
       targetId: req('ref', { refTypes: ['Issue', 'Bill'] }),
@@ -215,7 +215,7 @@ export const objectTypes = {
   },
   Deliverable: {
     layer: 'client',
-    description: 'A work product for the client. Sending requires principal approval first.',
+    description: 'A work product of the government-affairs team for company leadership. Sending requires approval by the head of government affairs first.',
     properties: {
       clientId: req('ref', { refTypes: ['Client'] }),
       kind: req('enum', { values: ['weekly_report', 'issue_brief', 'comment_letter', 'meeting_prep'] }),
@@ -230,7 +230,7 @@ export const objectTypes = {
   },
   Decision: {
     layer: 'client',
-    description: 'A judgment call that needs the principal: question, recommendation and alternatives.',
+    description: 'A business call for company leadership: question, recommendation and alternatives.',
     properties: {
       clientId: req('ref', { refTypes: ['Client'] }),
       question: req('text'),
@@ -238,8 +238,8 @@ export const objectTypes = {
       alternatives: req('string[]'),
       status: req('enum', { values: ['open', 'resolved'] }),
       subjectId: opt('ref', { note: 'The bill or issue the decision is about.' }),
-      dueDate: opt('date', { note: 'When the principal needs to decide.' }),
-      followUp: opt('string', { note: 'The short task title created if the principal approves.' }),
+      dueDate: opt('date', { note: 'When leadership needs to decide.' }),
+      followUp: opt('string', { note: 'The short task title created if leadership approves.' }),
       targetId: opt('ref', { refTypes: ['Person', 'StakeholderOrg'], note: 'The person the recommendation is about.' }),
       premiseStance: opt('enum', { values: STANCES, note: "The target's assessed stance when the decision was raised. A different stance now makes the decision out of date." }),
       openedAt: req('datetime'),
@@ -250,19 +250,19 @@ export const objectTypes = {
   },
   Task: {
     layer: 'client',
-    description: 'A dated follow-up owned by the consulting team (human or agent) or asked of the client.',
+    description: 'A dated follow-up owned by the government-affairs team (human or agent) or needed from another team in the company.',
     properties: {
       clientId: req('ref', { refTypes: ['Client'] }),
       title: req('string'),
       dueDate: req('date'),
-      owner: req('enum', { values: TASK_OWNERS, note: 'client = something the team needs from the client (data, attendees, sign-off).' }),
+      owner: req('enum', { values: TASK_OWNERS, note: 'client = something the government-affairs team needs from another team in the company (data, attendees, sign-off).' }),
       status: req('enum', { values: ['open', 'done'] }),
       subjectId: opt('ref'),
     },
   },
   StakeholderAssessment: {
     layer: 'client',
-    description: "One client's read of a person or organization on one issue. Kept apart from the public Person and StakeholderOrg records so a client's judgment never enters the shared layer.",
+    description: "One company's read of a person or organization on one issue. Kept apart from the public Person and StakeholderOrg records so a company's judgment never enters the shared layer.",
     properties: {
       clientId: req('ref', { refTypes: ['Client'] }),
       subjectId: req('ref', { refTypes: ['Person', 'StakeholderOrg'] }),
@@ -278,7 +278,7 @@ export const objectTypes = {
   },
   RiskOpportunity: {
     layer: 'client',
-    description: 'A risk or an opportunity for the client, tagged by impact and urgency instead of a score.',
+    description: 'A risk or an opportunity for the company, tagged by impact and urgency instead of a score.',
     properties: {
       clientId: req('ref', { refTypes: ['Client'] }),
       kind: req('enum', { values: ['risk', 'opportunity'] }),
@@ -309,7 +309,7 @@ export const objectTypes = {
   },
   MonitoringProfile: {
     layer: 'client',
-    description: 'What one client wants watched: objectives, keywords, committees, agencies and source types. The collector reads it as its watch list.',
+    description: 'What one company wants watched: objectives, keywords, committees, agencies and source types. The collector reads it as its watch list.',
     properties: {
       clientId: req('ref', { refTypes: ['Client'] }),
       objectives: req('json', { note: '[{text, priority 1-3}], 1 = most important.' }),
@@ -323,7 +323,7 @@ export const objectTypes = {
   },
   PilotEvaluation: {
     layer: 'client',
-    description: "A trial run for one client: the items the client says must be caught, what the system caught in the same window, the client's relevance calls, and the pass criteria.",
+    description: "A trial run for one company: the items the team says must be caught, what the system caught in the same window, the team's relevance calls, and the pass criteria.",
     properties: {
       clientId: req('ref', { refTypes: ['Client'] }),
       title: req('string'),
@@ -331,8 +331,8 @@ export const objectTypes = {
       to: req('date'),
       status: req('enum', { values: ['open', 'closed'] }),
       criteria: req('json', { note: '{access 0-1, officialMisses, noise 0-1}. Defaults: access 1, officialMisses 0, noise 0.2.' }),
-      expected: req('json', { note: '[{id, title, url?, date, sourceType}]: what the client lists as must-catch. Matched to a caught item by url, else by title.' }),
-      caught: req('json', { note: "[{signalId, relevance?}]: items in the window that hit the profile when the trial started; relevance is the client's call." }),
+      expected: req('json', { note: '[{id, title, url?, date, sourceType}]: what the team lists as must-catch. Matched to a caught item by url, else by title.' }),
+      caught: req('json', { note: "[{signalId, relevance?}]: items in the window that hit the profile when the trial started; relevance is the team's call." }),
       startedBy: req('string'),
       closedBy: opt('string'),
       result: opt('enum', { values: ['pass', 'fail'], note: 'Set when the trial closes.' }),
@@ -413,16 +413,16 @@ export const linkTypes = {
     from: ['Signal'], to: ['Bill', 'Person', 'Institution', 'StakeholderOrg'], cardinality: 'many-to-many', layer: 'public', evidenceRequired: true,
   },
   affects: {
-    description: 'How strongly an issue touches a client (a client-layer judgment, so no public evidence).',
+    description: 'How strongly an issue touches a company (a company-layer judgment, so no public evidence).',
     from: ['Issue'], to: ['Client'], cardinality: 'many-to-many', layer: 'client', evidenceRequired: false,
     props: { impact: req('enum', { values: ['high', 'medium', 'low'] }) },
   },
   watches: {
-    description: 'What an engagement tracks.',
+    description: "What the team's monitoring setup tracks.",
     from: ['Engagement'], to: ['Issue', 'Bill'], cardinality: 'many-to-many', layer: 'client', evidenceRequired: false,
   },
   produced_for: {
-    description: 'The engagement a deliverable belongs to.',
+    description: 'The monitoring setup a deliverable belongs to.',
     from: ['Deliverable'], to: ['Engagement'], cardinality: 'many-to-one', layer: 'client', evidenceRequired: false, requiredFrom: ['Deliverable'],
   },
   raised_by: {
@@ -436,7 +436,7 @@ const EVIDENCED_LINKS = LINK_TYPE_NAMES.filter((n) => linkTypes[n].evidenceRequi
 
 // ---- Action types ----
 // Actions are the only way to change state. Each declares who may run it, whether the
-// principal must approve first, what must already be true, and what it writes.
+// the head of government affairs must approve first, what must already be true, and what it writes.
 export interface Precondition {
   param: string;
   field: string;
@@ -460,7 +460,7 @@ const HUMANS: readonly Role[] = ['consultant', 'principal'];
 
 export const actionTypes = {
   triageSignal: {
-    description: 'File a new Signal for one client under an Issue and/or Bill with a relevance score, or set it aside for that client.',
+    description: 'File a new Signal for one company under an Issue and/or Bill with a relevance score, or set it aside for that company.',
     params: {
       clientId: req('ref', { refTypes: ['Client'] }),
       signalId: req('ref', { refTypes: ['Signal'] }),
@@ -474,8 +474,8 @@ export const actionTypes = {
       reason: opt('string'),
     },
     allowedRoles: ANY_USER, requiresApproval: false,
-    constraints: ['Unless dismiss is true, issueId or billId is required.', 'The client must not have filed or set aside this Signal already.'],
-    sideEffects: ['Creates or updates the SignalTriage for this client and signal (CLIENT marking); the Signal itself is unchanged', 'Creates about / mentions links, each with an Evidence record (method rule for agent, human for consultant or principal)', 'Agent evidence below 0.8 confidence lands in the review queue'],
+    constraints: ['Unless dismiss is true, issueId or billId is required.', 'The company must not have filed or set aside this Signal already.'],
+    sideEffects: ['Creates or updates the SignalTriage for this company and signal (CLIENT marking); the Signal itself is unchanged', 'Creates about / mentions links, each with an Evidence record (method rule for agent, human for an analyst or the head of government affairs)', 'Agent evidence below 0.8 confidence lands in the review queue'],
   },
   linkEvidence: {
     description: 'Create a public-layer link (if absent) and attach one Evidence record to it.',
@@ -492,10 +492,10 @@ export const actionTypes = {
     sideEffects: ['Creates the link and an Evidence record', 'Agent evidence below 0.8 confidence: Evidence.reviewStatus = review'],
   },
   reopenSignal: {
-    description: "Undo a client's triage: return a filed or set-aside Signal to that client's queue.",
+    description: "Undo a company's triage: return a filed or set-aside Signal to the company's queue.",
     params: { clientId: req('ref', { refTypes: ['Client'] }), signalId: req('ref', { refTypes: ['Signal'] }) },
     allowedRoles: HUMANS, requiresApproval: false,
-    constraints: ['The client must have filed or set aside this Signal.'],
+    constraints: ['The company must have filed or set aside this Signal.'],
     sideEffects: ['SignalTriage.status = returned', 'Evidence that filing created is marked rejected', 'Links left without other support are removed'],
   },
   reviewEvidence: {
@@ -520,7 +520,7 @@ export const actionTypes = {
     sideEffects: ['Appends to Bill.stageHistory and updates Bill.stage'],
   },
   setClientPosition: {
-    description: "Set or replace the client's stance on an issue or bill.",
+    description: "Set or replace the company's stance on an issue or bill.",
     params: {
       clientId: req('ref', { refTypes: ['Client'] }),
       targetId: req('ref', { refTypes: ['Issue', 'Bill'] }),
@@ -528,7 +528,7 @@ export const actionTypes = {
       rationale: req('text'),
     },
     allowedRoles: HUMANS, requiresApproval: true, approverRole: 'principal',
-    sideEffects: ['Creates or replaces the ClientPosition (CLIENT marking)', 'Consultant requests wait for principal approval'],
+    sideEffects: ['Creates or replaces the ClientPosition (CLIENT marking)', 'Analyst requests wait for approval by the head of government affairs'],
   },
   logInteraction: {
     description: 'Log a meeting or call with an official, aide or stakeholder.',
@@ -553,7 +553,7 @@ export const actionTypes = {
       sourceIds: opt('ref[]'),
     },
     allowedRoles: ANY_USER, requiresApproval: false,
-    constraints: ['The client must have an Engagement.'],
+    constraints: ['The company must have an Engagement.'],
     sideEffects: ['Creates a Deliverable (status draft) and a produced_for link'],
   },
   submitForReview: {
@@ -571,21 +571,21 @@ export const actionTypes = {
     sideEffects: ['Deliverable.body and sourceIds replaced', 'An approved deliverable goes back to in_review and its approval is cleared'],
   },
   approveDeliverable: {
-    description: 'Principal approves a deliverable that is in review.',
+    description: 'The head of government affairs approves a deliverable that is in review.',
     params: { deliverableId: req('ref', { refTypes: ['Deliverable'] }) },
     allowedRoles: ['principal'], requiresApproval: false,
     preconditions: [{ param: 'deliverableId', field: 'status', in: ['in_review'], message: 'Only deliverables in review can be approved' }],
     sideEffects: ['Deliverable.status = approved, approvedBy recorded'],
   },
   sendDeliverable: {
-    description: 'Send an approved deliverable to the client (simulated; nothing leaves the browser).',
+    description: 'Send an approved deliverable to company leadership (simulated; nothing leaves the browser).',
     params: { deliverableId: req('ref', { refTypes: ['Deliverable'] }) },
     allowedRoles: HUMANS, requiresApproval: false,
-    preconditions: [{ param: 'deliverableId', field: 'status', in: ['approved'], message: 'Blocked until the principal approves the deliverable' }],
+    preconditions: [{ param: 'deliverableId', field: 'status', in: ['approved'], message: 'Blocked until the head of government affairs approves the deliverable' }],
     sideEffects: ['Deliverable.status = sent, sentAt set', 'Audit entry carries the approver recorded on the deliverable'],
   },
   raiseDecision: {
-    description: 'Put a judgment call in front of the principal with a recommendation.',
+    description: 'Put a business call in front of company leadership with a recommendation.',
     params: {
       clientId: req('ref', { refTypes: ['Client'] }),
       question: req('text'),
@@ -602,7 +602,7 @@ export const actionTypes = {
     sideEffects: ['Creates a Decision (status open) and a raised_by link'],
   },
   resolveDecision: {
-    description: 'Principal decides.',
+    description: "Record leadership's call: approve, choose an alternative, decline or withdraw.",
     params: {
       decisionId: req('ref', { refTypes: ['Decision'] }),
       resolution: req('enum', { values: ['approve', 'alternative', 'reject', 'withdraw'] }),
@@ -632,7 +632,7 @@ export const actionTypes = {
     sideEffects: ['Task.status = done'],
   },
   assessStakeholder: {
-    description: "Record the client's read of a person or organization on an issue: stance, influence, relevance and what the stance rests on.",
+    description: "Record the company's read of a person or organization on an issue: stance, influence, relevance and what the stance rests on.",
     params: {
       clientId: req('ref', { refTypes: ['Client'] }),
       subjectId: req('ref', { refTypes: ['Person', 'StakeholderOrg'] }),
@@ -645,10 +645,10 @@ export const actionTypes = {
     },
     allowedRoles: HUMANS, requiresApproval: false,
     constraints: ['A stance other than unconfirmed needs at least one basis record.', 'Humans only: the agent may not judge a person.'],
-    sideEffects: ['Creates or replaces the StakeholderAssessment for this client, subject and issue (CLIENT marking)'],
+    sideEffects: ['Creates or replaces the StakeholderAssessment for this company, subject and issue (CLIENT marking)'],
   },
   addRiskOpportunity: {
-    description: 'Add a risk or an opportunity to the client view.',
+    description: 'Add a risk or an opportunity to the company view.',
     params: {
       clientId: req('ref', { refTypes: ['Client'] }),
       kind: req('enum', { values: ['risk', 'opportunity'] }),
@@ -661,7 +661,7 @@ export const actionTypes = {
     },
     allowedRoles: ANY_USER, requiresApproval: true, approverRole: 'principal',
     constraints: ['subjectIds must name at least one bill, issue or event.'],
-    sideEffects: ['Creates a RiskOpportunity (CLIENT marking)', 'Agent and consultant additions wait for principal approval'],
+    sideEffects: ['Creates a RiskOpportunity (CLIENT marking)', 'Agent and analyst additions wait for approval by the head of government affairs'],
   },
   updateStrategy: {
     description: 'Create or revise the strategy for one issue.',
@@ -676,10 +676,10 @@ export const actionTypes = {
     },
     allowedRoles: HUMANS, requiresApproval: true, approverRole: 'principal',
     constraints: ['A new strategy needs desiredOutcome and messages.', 'Targets must be assessments on the same issue.'],
-    sideEffects: ['Creates or updates the Strategy for this client and issue (CLIENT marking)', 'Consultant changes wait for principal approval'],
+    sideEffects: ['Creates or updates the Strategy for this company and issue (CLIENT marking)', 'Analyst changes wait for approval by the head of government affairs'],
   },
   updateMonitoringProfile: {
-    description: "Create or revise the client's monitoring profile: objectives, keywords, committees, agencies and source types.",
+    description: "Create or revise the company's monitoring profile: objectives, keywords, committees, agencies and source types.",
     params: {
       clientId: req('ref', { refTypes: ['Client'] }),
       objectives: opt('json'),
@@ -690,10 +690,10 @@ export const actionTypes = {
     },
     allowedRoles: HUMANS, requiresApproval: true, approverRole: 'principal',
     constraints: ['Objectives need text and priority 1-3; keywords need a term and priority high, medium or low.', 'committees must be committees or subcommittees; agencies must be ministries or agencies.', 'sources must be known source types.', 'A new profile needs objectives and keywords.'],
-    sideEffects: ['Creates or updates the MonitoringProfile for this client (CLIENT marking)', 'Consultant changes wait for principal approval'],
+    sideEffects: ['Creates or updates the MonitoringProfile for this company (CLIENT marking)', 'Analyst changes wait for approval by the head of government affairs'],
   },
   startPilot: {
-    description: 'Start a trial: fix the window and record every item in it that hits the client profile.',
+    description: 'Start a trial: fix the window and record every item in it that hits the company profile.',
     params: {
       clientId: req('ref', { refTypes: ['Client'] }),
       title: req('string'),
@@ -702,7 +702,7 @@ export const actionTypes = {
       criteria: opt('json'),
     },
     allowedRoles: HUMANS, requiresApproval: false,
-    constraints: ['The client needs a monitoring profile and no other open trial.', 'from must not be after to, and to must not be after the base date.'],
+    constraints: ['The company needs a monitoring profile and no other open trial.', 'from must not be after to, and to must not be after the base date.'],
     sideEffects: ['Creates a PilotEvaluation (status open, CLIENT marking) with the caught items'],
   },
   setPilotCriteria: {
@@ -713,7 +713,7 @@ export const actionTypes = {
     sideEffects: ['PilotEvaluation.criteria updated'],
   },
   addExpectedItem: {
-    description: 'Add an item the client says the system must catch.',
+    description: 'Add an item the team says the system must catch.',
     params: {
       pilotId: req('ref', { refTypes: ['PilotEvaluation'] }),
       title: req('string'),
@@ -727,7 +727,7 @@ export const actionTypes = {
     sideEffects: ['Appends to PilotEvaluation.expected'],
   },
   markRelevance: {
-    description: "Record the client's call on a caught item: relevant or irrelevant.",
+    description: "Record the team's call on a caught item: relevant or irrelevant.",
     params: { pilotId: req('ref', { refTypes: ['PilotEvaluation'] }), signalId: req('ref', { refTypes: ['Signal'] }), relevance: req('enum', { values: ['relevant', 'irrelevant'] }) },
     allowedRoles: HUMANS, requiresApproval: false,
     preconditions: [{ param: 'pilotId', field: 'status', in: ['open'], message: 'The trial is closed' }],
@@ -748,18 +748,18 @@ export const ACTION_NAMES = Object.keys(actionTypes) as ActionName[];
 // ---- Functions (implemented in functions.ts, all deterministic) ----
 export const functionTypes = [
   { name: 'whatChanged', signature: 'whatChanged(view, since, until?)', description: 'Stage changes, new signals, events held and upcoming, and risk movements after the since date.' },
-  { name: 'billRiskScore', signature: 'billRiskScore(view, billId, clientId, asOf?)', description: 'Weighted 0-100 score for one bill and one client, returned with every component.' },
-  { name: 'responseLevel', signature: 'responseLevel(view, billId, clientId, since?)', description: 'One of act_now, engage, monitor or watch for one bill and one client, from explicit rules (stage moved this week, next meeting or closing notice period within 7 or 30 days, client stance, issue impact), with the reasons that raise the level and those that keep it from going higher. An opposed, high-impact bill on an agenda within 7 days is act_now even if it did not move.' },
+  { name: 'billRiskScore', signature: 'billRiskScore(view, billId, clientId, asOf?)', description: 'Weighted 0-100 score for one bill and one company, returned with every component.' },
+  { name: 'responseLevel', signature: 'responseLevel(view, billId, clientId, since?)', description: 'One of act_now, engage, monitor or watch for one bill and one company, from explicit rules (stage moved this week, next meeting or closing notice period within 7 or 30 days, company stance, issue impact), with the reasons that raise the level and those that keep it from going higher. An opposed, high-impact bill on an agenda within 7 days is act_now even if it did not move.' },
   { name: 'keyPeople', signature: 'keyPeople(view, billId, limit?)', description: 'Ranked people around a bill, each with the reasons for the rank.' },
-  { name: 'upcomingDeadlines', signature: 'upcomingDeadlines(view, clientId, days?)', description: 'Open tasks and scheduled events for the client in the next N days.' },
-  { name: 'issueExposure', signature: 'issueExposure(view, clientId)', description: 'Issues ranked by how much active legislative risk sits on them for the client.' },
+  { name: 'upcomingDeadlines', signature: 'upcomingDeadlines(view, clientId, days?)', description: 'Open tasks and scheduled events for the company in the next N days.' },
+  { name: 'issueExposure', signature: 'issueExposure(view, clientId)', description: 'Issues ranked by how much active legislative risk sits on them for the company.' },
   { name: 'stageGates', signature: 'stageGates(view, billId)', description: 'Who decides at each stage (bill review subcommittee, full committee, Legislation and Judiciary Committee, plenary): date, status, and the chairs and secretaries who control each agenda.' },
   { name: 'profileMatch', signature: 'profileMatch(profile, text)', description: 'Which profile keywords hit a text (the term or a synonym, case-insensitive), which were suppressed by an exclude phrase, and a 0-1 score: hits combine as 1 - prod(1 - w) with w = 0.6 high, 0.45 medium, 0.3 low.' },
   { name: 'pilotMetrics', signature: 'pilotMetrics(view, pilotId, reach?)', description: 'Trial results: sources reached (from the fetch results of a live collector run when supplied), missed items (and how many came from the Assembly or government), noise among judged items, median days from publication to detection, pass or fail on each criterion, and the same counts per source type.' },
-  { name: 'stakeholderNetwork', signature: 'stakeholderNetwork(view, clientId, issueId)', description: "The client's assessed stakeholders on one issue and the public relations between them (cosponsorship, same committee, joint event), each edge with the records it rests on." },
+  { name: 'stakeholderNetwork', signature: 'stakeholderNetwork(view, clientId, issueId)', description: "The company's assessed stakeholders on one issue and the public relations between them (cosponsorship, same committee, joint event), each edge with the records it rests on." },
 ] as const;
 
 export const markingTypes = [
   { name: 'PUBLIC', description: 'Public legislative record. Visible to every caller.' },
-  { name: 'CLIENT:<clientId>', description: "One client's layer. Visible only to callers assigned to that client, and sent to a model provider only if it is allow-listed." },
+  { name: 'CLIENT:<clientId>', description: "One company's layer. Visible only to callers assigned to that company, and sent to a model provider only if it is allow-listed." },
 ] as const;

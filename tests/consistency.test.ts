@@ -47,7 +47,7 @@ describe('citations point at the record the sentence names', () => {
       const top = weeklyBrief(v, c).bills[0];
       const meeting = top.facts.slot!;
       const md = runs[c].reportMarkdown!;
-      const [, n] = md.split('\n')[2].match(/\[\^(\d+)\]$/)!;
+      const [, n] = md.split('\n')[4].match(/\[\^(\d+)\]$/)!;
       const note = md.split('\n').find((l) => l.startsWith(`[^${n}]:`))!;
       expect(note, c).toContain(`Notice: ${meeting.name}, ${monthDay(meeting.date)}`);
       // The decision on the same bill names the same notice as its source.
@@ -176,7 +176,7 @@ describe('assistant run text', () => {
         expect(step.output).not.toMatch(/\bOne (item|decision) wait\b|\b(?:[2-9]|Two|Three|Four|Five) items waits\b/);
       }
     }
-    expect(stopLine([{ action: 'approveDeliverable', by: 'principal', objectId: 'd', reason: '' }])).toBe('Stopped. The weekly report waits for your approval. The assistant cannot approve or send.');
+    expect(stopLine([{ action: 'approveDeliverable', by: 'principal', objectId: 'd', reason: '' }])).toBe('Stopped. The weekly report waits for your review. The assistant cannot approve or send.');
     expect(stopLine([])).toBe('Stopped. Nothing waits for you.');
   });
 });

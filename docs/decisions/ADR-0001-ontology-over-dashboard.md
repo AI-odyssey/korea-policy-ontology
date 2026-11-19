@@ -3,10 +3,10 @@
 Status: accepted
 
 ## Context
-The work needs answers that cross object types (a client's issue, a bill, a subcommittee member, a prior meeting). A dashboard hard-codes one path through those relations. A document chatbot has no stable identity, time or permissions, and cannot explain why two things are linked.
+The work needs answers that cross object types (a company's issue, a bill, a subcommittee member, a prior meeting). A dashboard hard-codes one path through those relations. A document chatbot has no stable identity, time or permissions, and cannot explain why two things are linked.
 
 ## Decision
-Define objects with identity, typed links with cardinality and evidence rules, actions with validation and roles, and deterministic functions. Screens, agents and reports are clients of this model.
+Define objects with identity, typed links with cardinality and evidence rules, actions with validation and roles, and deterministic functions. Screens, agents and reports are consumers of this model.
 
 ## Consequences
 - New questions are new functions or queries over existing objects, not new pipelines.

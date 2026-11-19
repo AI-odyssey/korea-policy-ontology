@@ -144,7 +144,7 @@ const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
   triageSignal(fx, p) {
     const sig = fx.get(p.signalId);
     const cur = fx.find('SignalTriage', (r) => r.clientId === p.clientId && r.signalId === sig.id);
-    if (cur && cur.status !== 'returned') throw new ActionError('PRECONDITION_FAILED', 'Signal was already filed or set aside for this client');
+    if (cur && cur.status !== 'returned') throw new ActionError('PRECONDITION_FAILED', 'Signal was already filed or set aside for this company');
     if (!p.dismiss && !p.issueId && !p.billId) throw bad('issueId or billId is required unless dismissing');
     const evidenceIds: string[] = [];
     if (!p.dismiss) {
@@ -175,7 +175,7 @@ const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
 
   reopenSignal(fx, p) {
     const cur = fx.find('SignalTriage', (r) => r.clientId === p.clientId && r.signalId === p.signalId && r.status !== 'returned');
-    if (!cur) throw new ActionError('PRECONDITION_FAILED', 'Signal is not filed or set aside for this client');
+    if (!cur) throw new ActionError('PRECONDITION_FAILED', 'Signal is not filed or set aside for this company');
     for (const id of cur.evidenceIds ?? []) {
       if (fx.get(id).reviewStatus === 'rejected') continue;
       fx.update(id, { reviewStatus: 'rejected' });
@@ -526,7 +526,7 @@ export class Store {
     if (errs.length) fail('INVALID_PARAMS', errs.join('; '));
     // One call writes into one client layer: every object it names is PUBLIC or belongs to the same client.
     const layers = this.paramMarkings(def, params).filter((m) => m !== PUBLIC);
-    if (layers.length > 1) fail('INVALID_PARAMS', `parameters reference more than one client layer (${layers.join(', ')})`);
+    if (layers.length > 1) fail('INVALID_PARAMS', `parameters reference more than one company layer (${layers.join(', ')})`);
     for (const pre of def.preconditions ?? []) {
       const obj = view.get(params[pre.param] as string)!;
       if (!pre.in.includes(obj[pre.field])) fail('PRECONDITION_FAILED', pre.message);

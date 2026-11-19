@@ -76,7 +76,7 @@ export function proposeTriage(view: View, signal: ObjectRecord, clientId?: strin
     rationale: dismiss
       ? 'No tracked keyword or bill appears; looks like noise.'
       : !matched.length
-        ? `About "${best.issue!.title}", but none of the client's keywords appear${suppressed.length ? ` (${suppressed.join(', ')} excluded here)` : ''}.`
+        ? `About "${best.issue!.title}", but none of the company's keywords appear${suppressed.length ? ` (${suppressed.join(', ')} excluded here)` : ''}.`
         : `${matched.length} match${matched.length > 1 ? 'es' : ''} on "${best.issue!.title}": ${matched.join(', ')}.${relevance < REVIEW_THRESHOLD ? ' Below 0.8, so a human should confirm.' : ''}`,
     relevantToClient,
   };

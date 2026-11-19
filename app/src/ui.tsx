@@ -41,13 +41,13 @@ export const STAGE: Record<string, string> = {
   passed: 'Passed', merged_alternative: 'Merged into a committee alternative', withdrawn: 'Withdrawn',
 };
 export const LEVEL: Record<string, string> = { act_now: 'Act now', engage: 'Engage', monitor: 'Monitor', watch: 'Watch' };
-/** The client's stance as readers see it. A watching brief (stored as monitor) reads as No position. */
+/** The company's stance as readers see it. A watching brief (stored as monitor) reads as No position. */
 export const POSITION: Record<string, string> = { support: 'Support', amend: 'Amend', oppose: 'Oppose', monitor: 'No position' };
 export const STANCE: Record<string, string> = { supportive: 'Supportive', neutral: 'Neutral', opposed: 'Opposed', unconfirmed: 'Unconfirmed' };
 export const LEVEL3: Record<string, string> = { high: 'High', medium: 'Medium', low: 'Low' };
 export const SOURCE: Record<string, string> = { bill_update: 'Bill tracker', press_release: 'Press release', public_notice: 'Notice', news: 'News', minutes: 'Minutes', seminar: 'Seminar', ministry_press: 'Ministry press release', gazette: 'Official Gazette' };
 /** Who acted, from an actor id: readers see a role, never an internal id. */
-export const person = (actor?: string) => (!actor ? '' : actor.startsWith('agent') ? 'Assistant' : actor.startsWith('principal') ? 'Engagement lead' : actor.startsWith('consultant') ? 'Consultant' : actor.startsWith('system') ? 'Collector' : actor);
+export const person = (actor?: string) => (!actor ? '' : actor.startsWith('agent') ? 'Assistant' : actor.startsWith('principal') ? 'Head of government affairs' : actor.startsWith('consultant') ? 'Analyst' : actor.startsWith('system') ? 'Collector' : actor);
 export function nameOf(o?: ObjectRecord): string {
   if (!o) return '';
   if (o.type === 'Interaction') return `${o.kind === 'call' ? 'Call' : 'Meeting'} on ${md(o.date)}`;
@@ -99,13 +99,13 @@ export const kindOf = (o: ObjectRecord) =>
 export function MarkTag({ m, app }: { m: Marking; app: App }) {
   const id = m.slice('CLIENT:'.length);
   return m === 'PUBLIC'
-    ? <span className="chip chip-public">Shared across clients</span>
+    ? <span className="chip chip-public">Shared across companies</span>
     : <span className="chip chip-client">Confidential · {app.view.get(id)?.name ?? id}</span>;
 }
 /** Who can see a record, in words: fictional shared records are not public records, so they never carry a Public label. */
 export const visibility = (app: App, o: ObjectRecord) => {
   const m = o.markings.find((x) => x !== 'PUBLIC');
-  return m ? `Confidential · ${app.view.get(m.slice('CLIENT:'.length))?.name ?? 'client'}` : 'Shared across clients';
+  return m ? `Confidential · ${app.view.get(m.slice('CLIENT:'.length))?.name ?? 'company'}` : 'Shared across companies';
 };
 
 /** Small square tag: tone picks the palette. */
@@ -192,7 +192,7 @@ const strength = (n: number) => (n >= 0.8 ? 'High' : n >= 0.5 ? 'Medium' : 'Low'
 function value(app: App, k: string, v: unknown): ReactNode {
   if (ACTOR_KEYS.has(k)) return person(String(v));
   if (k === 'sourceType') return SOURCE[String(v)] ?? (v === 'official_record' ? 'Official record' : pretty(v));
-  if (k === 'owner') return ({ human: 'Our team', agent: 'Assistant', client: 'Client' } as Record<string, string>)[String(v)] ?? pretty(v);
+  if (k === 'owner') return ({ human: 'Our team', agent: 'Assistant', client: 'Another team' } as Record<string, string>)[String(v)] ?? pretty(v);
   if ((k === 'confidence' || k === 'relevance') && typeof v === 'number') return strength(v);
   if (Array.isArray(v)) return v.every((x) => typeof x === 'string' && app.view.get(x))
     ? v.map((x, i) => <span key={x}>{i ? ', ' : ''}<ObjLink id={x} app={app} /></span>)

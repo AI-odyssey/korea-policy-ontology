@@ -1,6 +1,6 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
-// Monday morning in the demo: the weekly assistant has run for every client, and a consultant has asked to change a
-// client position. Both wait for the engagement lead, so the approval screens are not empty on first open.
+// Monday morning in the demo: the weekly assistant has run for every company, and an analyst has asked to change a
+// company position. Both wait for the head of government affairs, so the approval screens are not empty on first open.
 import type { Store } from '../ontology/runtime.ts';
 import { runWeeklyAgent } from './agent.ts';
 import type { AgentRun } from './agent.ts';

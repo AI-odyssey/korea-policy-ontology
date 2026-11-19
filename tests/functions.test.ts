@@ -73,7 +73,7 @@ describe('functions', () => {
     expect(r.reasons).toEqual([
       'Moved to subcommittee_passed on 2026-11-12',
       'Public Administration and Security Committee meeting on 2026-11-19 (3 days; full committee vote)',
-      'Client stance: amend',
+      'Company stance: amend',
       'Issue impact: high',
     ]);
     // Drop any one condition and it is no longer act_now.
@@ -98,7 +98,7 @@ describe('functions', () => {
     expect(level('bill-003', 'cli-aster')).toBe('engage'); // no stance, but high impact and the full committee takes it up in 3 days
     expect(level('bill-002', 'cli-aster')).toBe('engage'); // no stance, high impact, subcommittee in 10 days
     expect(level('bill-011', 'cli-aster')).toBe('monitor'); // supported, medium impact, subcommittee in 7 days
-    expect(level('bill-004', 'cli-aster')).toBe('monitor'); // notice period closes in 21 days and high impact, but no client stance
+    expect(level('bill-004', 'cli-aster')).toBe('monitor'); // notice period closes in 21 days and high impact, but no company stance
     expect(level('bill-022', 'cli-moru')).toBe('watch'); // supported, medium impact, nothing moving
     expect(responseLevel(v, 'bill-009', 'cli-aster')).toEqual({ level: 'watch', reasons: ['Bill is closed (merged_alternative)'] });
     expect(level('bill-017', 'cli-moru')).toBe('watch'); // passed
@@ -109,7 +109,7 @@ describe('functions', () => {
     s.applyAction(principal, 'setClientPosition', { clientId: 'cli-aster', targetId: 'bill-001', stance: 'support', rationale: 'Changed view' });
     const r = responseLevel(s.as(principal), 'bill-001', 'cli-aster');
     expect(r.level).toBe('engage'); // still high impact with a meeting in 3 days
-    expect(r.reasons).toContain('Client stance: support');
+    expect(r.reasons).toContain('Company stance: support');
   });
 
   it('responseLevel refuses a client the caller cannot see', () => {

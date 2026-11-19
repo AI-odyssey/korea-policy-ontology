@@ -1,5 +1,5 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
-// Issues & bills: the issues this engagement follows, then one bill's profile.
+// Issues & bills: the issues the team follows, then one bill's profile.
 import { useState } from 'react';
 import { Button, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { addDays, responseFacts, responseLevel, stageGates } from '../../ontology/index.ts';
@@ -18,7 +18,7 @@ const WANTS: Record<string, string> = { amend: 'wants it amended', oppose: 'oppo
 const positionOn = (app: App, ...ids: string[]) =>
   ids.map((id) => app.view.list('ClientPosition', (p) => p.clientId === app.clientId && p.targetId === id)[0]).find(Boolean);
 
-/** The client's position on an issue: set on the issue itself, or else the position on the followed bill that matters most. */
+/** The company's position on an issue: set on the issue itself, or else the position on the followed bill that matters most. */
 function issuePosition(app: App, issueId: string, bills: ObjectRecord[], watched: Set<string>): { stance: string; bill?: ObjectRecord } {
   const own = positionOn(app, issueId);
   if (own) return { stance: own.stance };
@@ -55,7 +55,7 @@ function IssueList({ app }: { app: App }) {
           <Section key={issue.id} title={issue.title} className="issue">
             <div className="row">
               <T tone={impact.get(issue.id) === 'high' ? 'hi' : 'md'}>{LEVEL3[impact.get(issue.id)!]} impact</T>
-              <T tone="navy">Client position: {POSITION[pos.stance]}</T>
+              <T tone="navy">Company position: {POSITION[pos.stance]}</T>
               {pos.bill && <span className="sub nowrap">Position set on the {billName(pos.bill).toLowerCase()}.</span>}
               <span className="sub">{issue.summary}</span>
             </div>
@@ -166,7 +166,7 @@ function BillProfile({ app, bill }: { app: App; bill: ObjectRecord }) {
             </>}
           </Section>
         )}
-        <Section title="Client position">
+        <Section title="Company position">
           {pos ? (
             <div className="item">
               <div className="item-title"><T tone="navy">{POSITION[pos.stance]}</T>{pos.targetId !== bill.id && <span className="sub">set on the issue: {view.get(pos.targetId)?.title}</span>}</div>

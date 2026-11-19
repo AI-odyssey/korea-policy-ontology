@@ -11,7 +11,7 @@ const wrenConsultant = ctx('consultant', ['cli-wren'], 'consultant-wren-1');
 const kw = [{ term: 'remittance', priority: 'high' }];
 
 describe('monitoring settings: permissions and approval', () => {
-  it('only people change settings and run trials; consultant setting changes wait for the engagement lead', () => {
+  it('only people change settings and run trials; analyst setting changes wait for the head of government affairs', () => {
     for (const a of ['updateMonitoringProfile', 'startPilot', 'setPilotCriteria', 'addExpectedItem', 'markRelevance', 'closePilot'] as const) {
       expect(actionTypes[a].allowedRoles).toEqual(['consultant', 'principal']);
     }

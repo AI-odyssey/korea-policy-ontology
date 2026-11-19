@@ -39,7 +39,7 @@ describe('weekly agent (offline)', () => {
     const agentWrites = s.auditEntries(principal).filter((a) => a.role === 'agent' && a.status === 'executed').map((a) => a.action);
     expect(new Set(agentWrites)).toEqual(new Set(['triageSignal', 'raiseDecision', 'draftDeliverable', 'submitForReview']));
 
-    // The engagement lead finishes the loop; the agent cannot.
+    // The head of government affairs finishes the loop; the agent cannot.
     expect(codeOf(() => s.applyAction(agentContext('cli-aster'), 'approveDeliverable', { deliverableId: d.id }))).toBe('PERMISSION_DENIED');
     s.applyAction(principal, 'approveDeliverable', { deliverableId: d.id });
     s.applyAction(principal, 'resolveDecision', { decisionId: decision.id, resolution: 'approve' });
@@ -198,9 +198,9 @@ describe('weekly report', () => {
     const v = s.as(lead('cli-aster'));
     const brief = weeklyBrief(v, 'cli-aster', { clientFacing: true });
 
-    expect(body.split('\n')[2]).toBe(`**${brief.headline}.** ${brief.lead}[^1]`);
+    expect(body.split('\n')[4]).toBe(`**${brief.headline}.** ${brief.lead}[^1]`);
     const sections = [...body.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
-    expect(sections).toEqual(['Risks', 'Opportunities', 'Coming up', 'Stakeholder moves', 'What we need from Aster Robotics', 'Sources']);
+    expect(sections).toEqual(['Risks', 'Opportunities', 'Coming up', 'Stakeholder moves', 'What we need from other teams', 'Sources']);
     // Risks in response-level order: the act-now bill's risk first.
     const risks = body.slice(body.indexOf('## Risks'), body.indexOf('## Opportunities'));
     expect(risks.indexOf('Stop rule for pedestrians')).toBeLessThan(risks.indexOf('A single certification body'));
@@ -220,6 +220,15 @@ describe('weekly report', () => {
     expect(notes.length).toBeGreaterThan(3);
     expect(notes.every((id) => v.get(id)?.type === 'Signal')).toBe(true);
     expect(body).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+  });
+
+  it('is addressed to company leadership and names the team behind each need', async () => {
+    const run = await runWeeklyAgent(freshStore(), { clientId: 'cli-aster', applyTriage: true });
+    const body = run.reportMarkdown!;
+    expect(body).toContain('For Aster Robotics leadership, from the government affairs team.');
+    expect(body).toContain('- Cargo model width and stopping-distance data · Engineering, by ');
+    expect(body).not.toMatch(/\bclient\b/i);
+    expect(body.match(/^- Nov 17: Cargo model width and stopping-distance data \(Engineering\)\./m)).not.toBeNull();
   });
 });
 

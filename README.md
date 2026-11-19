@@ -1,26 +1,27 @@
 # Korea Policy Ontology (Demo)
 
-A government-relations workflow modelled as an ontology: bills, notices and news become the few decisions a client has to make each week, and a person approves every step.
+A tool for a company's in-house government-affairs (대관) team, modelled as an ontology. The assistant sorts the week's bills, notices and news, drafts and proposes. The head of government affairs reviews every step. Company leadership gets the few decisions it has to take and the weekly report.
 
 **[Live demo](https://ai-odyssey.github.io/korea-policy-ontology/)** · runs in the browser, no sign-in
 
 ![Main flow: approve the week's decision, open the stakeholder it names, approve and send the weekly report](docs/img/main-flow.gif)
 
-The demo opens on a Monday morning for one of three fictional clients. A rule-based assistant has already sorted the week's items, picked the one lawmaker worth meeting before this week's committee vote, and drafted the client report. You play the engagement lead: you approve or decline each step, and the activity log records who decided what.
+The demo opens on a Monday morning at one of three fictional companies, each an example deployment of the same system. A rule-based assistant has already sorted the week's items, picked the one lawmaker worth meeting before this week's committee vote, and drafted the weekly report for leadership. You are the head of government affairs: you review what the assistant and an analyst prepared, and the activity log records who decided what.
 
-No client or employer data or documents were used. The three clients, their people, bills and events are generated from a fixed seed. The legislative procedure and the institutions are real. Items marked "Public record" are real public items (bills, committee meetings, notices, the Official Gazette, press releases, news headlines) collected for each client's keywords.
+No company or employer data or documents were used. The three companies, their people, bills and events are generated from a fixed seed. The legislative procedure and the institutions are real. Items marked "Public record" are real public items (bills, committee meetings, notices, the Official Gazette, press releases, news headlines) collected for each company's keywords.
 
 ## What to look at
 
-- **This week**: one headline, the decisions the client has to take, risks and opportunities, what happens next, and what is waiting for your approval.
-- **Stakeholders**: who decides at each stage of a bill, and what this client thinks of each of them. Open a person, then request a meeting.
-- **Reports**: the weekly report built from the same data as This week. It cannot be sent until the lead approves it, and it goes back to review if the data changes afterwards.
+- **This week**: one headline, the decisions for leadership, risks and opportunities, what happens next, what is needed from other teams, and what is waiting for your review.
+- **Stakeholders**: who decides at each stage of a bill, and what the company thinks of each of them. Open a person, then request a meeting.
+- **Reports**: the weekly report to leadership, built from the same data as This week. It cannot be sent until the head of government affairs approves it, and it goes back to review if the data changes afterwards.
+- **AI work log**: the steps the assistant took this week and where it stopped for a person.
 
 ## Why this matters for a deployment role
 
-I started from how the work is actually done: reading a flow of items, deciding which ones matter to which client, and turning that into advice an executive can act on. The ontology models that workflow as objects (bills, issues, people, decisions, tasks), the links between them with their evidence, and actions that change state under rules.
+I designed this system as the person who would build and deploy it for an in-house team. I started from how the team's work is actually done: reading a flow of items, deciding which ones matter to the company, and turning that into advice leadership can act on.
 
-Three things shaped the design. Every client-facing step waits for a named person, and the assistant can propose but not approve or send. Each client's confidential layer is kept apart in the data itself, not only on screen, so one client's work never shows in another's. And the screens show what a person has to decide, with reasons, instead of a score. [CASE_STUDY.md](CASE_STUDY.md) explains the choices and what I would measure in a real deployment.
+The design work was four things. I modelled the team's workflow as objects (bills, issues, people, decisions, tasks), the links between them with their evidence, and actions that change state under rules. I set the approval gates: the assistant can propose but not approve or send, and every step that reaches leadership waits for a named person. I separated the confidential layers in the data itself, not only on screen, so one deployment's work never shows in another's. And I made the screens show what a person has to decide, with reasons, instead of a score. [CASE_STUDY.md](CASE_STUDY.md) explains the choices and what I would measure in a deployment: time from an item's arrival to a triage decision, events found too late, analyst time per weekly report, and any access across company layers. There are no results from a real deployment here.
 
 ## Run it
 
@@ -45,7 +46,7 @@ The demo needs no server and no API key. `npm run seed` regenerates the world, `
 
 ## 한국어 요약
 
-대관 업무를 객체, 관계, 액션, 승인으로 나눈 온톨로지 데모입니다. 월요일 아침에 규칙 기반 비서가 한 주의 소식을 분류하고, 이번 주 위원회 전에 만날 의원 한 명을 골라 결정 안건으로 올리고, 고객사 보고서 초안을 씁니다. 업무 책임자가 승인하기 전에는 아무것도 고객에게 나가지 않습니다. 고객사, 인물, 법안은 모두 가상이고 고객사나 회사의 실제 자료는 쓰지 않았습니다. "Public record" 표시가 붙은 항목만 실제 공개 기록입니다.
+기업의 사내 대관팀이 직접 쓰는 도구를 객체, 관계, 액션, 승인으로 나눈 온톨로지 데모입니다. 월요일 아침에 규칙 기반 비서가 한 주의 소식을 분류하고, 이번 주 위원회 전에 만날 의원 한 명을 골라 경영진이 판단할 안건으로 올리고, 경영진에게 보낼 주간 보고서 초안을 씁니다. 대관 책임자가 승인하기 전에는 아무것도 경영진에게 나가지 않습니다. 저는 이 도구를 쓰는 사람이 아니라, 사내 대관팀을 위해 설계하고 배치하는 담당자의 관점에서 만들었습니다. 회사, 인물, 법안은 모두 가상이고 실제 회사나 고용주의 자료는 쓰지 않았습니다. "Public record" 표시가 붙은 항목만 실제 공개 기록입니다.
 
 ## License
 

@@ -99,7 +99,7 @@ describe('assessStakeholder', () => {
 describe('addRiskOpportunity and updateStrategy go through the approval gate', () => {
   const risk = { clientId: 'cli-aster', kind: 'risk', title: 'New risk', summary: 'Summary', impact: 'medium', urgency: 'in_progress', subjectIds: ['bill-002'] };
 
-  it('an agent proposal waits for the engagement lead, then runs with the approver recorded', () => {
+  it('an agent proposal waits for the head of government affairs, then runs with the approver recorded', () => {
     const s = freshStore();
     const res = s.applyAction(agent('cli-aster'), 'addRiskOpportunity', risk);
     expect(res.status).toBe('pending_approval');

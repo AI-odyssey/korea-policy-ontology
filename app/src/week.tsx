@@ -1,5 +1,5 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
-// This week: the client executive's page. It renders the weekly brief (agent/brief.ts), the same model the report uses.
+// This week: the page the head of government affairs works from. It renders the weekly brief (agent/brief.ts), the same model the report uses.
 import { useState } from 'react';
 import { Button, HTMLSelect } from '@blueprintjs/core';
 import { REVIEW_THRESHOLD, signalQueue } from '../../ontology/index.ts';
@@ -20,8 +20,8 @@ export function ThisWeek({ app }: { app: App }) {
 
       <Pending app={app} />
 
-      <Section title="Decisions needed">
-        {!b.decisions.length && <Empty>Nothing to decide this week.</Empty>}
+      <Section title="Decisions for leadership">
+        {!b.decisions.length && <Empty>Nothing for leadership to decide this week.</Empty>}
         {b.decisions.map((d) => <DecisionItem key={d.id} d={d} app={app} />)}
       </Section>
 
@@ -42,8 +42,8 @@ export function ThisWeek({ app }: { app: App }) {
             </div>
           ))}
         </Section>
-        <Section title="Asks of the client">
-          {!b.asks.length && <Empty>Nothing needed from the client right now.</Empty>}
+        <Section title="Needed from other teams">
+          {!b.asks.length && <Empty>Nothing needed from other teams right now.</Empty>}
           {b.asks.map((t) => (
             <div key={t.id} className="item ask">
               <span className="grow">{t.title}</span>
@@ -147,7 +147,7 @@ function Timeline({ app, items }: { app: App; items: TimelineItem[] }) {
   );
 }
 
-/** New items the assistant was not sure about, for this client. Items returned with Undo land here too. */
+/** New items the assistant was not sure about, for this company. Items returned with Undo land here too. */
 function ToConfirm({ app }: { app: App }) {
   const { view, clientId } = app;
   const items = signalQueue(view)
@@ -174,7 +174,7 @@ function ToConfirm({ app }: { app: App }) {
   );
 }
 
-/** What the assistant filed on its own this week for this client. Undo returns an item to the queue. */
+/** What the assistant filed on its own this week for this company. Undo returns an item to the queue. */
 function AutoFiled({ app }: { app: App }) {
   const [all, setAll] = useState(false);
   // The latest triage or undo on each item decides: filed by the assistant and not undone or redone by a person.
@@ -204,11 +204,11 @@ function AutoFiled({ app }: { app: App }) {
   );
 }
 
-/** Requests from the assistant or a consultant, and reports in review, that wait for the engagement lead. Hidden when empty. */
+/** Changes the assistant or an analyst proposed, and reports in review, that wait for the head of government affairs. Hidden when empty. */
 export function Pending({ app, empty }: { app: App; empty?: string }) {
   const pending = app.store.pendingApprovals(app.ctx);
   const reports = app.view.list('Deliverable', (d) => d.clientId === app.clientId && d.status === 'in_review').sort((a, b) => a.id.localeCompare(b.id));
-  if (!pending.length && !reports.length) return empty ? <Section title="Waiting for your approval"><Empty>{empty}</Empty></Section> : null;
+  if (!pending.length && !reports.length) return empty ? <Section title="To review"><Empty>{empty}</Empty></Section> : null;
   const decide = (fn: () => void, msg: string) => {
     try {
       fn();
@@ -219,18 +219,18 @@ export function Pending({ app, empty }: { app: App; empty?: string }) {
   };
   const what = (p: (typeof pending)[number]) => {
     const x = p.params as Record<string, any>;
-    if (p.action === 'setClientPosition') return { title: `Change the client position on the ${nameOf(app.view.get(x.targetId)).toLowerCase()} to ${POSITION[x.stance]}`, detail: x.rationale };
+    if (p.action === 'setClientPosition') return { title: `Change the company position on the ${nameOf(app.view.get(x.targetId)).toLowerCase()} to ${POSITION[x.stance]}`, detail: x.rationale };
     if (p.action === 'addRiskOpportunity') return { title: `New ${x.kind}: ${x.title}`, detail: x.summary };
     if (p.action === 'updateStrategy') return { title: `Update the strategy on ${nameOf(app.view.get(x.issueId))}`, detail: (x.messages ?? []).join(' ') };
     return { title: p.action, detail: '' };
   };
   return (
-    <Section title="Waiting for your approval">
+    <Section title="To review">
       {pending.map((p) => {
         const w = what(p);
         return (
           <div key={p.id} className="item">
-            <div className="item-title">{w.title} <span className="sub">Requested by {p.requesterRole === 'agent' ? 'the assistant' : `a ${person(p.requestedBy).toLowerCase()}`}</span></div>
+            <div className="item-title">{w.title} <span className="sub">Proposed by {p.requesterRole === 'agent' ? 'the assistant' : 'an analyst'}</span></div>
             {w.detail && <p className="sub">{w.detail}</p>}
             <div className="row">
               <Button size="small" intent="primary" text="Approve" onClick={() => decide(() => app.store.approve(app.ctx, p.id), 'Approved.')} />

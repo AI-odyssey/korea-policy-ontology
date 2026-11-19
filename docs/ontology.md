@@ -4,18 +4,20 @@
 
 Terms follow Palantir Foundry: object types, link types, action types, functions, markings. Every record in the sample world is synthetic. Article numbers and bill numbers are invented.
 
-Every object also has `id`, `type`, `markings`, `synthetic`, and may carry `provenance`. Real public records collected by `ingest/` are `Signal` and `Evidence` objects with provenance `public`, `synthetic: false` and the official https link; every other object, people and the whole client layer included, is synthetic.
+Every object also has `id`, `type`, `markings`, `synthetic`, and may carry `provenance`. Real public records collected by `ingest/` are `Signal` and `Evidence` objects with provenance `public`, `synthetic: false` and the official https link; every other object, people and the whole company layer included, is synthetic.
 
 ## Roles
 
 `system`, `agent`, `consultant`, `principal`
+
+In the screens and in this reference, `principal` is the head of government affairs, `consultant` is an analyst on the government-affairs team, `agent` is the assistant and `system` is the collector.
 
 ## Markings
 
 | Marking | Meaning |
 |---|---|
 | `PUBLIC` | Public legislative record. Visible to every caller. |
-| `CLIENT:<clientId>` | One client's layer. Visible only to callers assigned to that client, and sent to a model provider only if it is allow-listed. |
+| `CLIENT:<clientId>` | One company's layer. Visible only to callers assigned to that company, and sent to a model provider only if it is allow-listed. |
 
 ## Object types
 
@@ -27,7 +29,7 @@ Public layer. A policy topic that bills, events and signals are about.
 |---|---|---|---|
 | `title` | string | yes |  |
 | `summary` | text | yes |  |
-| `keywords` | string[] | yes | Routes an item to an issue. How much the item matters to a client comes from that client's MonitoringProfile. |
+| `keywords` | string[] | yes | Routes an item to an issue. How much the item matters to a company comes from the company's MonitoringProfile. |
 
 ### `Bill`
 
@@ -119,7 +121,7 @@ Public layer. One collected raw item (bill update, press release, notice, gazett
 | `publishedAt` | date |  |  |
 | `collectedAt` | datetime | yes |  |
 | `rawText` | text | yes |  |
-| `status` | enum(new / triaged / dismissed) | yes | Set by the collector only. How each client filed the item is a SignalTriage record in that client layer. |
+| `status` | enum(new / triaged / dismissed) | yes | Set by the collector only. How each company filed the item is a SignalTriage record in that company's layer. |
 | `relevance` | number [0..1] |  |  |
 | `dismissReason` | string |  |  |
 
@@ -139,7 +141,7 @@ Public layer. The support for one link: source, excerpt, method and confidence.
 
 ### `Client`
 
-Client layer. A client organization.
+Company layer. The company the deployment serves.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -148,7 +150,7 @@ Client layer. A client organization.
 
 ### `Engagement`
 
-Client layer. The consulting engagement for one client: scope, team and what is watched.
+Company layer. The government-affairs team's monitoring setup for the company: scope, team and what is watched.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -159,7 +161,7 @@ Client layer. The consulting engagement for one client: scope, team and what is 
 
 ### `SignalTriage`
 
-Client layer. One client's filing of a collected item: filed under an issue, set aside, or returned to the queue. The public Signal is never changed, so one client's triage does not touch another client's queue.
+Company layer. One company's filing of a collected item: filed under an issue, set aside, or returned to the queue. The public Signal is never changed, so one company's triage does not touch another company's queue.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -174,7 +176,7 @@ Client layer. One client's filing of a collected item: filed under an issue, set
 
 ### `ClientPosition`
 
-Client layer. The client's stance on an issue or bill.
+Company layer. The company's stance on an issue or bill.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -187,7 +189,7 @@ Client layer. The client's stance on an issue or bill.
 
 ### `Interaction`
 
-Client layer. A logged meeting or call with a public official, aide or stakeholder.
+Company layer. A logged meeting or call with a public official, aide or stakeholder.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -200,7 +202,7 @@ Client layer. A logged meeting or call with a public official, aide or stakehold
 
 ### `Deliverable`
 
-Client layer. A work product for the client. Sending requires principal approval first.
+Company layer. A work product of the government-affairs team for company leadership. Sending requires approval by the head of government affairs first.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -216,7 +218,7 @@ Client layer. A work product for the client. Sending requires principal approval
 
 ### `Decision`
 
-Client layer. A judgment call that needs the principal: question, recommendation and alternatives.
+Company layer. A business call for company leadership: question, recommendation and alternatives.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -226,8 +228,8 @@ Client layer. A judgment call that needs the principal: question, recommendation
 | `alternatives` | string[] | yes |  |
 | `status` | enum(open / resolved) | yes |  |
 | `subjectId` | ref |  | The bill or issue the decision is about. |
-| `dueDate` | date |  | When the principal needs to decide. |
-| `followUp` | string |  | The short task title created if the principal approves. |
+| `dueDate` | date |  | When leadership needs to decide. |
+| `followUp` | string |  | The short task title created if leadership approves. |
 | `targetId` | ref -> Person/StakeholderOrg |  | The person the recommendation is about. |
 | `premiseStance` | enum(supportive / neutral / opposed / unconfirmed) |  | The target's assessed stance when the decision was raised. A different stance now makes the decision out of date. |
 | `openedAt` | datetime | yes |  |
@@ -237,20 +239,20 @@ Client layer. A judgment call that needs the principal: question, recommendation
 
 ### `Task`
 
-Client layer. A dated follow-up owned by the consulting team (human or agent) or asked of the client.
+Company layer. A dated follow-up owned by the government-affairs team (human or agent) or needed from another team in the company.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
 | `clientId` | ref -> Client | yes |  |
 | `title` | string | yes |  |
 | `dueDate` | date | yes |  |
-| `owner` | enum(human / agent / client) | yes | client = something the team needs from the client (data, attendees, sign-off). |
+| `owner` | enum(human / agent / client) | yes | client = something the government-affairs team needs from another team in the company (data, attendees, sign-off). |
 | `status` | enum(open / done) | yes |  |
 | `subjectId` | ref |  |  |
 
 ### `StakeholderAssessment`
 
-Client layer. One client's read of a person or organization on one issue. Kept apart from the public Person and StakeholderOrg records so a client's judgment never enters the shared layer.
+Company layer. One company's read of a person or organization on one issue. Kept apart from the public Person and StakeholderOrg records so a company's judgment never enters the shared layer.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -267,7 +269,7 @@ Client layer. One client's read of a person or organization on one issue. Kept a
 
 ### `RiskOpportunity`
 
-Client layer. A risk or an opportunity for the client, tagged by impact and urgency instead of a score.
+Company layer. A risk or an opportunity for the company, tagged by impact and urgency instead of a score.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -284,7 +286,7 @@ Client layer. A risk or an opportunity for the client, tagged by impact and urge
 
 ### `Strategy`
 
-Client layer. The plan for one issue: desired outcome, messages, who to persuade, allies and dated steps.
+Company layer. The plan for one issue: desired outcome, messages, who to persuade, allies and dated steps.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -300,7 +302,7 @@ Client layer. The plan for one issue: desired outcome, messages, who to persuade
 
 ### `MonitoringProfile`
 
-Client layer. What one client wants watched: objectives, keywords, committees, agencies and source types. The collector reads it as its watch list.
+Company layer. What one company wants watched: objectives, keywords, committees, agencies and source types. The collector reads it as its watch list.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -315,7 +317,7 @@ Client layer. What one client wants watched: objectives, keywords, committees, a
 
 ### `PilotEvaluation`
 
-Client layer. A trial run for one client: the items the client says must be caught, what the system caught in the same window, the client's relevance calls, and the pass criteria.
+Company layer. A trial run for one company: the items the team says must be caught, what the system caught in the same window, the team's relevance calls, and the pass criteria.
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -325,8 +327,8 @@ Client layer. A trial run for one client: the items the client says must be caug
 | `to` | date | yes |  |
 | `status` | enum(open / closed) | yes |  |
 | `criteria` | json | yes | {access 0-1, officialMisses, noise 0-1}. Defaults: access 1, officialMisses 0, noise 0.2. |
-| `expected` | json | yes | [{id, title, url?, date, sourceType}]: what the client lists as must-catch. Matched to a caught item by url, else by title. |
-| `caught` | json | yes | [{signalId, relevance?}]: items in the window that hit the profile when the trial started; relevance is the client's call. |
+| `expected` | json | yes | [{id, title, url?, date, sourceType}]: what the team lists as must-catch. Matched to a caught item by url, else by title. |
+| `caught` | json | yes | [{signalId, relevance?}]: items in the window that hit the profile when the trial started; relevance is the team's call. |
 | `startedBy` | string | yes |  |
 | `closedBy` | string |  |  |
 | `result` | enum(pass / fail) |  | Set when the trial closes. |
@@ -356,18 +358,18 @@ Cardinality reads from source to target. `requiredFrom` / `requiredTo` list obje
 
 ## Action types
 
-Actions are the only way to change state. Each call is checked for role, parameters (every referenced object must be visible to the caller, and one call may name objects from at most one client layer) and preconditions, then executed or held for approval. Every attempt, including refusals, is appended to the audit log.
+Actions are the only way to change state. Each call is checked for role, parameters (every referenced object must be visible to the caller, and one call may name objects from at most one company layer) and preconditions, then executed or held for approval. Every attempt, including refusals, is appended to the audit log.
 
 ### `triageSignal`
 
-File a new Signal for one client under an Issue and/or Bill with a relevance score, or set it aside for that client.
+File a new Signal for one company under an Issue and/or Bill with a relevance score, or set it aside for that company.
 
 - Allowed roles: `agent`, `consultant`, `principal`
 - Approval: not required
 - Rule: Unless dismiss is true, issueId or billId is required.
-- Rule: The client must not have filed or set aside this Signal already.
-- Effect: Creates or updates the SignalTriage for this client and signal (CLIENT marking); the Signal itself is unchanged
-- Effect: Creates about / mentions links, each with an Evidence record (method rule for agent, human for consultant or principal)
+- Rule: The company must not have filed or set aside this Signal already.
+- Effect: Creates or updates the SignalTriage for this company and signal (CLIENT marking); the Signal itself is unchanged
+- Effect: Creates about / mentions links, each with an Evidence record (method rule for agent, human for an analyst or the head of government affairs)
 - Effect: Agent evidence below 0.8 confidence lands in the review queue
 
 | Property | Type | Required | Note |
@@ -405,11 +407,11 @@ Create a public-layer link (if absent) and attach one Evidence record to it.
 
 ### `reopenSignal`
 
-Undo a client's triage: return a filed or set-aside Signal to that client's queue.
+Undo a company's triage: return a filed or set-aside Signal to the company's queue.
 
 - Allowed roles: `consultant`, `principal`
 - Approval: not required
-- Rule: The client must have filed or set aside this Signal.
+- Rule: The company must have filed or set aside this Signal.
 - Effect: SignalTriage.status = returned
 - Effect: Evidence that filing created is marked rejected
 - Effect: Links left without other support are removed
@@ -458,12 +460,12 @@ Record a stage change collected from the official bill tracker.
 
 ### `setClientPosition`
 
-Set or replace the client's stance on an issue or bill.
+Set or replace the company's stance on an issue or bill.
 
 - Allowed roles: `consultant`, `principal`
 - Approval: required from `principal` before it runs
 - Effect: Creates or replaces the ClientPosition (CLIENT marking)
-- Effect: Consultant requests wait for principal approval
+- Effect: Analyst requests wait for approval by the head of government affairs
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -495,7 +497,7 @@ Create a draft deliverable. Agents may draft but never go beyond review.
 
 - Allowed roles: `agent`, `consultant`, `principal`
 - Approval: not required
-- Rule: The client must have an Engagement.
+- Rule: The company must have an Engagement.
 - Effect: Creates a Deliverable (status draft) and a produced_for link
 
 | Property | Type | Required | Note |
@@ -537,7 +539,7 @@ Replace the text of a deliverable that has not been sent, for example when the w
 
 ### `approveDeliverable`
 
-Principal approves a deliverable that is in review.
+The head of government affairs approves a deliverable that is in review.
 
 - Allowed roles: `principal`
 - Approval: not required
@@ -550,11 +552,11 @@ Principal approves a deliverable that is in review.
 
 ### `sendDeliverable`
 
-Send an approved deliverable to the client (simulated; nothing leaves the browser).
+Send an approved deliverable to company leadership (simulated; nothing leaves the browser).
 
 - Allowed roles: `consultant`, `principal`
 - Approval: not required
-- Precondition: `deliverableId`.status in [approved] (Blocked until the principal approves the deliverable)
+- Precondition: `deliverableId`.status in [approved] (Blocked until the head of government affairs approves the deliverable)
 - Effect: Deliverable.status = sent, sentAt set
 - Effect: Audit entry carries the approver recorded on the deliverable
 
@@ -564,7 +566,7 @@ Send an approved deliverable to the client (simulated; nothing leaves the browse
 
 ### `raiseDecision`
 
-Put a judgment call in front of the principal with a recommendation.
+Put a business call in front of company leadership with a recommendation.
 
 - Allowed roles: `agent`, `consultant`, `principal`
 - Approval: not required
@@ -585,7 +587,7 @@ Put a judgment call in front of the principal with a recommendation.
 
 ### `resolveDecision`
 
-Principal decides.
+Record leadership's call: approve, choose an alternative, decline or withdraw.
 
 - Allowed roles: `principal`
 - Approval: not required
@@ -630,13 +632,13 @@ Mark a task done.
 
 ### `assessStakeholder`
 
-Record the client's read of a person or organization on an issue: stance, influence, relevance and what the stance rests on.
+Record the company's read of a person or organization on an issue: stance, influence, relevance and what the stance rests on.
 
 - Allowed roles: `consultant`, `principal`
 - Approval: not required
 - Rule: A stance other than unconfirmed needs at least one basis record.
 - Rule: Humans only: the agent may not judge a person.
-- Effect: Creates or replaces the StakeholderAssessment for this client, subject and issue (CLIENT marking)
+- Effect: Creates or replaces the StakeholderAssessment for this company, subject and issue (CLIENT marking)
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -651,13 +653,13 @@ Record the client's read of a person or organization on an issue: stance, influe
 
 ### `addRiskOpportunity`
 
-Add a risk or an opportunity to the client view.
+Add a risk or an opportunity to the company view.
 
 - Allowed roles: `agent`, `consultant`, `principal`
 - Approval: required from `principal` before it runs
 - Rule: subjectIds must name at least one bill, issue or event.
 - Effect: Creates a RiskOpportunity (CLIENT marking)
-- Effect: Agent and consultant additions wait for principal approval
+- Effect: Agent and analyst additions wait for approval by the head of government affairs
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -678,8 +680,8 @@ Create or revise the strategy for one issue.
 - Approval: required from `principal` before it runs
 - Rule: A new strategy needs desiredOutcome and messages.
 - Rule: Targets must be assessments on the same issue.
-- Effect: Creates or updates the Strategy for this client and issue (CLIENT marking)
-- Effect: Consultant changes wait for principal approval
+- Effect: Creates or updates the Strategy for this company and issue (CLIENT marking)
+- Effect: Analyst changes wait for approval by the head of government affairs
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -693,7 +695,7 @@ Create or revise the strategy for one issue.
 
 ### `updateMonitoringProfile`
 
-Create or revise the client's monitoring profile: objectives, keywords, committees, agencies and source types.
+Create or revise the company's monitoring profile: objectives, keywords, committees, agencies and source types.
 
 - Allowed roles: `consultant`, `principal`
 - Approval: required from `principal` before it runs
@@ -701,8 +703,8 @@ Create or revise the client's monitoring profile: objectives, keywords, committe
 - Rule: committees must be committees or subcommittees; agencies must be ministries or agencies.
 - Rule: sources must be known source types.
 - Rule: A new profile needs objectives and keywords.
-- Effect: Creates or updates the MonitoringProfile for this client (CLIENT marking)
-- Effect: Consultant changes wait for principal approval
+- Effect: Creates or updates the MonitoringProfile for this company (CLIENT marking)
+- Effect: Analyst changes wait for approval by the head of government affairs
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -715,11 +717,11 @@ Create or revise the client's monitoring profile: objectives, keywords, committe
 
 ### `startPilot`
 
-Start a trial: fix the window and record every item in it that hits the client profile.
+Start a trial: fix the window and record every item in it that hits the company profile.
 
 - Allowed roles: `consultant`, `principal`
 - Approval: not required
-- Rule: The client needs a monitoring profile and no other open trial.
+- Rule: The company needs a monitoring profile and no other open trial.
 - Rule: from must not be after to, and to must not be after the base date.
 - Effect: Creates a PilotEvaluation (status open, CLIENT marking) with the caught items
 
@@ -749,7 +751,7 @@ Change the pass criteria of an open trial.
 
 ### `addExpectedItem`
 
-Add an item the client says the system must catch.
+Add an item the team says the system must catch.
 
 - Allowed roles: `consultant`, `principal`
 - Approval: not required
@@ -767,7 +769,7 @@ Add an item the client says the system must catch.
 
 ### `markRelevance`
 
-Record the client's call on a caught item: relevant or irrelevant.
+Record the team's call on a caught item: relevant or irrelevant.
 
 - Allowed roles: `consultant`, `principal`
 - Approval: not required
@@ -796,7 +798,7 @@ Close a trial and record pass or fail against its criteria.
 
 ## Permission matrix
 
-yes = may run it; approval = may request it, the principal must approve; - = denied.
+yes = may run it; approval = may request it, the head of government affairs must approve; - = denied.
 
 | Action | system | agent | consultant | principal |
 |---|---|---|---|---|
@@ -833,12 +835,12 @@ Deterministic and read-only. Each takes a `view`, the caller-filtered read handl
 | Function | Signature | What it returns |
 |---|---|---|
 | `whatChanged` | `whatChanged(view, since, until?)` | Stage changes, new signals, events held and upcoming, and risk movements after the since date. |
-| `billRiskScore` | `billRiskScore(view, billId, clientId, asOf?)` | Weighted 0-100 score for one bill and one client, returned with every component. |
-| `responseLevel` | `responseLevel(view, billId, clientId, since?)` | One of act_now, engage, monitor or watch for one bill and one client, from explicit rules (stage moved this week, next meeting or closing notice period within 7 or 30 days, client stance, issue impact), with the reasons that raise the level and those that keep it from going higher. An opposed, high-impact bill on an agenda within 7 days is act_now even if it did not move. |
+| `billRiskScore` | `billRiskScore(view, billId, clientId, asOf?)` | Weighted 0-100 score for one bill and one company, returned with every component. |
+| `responseLevel` | `responseLevel(view, billId, clientId, since?)` | One of act_now, engage, monitor or watch for one bill and one company, from explicit rules (stage moved this week, next meeting or closing notice period within 7 or 30 days, company stance, issue impact), with the reasons that raise the level and those that keep it from going higher. An opposed, high-impact bill on an agenda within 7 days is act_now even if it did not move. |
 | `keyPeople` | `keyPeople(view, billId, limit?)` | Ranked people around a bill, each with the reasons for the rank. |
-| `upcomingDeadlines` | `upcomingDeadlines(view, clientId, days?)` | Open tasks and scheduled events for the client in the next N days. |
-| `issueExposure` | `issueExposure(view, clientId)` | Issues ranked by how much active legislative risk sits on them for the client. |
+| `upcomingDeadlines` | `upcomingDeadlines(view, clientId, days?)` | Open tasks and scheduled events for the company in the next N days. |
+| `issueExposure` | `issueExposure(view, clientId)` | Issues ranked by how much active legislative risk sits on them for the company. |
 | `stageGates` | `stageGates(view, billId)` | Who decides at each stage (bill review subcommittee, full committee, Legislation and Judiciary Committee, plenary): date, status, and the chairs and secretaries who control each agenda. |
 | `profileMatch` | `profileMatch(profile, text)` | Which profile keywords hit a text (the term or a synonym, case-insensitive), which were suppressed by an exclude phrase, and a 0-1 score: hits combine as 1 - prod(1 - w) with w = 0.6 high, 0.45 medium, 0.3 low. |
 | `pilotMetrics` | `pilotMetrics(view, pilotId, reach?)` | Trial results: sources reached (from the fetch results of a live collector run when supplied), missed items (and how many came from the Assembly or government), noise among judged items, median days from publication to detection, pass or fail on each criterion, and the same counts per source type. |
-| `stakeholderNetwork` | `stakeholderNetwork(view, clientId, issueId)` | The client's assessed stakeholders on one issue and the public relations between them (cosponsorship, same committee, joint event), each edge with the records it rests on. |
+| `stakeholderNetwork` | `stakeholderNetwork(view, clientId, issueId)` | The company's assessed stakeholders on one issue and the public relations between them (cosponsorship, same committee, joint event), each edge with the records it rests on. |

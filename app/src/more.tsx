@@ -1,5 +1,5 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
-// Secondary screens: Reports, Activity log, Assistant run, Ontology.
+// Secondary screens: Reports, Activity log, AI work log, Ontology.
 import { useEffect, useState } from 'react';
 import { Button } from '@blueprintjs/core';
 import { weeklyBrief } from '../../agent/index.ts';
@@ -12,11 +12,11 @@ import { Pending } from './week.tsx';
 
 const KIND: Record<string, string> = { weekly_report: 'Weekly report', issue_brief: 'Issue brief', comment_letter: 'Comment letter', meeting_prep: 'Meeting notes' };
 const STATUS: Record<string, string> = { draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' };
-const WHO: Record<string, string> = { system: 'Collector', agent: 'Assistant', consultant: 'Consultant', principal: 'Engagement lead' };
+const WHO: Record<string, string> = { system: 'Collector', agent: 'Assistant', consultant: 'Analyst', principal: 'Head of government affairs' };
 const clip = (s: string, n = 80) => (s.length <= n ? s : `${s.slice(0, n).replace(/\s+\S*$/, '')}...`);
 
 // ---------------- Reports ----------------
-/** The agency's own question ("Meet X, a secretary of Y?") is not what a client reads. Show what was decided and what happens next. */
+/** The team's own question ("Meet X, a secretary of Y?") is not what company leadership reads. Show what was decided and what happens next. */
 function clientDecisions(app: App, body: string): string {
   const since = weeklyBrief(app.view, app.clientId).since;
   const taken = app.view.list('Decision', (d) => d.clientId === app.clientId && d.status === 'resolved' && d.resolution !== 'withdraw' && String(d.openedAt).slice(0, 10) > since);
@@ -71,7 +71,7 @@ export function Reports({ app }: { app: App }) {
             <div className="row">
               {d.status === 'draft' && <Button size="small" text="Send for review" onClick={() => app.act('submitForReview', { deliverableId: d.id }, 'In review.')} />}
               {d.status === 'in_review' && <Button size="small" intent="primary" text="Approve" onClick={() => app.act('approveDeliverable', { deliverableId: d.id }, 'Approved. Ready to send.')} />}
-              {d.status === 'approved' && <Button size="small" intent="primary" text="Send to client" onClick={() => app.act('sendDeliverable', { deliverableId: d.id }, `Sent to ${app.client.name}.`)} />}
+              {d.status === 'approved' && <Button size="small" intent="primary" text="Send to leadership" onClick={() => app.act('sendDeliverable', { deliverableId: d.id }, `Sent to ${app.client.name} leadership.`)} />}
               <Button size="small" variant="minimal" text="Print / Save as PDF" onClick={() => window.print()} />
             </div>
             <article className="memo"><Markdown text={clientDecisions(app, d.body)} app={app} /></article>
@@ -83,7 +83,7 @@ export function Reports({ app }: { app: App }) {
 }
 
 // ---------------- Activity log ----------------
-const RESULT: Record<string, string> = { executed: 'Done', pending_approval: 'Waiting for approval', rejected: 'Declined', denied: 'Refused' };
+const RESULT: Record<string, string> = { executed: 'Done', pending_approval: 'Waiting for review', rejected: 'Declined', denied: 'Refused' };
 
 function describe(app: App, a: AuditEntry): string {
   const p = a.params as Record<string, any>;
@@ -96,10 +96,10 @@ function describe(app: App, a: AuditEntry): string {
     case 'submitForReview': return `Sent for review: ${n(p.deliverableId)}`;
     case 'redraftDeliverable': return `Brought up to date with the latest changes: ${n(p.deliverableId)}`;
     case 'approveDeliverable': return `Approved: ${n(p.deliverableId)}`;
-    case 'sendDeliverable': return `Sent to the client: ${n(p.deliverableId)}`;
+    case 'sendDeliverable': return `Sent to leadership: ${n(p.deliverableId)}`;
     case 'createTask': return `Added: ${p.title}`;
     case 'completeTask': return `Completed: ${n(p.taskId)}`;
-    case 'setClientPosition': return `${a.status === 'pending_approval' ? 'Asked to change' : 'Set'} the client position on the ${n(p.targetId).charAt(0).toLowerCase()}${n(p.targetId).slice(1)} to ${POSITION[p.stance as string]}`;
+    case 'setClientPosition': return `${a.status === 'pending_approval' ? 'Asked to change' : 'Set'} the company position on the ${n(p.targetId).charAt(0).toLowerCase()}${n(p.targetId).slice(1)} to ${POSITION[p.stance as string]}`;
     case 'reopenSignal': return `Returned to the queue: ${n(p.signalId)}`;
     case 'logInteraction': return `Logged a ${p.kind} with ${(p.participantIds as string[] ?? []).map(n).join(', ')}`;
     case 'assessStakeholder': return `Updated the stance of ${n(p.subjectId)}: ${String(p.stance)}`;
@@ -150,7 +150,7 @@ export function ActivityLog({ app }: { app: App }) {
   );
 }
 
-// ---------------- Assistant run ----------------
+// ---------------- AI work log ----------------
 const STEP: Record<string, string> = {
   'query.signals': 'Read new items', proposeTriage: 'Sort new items', triageSignal: 'File clear matches', whatChanged: 'Check what changed',
   responseLevel: 'Rank followed bills', stageGates: 'Find who decides next', raiseDecision: 'Raise a decision', addRiskOpportunity: 'Propose a risk',
@@ -169,15 +169,15 @@ export function AssistantRun({ app }: { app: App }) {
   const decisions = app.view.list('Decision', (d) => d.clientId === app.clientId && d.status === 'open').sort((a, b) => a.id.localeCompare(b.id));
   return (
     <div className="page">
-      <h1 className="headline">Assistant run</h1>
+      <h1 className="headline">AI work log</h1>
       <div className="row"><Button intent="primary" loading={busy} text="Run the weekly assistant" onClick={go} /></div>
       {!run && <Empty>No run yet for {app.client.name}.</Empty>}
       {run && (
         <>
-          <p className="lead">Week of {md(run.since)} to {md(run.asOf)}. The assistant took {run.steps.length} steps and stopped where your approval is needed.</p>
-          <Pending app={app} empty="Nothing waits for your approval." />
-          <Section title="Decisions needed">
-            {!decisions.length && <Empty>Nothing to decide this week.</Empty>}
+          <p className="lead">Week of {md(run.since)} to {md(run.asOf)}. The assistant took {run.steps.length} steps and stopped where your review is needed.</p>
+          <Pending app={app} empty="Nothing to review." />
+          <Section title="Decisions for leadership">
+            {!decisions.length && <Empty>Nothing for leadership to decide this week.</Empty>}
             {decisions.map((d) => <div key={d.id} className="item"><a onClick={() => app.go('week')}>{prose(clip(nameOf(d), 140))}</a></div>)}
           </Section>
           <Section title="Steps">
@@ -198,8 +198,9 @@ export function AssistantRun({ app }: { app: App }) {
 
 // ---------------- Ontology ----------------
 const ROLE: Record<string, string> = WHO;
-// The schema calls the approver 'principal'; on screen that person is the engagement lead.
-const lead = (s: string) => s.replace(/\bprincipal\b/g, 'engagement lead').replace(/\bPrincipal\b/g, 'Engagement lead');
+// The schema names the roles 'principal' and 'consultant'; on screen they are the head of government affairs and the analyst.
+const lead = (s: string) => s.replace(/\bprincipal\b/g, 'head of government affairs').replace(/\bPrincipal\b/g, 'Head of government affairs')
+  .replace(/\bconsultants?\b/g, 'analyst').replace(/\bConsultants?\b/g, 'Analyst');
 
 export function Ontology() {
   const objs = OBJECT_TYPE_NAMES.map((n) => [n, objectTypes[n] as ObjectTypeDef] as const);
@@ -208,7 +209,7 @@ export function Ontology() {
       <h1 className="headline">Ontology</h1>
       <p className="lead">{objs.length} object types, {LINK_TYPE_NAMES.length} link types, {ACTION_NAMES.length} action types, {functionTypes.length} functions.</p>
       {(['public', 'client'] as const).map((layer) => (
-        <Section key={layer} title={layer === 'public' ? 'Public layer' : 'Confidential client layer'}>
+        <Section key={layer} title={layer === 'public' ? 'Public layer' : 'Confidential company layer'}>
           <div className="types">
             {objs.filter(([, d]) => d.layer === layer).map(([n, d]) => (
               <div key={n} className="type">

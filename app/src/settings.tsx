@@ -308,7 +308,7 @@ function MustCatch({ app, pilot, m }: { app: App; pilot: ObjectRecord; m: PilotM
   };
   return (
     <section className="sec">
-      <h2 className="label">Must-catch list from {app.client.name}</h2>
+      <h2 className="label">Must-catch list</h2>
       {!(pilot.expected as unknown[]).length && <Empty>No items listed yet.</Empty>}
       {(pilot.expected as { id: string; title: string; date: string; sourceType: string }[]).map((e) => {
         const f = found.get(e.id);

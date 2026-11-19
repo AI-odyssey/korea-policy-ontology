@@ -16,7 +16,7 @@ describe('model-provider gate', () => {
   });
   it('blocks client objects by default and for providers not on the list', () => {
     expect(() => serializeForProvider('approved-private', [clientPosition])).toThrow(ProviderGateError);
-    expect(() => serializeForProvider('some-other-model', [publicBill, clientPosition], gate)).toThrow(/not approved for client data/);
+    expect(() => serializeForProvider('some-other-model', [publicBill, clientPosition], gate)).toThrow(/not approved for company data/);
   });
   it('lets an allow-listed provider receive client objects', () => {
     expect(serializeForProvider('approved-private', [clientPosition], gate)).toContain(clientPosition.id);
