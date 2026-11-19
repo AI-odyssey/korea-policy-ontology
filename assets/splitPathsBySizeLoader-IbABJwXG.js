@@ -1,0 +1,3 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./paths-Csy0SRsX.js","./paths-BcdoTUOA.js","./rolldown-runtime-CpGNoFWp.js","./paths-D8KamR2C.js","./paths-DdONzr7B.js"])))=>i.map(i=>d[i]);
+/*! Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology */
+import{n as e,t}from"./iconTypes-B69aGRHZ.js";import{t as n}from"./preload-helper-7klZgaf7.js";var r=async(r,i)=>{let a=e(r),o;return o=i===t.STANDARD?await n(()=>import(`./paths-Csy0SRsX.js`),__vite__mapDeps([0,1,2]),import.meta.url):await n(()=>import(`./paths-D8KamR2C.js`),__vite__mapDeps([3,4,2]),import.meta.url),o[a]};export{r as splitPathsBySizeLoader};

@@ -1,0 +1,2 @@
+/*! Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology */
+import{n as e,t}from"./iconTypes-B69aGRHZ.js";import{t as n}from"./paths-BcdoTUOA.js";import{t as r}from"./paths-DdONzr7B.js";function i(i,a){let o=e(i);return a===t.STANDARD?n[o]:r[o]}export{i as getIconPaths};
