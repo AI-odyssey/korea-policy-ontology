@@ -128,7 +128,7 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
   return <div ref={ref} className="graph" aria-label="Stakeholder network" />;
 }
 
-/** The same people as the graph, as a list a phone can read: stance, influence and role. */
+/** The same people as the graph, as a list a phone can read: stance, impact and role. */
 function PeopleList({ app, issueId, selected, onSelect }: { app: App; issueId: string; selected?: string; onSelect: (id: string) => void }) {
   const { nodes } = stakeholderNetwork(app.view, app.clientId, issueId);
   const rank = (a: ObjectRecord) => REL.indexOf(a.influence) * 3 + REL.indexOf(a.relevance);
@@ -139,7 +139,7 @@ function PeopleList({ app, issueId, selected, onSelect }: { app: App; issueId: s
         <li key={s.id} className={s.id === selected ? 'on' : ''}>
           <i className={`dot dot-${a.stance}`} />
           <a onClick={() => onSelect(s.id)}><b>{nameOf(s)}</b></a>
-          <span className="sub"> {STANCE[a.stance]}, {LEVEL3[a.influence].toLowerCase()} influence · {roleOf(app.view, s)}</span>
+          <span className="sub"> {STANCE[a.stance]}, {LEVEL3[a.influence].toLowerCase()} impact · {roleOf(app.view, s)}</span>
         </li>
       ))}
     </ul>
@@ -152,12 +152,7 @@ function Legend() {
       <span className="lg-group">
         {(['supportive', 'neutral', 'opposed', 'unconfirmed'] as const).map((s) => <span key={s}><i className={`sw dot-${s}`} />{STANCE[s]}</span>)}
       </span>
-      <span className="lg-group">
-        {REL.map((r, i) => <span key={r}><i className="sw" style={{ background: SHADE.supportive[i] }} />{LEVEL3[r]} relevance</span>)}
-      </span>
-      <span className="lg-group">
-        {(['high', 'medium', 'low'] as const).map((r) => <span key={r}><i className="sz" style={{ width: SIZE[r] / 2.6, height: SIZE[r] / 2.6 }} />{LEVEL3[r]} influence</span>)}
-      </span>
+      <span className="lg-group"><span>Circle size: impact</span><span>Shade: relevance</span></span>
       <span className="lg-group">
         {Object.entries(LINE).map(([k, style]) => <span key={k}><i className="ln" style={{ borderTopStyle: style as 'solid' }} />{LINE_LABEL[k]}</span>)}
       </span>
@@ -241,7 +236,7 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
       <dl className="kv">
         <div><dt>Role</dt><dd>{roleOf(view, s)}</dd></div>
         <div><dt>Stance</dt><dd>{a ? <><i className={`dot dot-${a.stance}`} />{STANCE[a.stance]}</> : 'Not assessed'}</dd></div>
-        {a && <div><dt>Influence</dt><dd>{LEVEL3[a.influence]}</dd></div>}
+        {a && <div><dt>Impact</dt><dd>{LEVEL3[a.influence]}</dd></div>}
         {a && <div><dt>Relevance</dt><dd>{LEVEL3[a.relevance]}</dd></div>}
         {a?.interests && <div><dt>Interests</dt><dd>{a.interests}</dd></div>}
         {a?.basisIds?.length > 0 && <div><dt>Based on</dt><dd>{list(a.basisIds)}</dd></div>}
@@ -305,7 +300,7 @@ function StanceForm({ app, issueId, subject, current, done }: { app: App; issueI
     <div className="form">
       <div className="row">
         <HTMLSelect value={stance} onChange={(e) => setStance(e.target.value)} options={opts(STANCE)} aria-label="Stance" />
-        <HTMLSelect value={influence} onChange={(e) => setInfluence(e.target.value)} options={opts({ high: 'High influence', medium: 'Medium influence', low: 'Low influence' })} aria-label="Influence" />
+        <HTMLSelect value={influence} onChange={(e) => setInfluence(e.target.value)} options={opts({ high: 'High impact', medium: 'Medium impact', low: 'Low impact' })} aria-label="Impact" />
         <HTMLSelect value={relevance} onChange={(e) => setRelevance(e.target.value)} options={opts({ high: 'High relevance', medium: 'Medium relevance', low: 'Low relevance' })} aria-label="Relevance" />
       </div>
       <div className="sub">Based on</div>

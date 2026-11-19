@@ -125,7 +125,7 @@ The assistant also found that the coverage by weight class bill, which Aster wan
 
 `keyPeople(view, 'bill-001')` ranks Ryu Taehwan first (9 points: cosponsor, committee secretary, subcommittee chair, named in two items about the bill), then Baek Siwoo (7: lead sponsor), Seo Haeun (5.5) and Jang Sora (4).
 
-`stakeholderNetwork(view, 'cli-aster', 'iss-01')` returns Aster's nine assessed stakeholders on the sidewalk issue and 19 edges between them (3 cosponsorships, 7 shared committees, 9 joint events involving an organization). Seven have a stance; two are unconfirmed. Jang Sora's panel shows stance **Unconfirmed**, influence High, and "Minority secretary of the committee. No public statement on the bill."
+`stakeholderNetwork(view, 'cli-aster', 'iss-01')` returns Aster's nine assessed stakeholders on the sidewalk issue and 19 edges between them (3 cosponsorships, 7 shared committees, 9 joint events involving an organization). Seven have a stance; two are unconfirmed. Jang Sora's panel shows stance **Unconfirmed**, impact High, and "Minority secretary of the committee. No public statement on the bill."
 
 The Strategy screen shows the plan for the issue: the outcome ("Aster Robotics runs cargo models on city sidewalks next year under a yield rule its robots already meet"), three messages, four people to persuade (Baek Siwoo, Ryu Taehwan, the Pedestrian Rights Network, Nam Eunbi), two allies, and six dated steps, one of them a meeting with the Pedestrian Rights Network, the only organization opposed.
 
