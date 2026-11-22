@@ -124,7 +124,7 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
       container: ref.current,
       elements,
       autoungrabify: false,
-      minZoom: 0.4,
+      minZoom: 0.25, // low enough that the whole network fits a phone-width panel
       maxZoom: 2,
       layout: {
         name: 'cose', randomize: false, animate: false, nodeDimensionsIncludeLabels: true, padding: 24,
@@ -134,11 +134,11 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
         { selector: 'node', style: {
           'background-color': 'data(color)', shape: 'ellipse', width: 'data(size)', height: 'data(size)', 'border-width': 1.5, 'border-color': 'data(border)',
           label: 'data(label)', color: '#1B2430', 'font-size': narrow ? 22 : 11, 'font-weight': 600, 'font-family': 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif', 'text-valign': 'bottom', 'text-margin-y': 5,
-          'text-wrap': 'wrap', 'text-max-width': narrow ? '220px' : '140px', 'text-background-color': '#F7F6F2', 'text-background-opacity': 0.85, 'text-background-padding': '1px',
+          'text-wrap': 'wrap', 'text-max-width': narrow ? '220px' : '140px', 'text-background-color': '#F7F6F2', 'text-background-opacity': 0.85, 'text-background-padding': '1px', 'z-index': 10,
         } },
         { selector: 'node.sel', style: { 'border-width': 3, 'border-color': '#1B2430' } },
         // The seat under each name: a label-only node, smaller and lighter than the name.
-        { selector: 'node[?cap]', style: { width: 1, height: 1, 'background-opacity': 0, 'border-width': 0, 'text-valign': 'center', 'text-margin-y': 0, color: '#6B7380', 'font-weight': 400, 'text-background-opacity': 0 } },
+        { selector: 'node[?cap]', style: { width: 1, height: 1, 'background-opacity': 0, 'border-width': 0, 'text-valign': 'center', 'text-margin-y': 0, color: '#5B6370', 'font-weight': 400, 'z-index': 1 } },
         { selector: 'edge', style: { width: 'data(w)', 'line-color': '#8E97A3', 'line-style': 'data(line)' as never, 'curve-style': 'straight' } },
         { selector: 'edge.near', style: { 'line-color': '#1B2430' } },
       ],
@@ -149,15 +149,16 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
     cy.on('tap', (e) => e.target === cy && pick.current(undefined));
     // The fit zooms out when the graph is wide; grow the labels so the name stays about 11px on screen.
     const z = cy.zoom();
-    const nameFs = z < 1 ? Math.min(narrow ? 30 : 20, (narrow ? 22 : 11) / z) : narrow ? 22 : 11;
-    const capFs = Math.round(nameFs * 0.82);
-    // The seat goes under the name's own label box, so a name that wraps onto two lines does not run into it.
+    const nameFs = z < 1 ? Math.min(narrow ? 36 : 20, (narrow ? 22 : 11) / z) : narrow ? 22 : 11;
+    const capFs = Math.round(nameFs * 0.88);
     // The seat goes under the name. Labels wrap at a fixed width, so estimate each label's line count; the seat label is centered on its point.
     const lines = (text: string, fs: number, width: number) => Math.max(1, Math.ceil((text.length * fs * 0.56) / width));
     const capY = (n: cytoscape.NodeSingular) => n.position('y') + n.data('size') / 2 + 5 + lines(String(n.data('label')), nameFs, narrow ? 220 : 140) * nameFs * 1.3 + (lines(String(n.data('role')), capFs, 150) * capFs * 1.25) / 2 + 2;
     cy.style().selector('node[!cap]').style('font-size', nameFs).selector('node[?cap]').style({ 'font-size': capFs, 'text-max-width': '150px' }).update();
-    cy.add(cy.nodes().map((n) => ({ group: 'nodes' as const, data: { id: `cap:${n.id()}`, cap: true, of: n.id(), label: n.data('role'), color: '#F7F6F2', border: '#F7F6F2', size: 1 }, position: { x: n.position('x'), y: capY(n) }, grabbable: false, selectable: false })));
+    // On a phone the seats would crowd the names; the list under the graph carries them there.
+    if (!narrow) cy.add(cy.nodes().map((n) => ({ group: 'nodes' as const, data: { id: `cap:${n.id()}`, cap: true, of: n.id(), label: n.data('role'), color: '#F7F6F2', border: '#F7F6F2', size: 1 }, position: { x: n.position('x'), y: capY(n) }, grabbable: false, selectable: false })));
     cy.fit(cy.elements(), 20); // the seat labels hang below the lowest names, so fit again with them in
+    cy.one('render', () => cy.fit(cy.elements(), 20)); // label boxes are measured on the first paint; fit once more so no label hangs off the edge
     cy.on('position', 'node[!cap]', (e) => cy.getElementById(`cap:${e.target.id()}`).position({ x: e.target.position('x'), y: capY(e.target) }));
     cyRef.current = cy;
     return () => cy.destroy();

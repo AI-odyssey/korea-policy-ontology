@@ -147,8 +147,8 @@ export function Markdown({ text, app }: { text: string; app: App }) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const k = `l${i}`;
-    if (line.startsWith('## ')) out.push(<h4 key={k}>{inline(line.slice(3), app)}</h4>);
-    else if (line.startsWith('# ')) out.push(<h3 key={k}>{inline(line.slice(2), app)}</h3>);
+    if (line.startsWith('## ')) out.push(<h3 key={k}>{inline(line.slice(3), app)}</h3>);
+    else if (line.startsWith('# ')) out.push(<h2 key={k}>{inline(line.slice(2), app)}</h2>);
     else if (line.startsWith('- ')) {
       const items: string[] = [];
       while (lines[i]?.startsWith('- ')) items.push(lines[i++].slice(2));
