@@ -40,7 +40,7 @@ Two items carry the sidewalk bill's week: `sig-130`, the bill tracker update of 
 
 ## The assistant's run
 
-The assistant runs with a context that sees the public record and Aster's layer only. The AI work log screen shows its steps in these words:
+The assistant runs with a context that sees the public record and Aster's layer only. The Audit log screen shows its steps in these words:
 
 | Step | Result |
 |---|---|
@@ -131,7 +131,7 @@ The Strategy screen shows the plan for the issue: the outcome ("Aster Robotics r
 
 ## The head of government affairs works through the week
 
-**To review.** Two items sit at the top of This week: "New risk: Coverage by weight class bill at the bill review subcommittee", proposed by the assistant, and "Change the company position on the government bill on sidewalk operation standards to Amend", proposed by an analyst. **Approve** on each runs the change as its requester with `approvedBy` set to the head of government affairs.
+**Approvals.** The numbers under the headline show three items waiting: the weekly report, a risk and a position change. "Coverage by weight class bill at the bill review subcommittee", proposed by the assistant, sits at the top of Risks. The analyst's request to change the company position on the government bill on sidewalk operation standards to Amend sits under that issue on Issues & bills. **Approve** on each runs the change as its requester with `approvedBy` set to the head of government affairs.
 
 **New items to confirm.** One Aster item is below 0.8: `sig-121` (an industry forum warning on robot operator duties). The city's sidewalk repaving schedule never reaches Aster, because its profile ignores "sidewalk" next to "repaving". **Confirm** on `sig-121` runs `triageSignal` as the head of government affairs: links to `iss-01`, Nam Eunbi and the industry forum, each with an Evidence record of method `human`, status `accepted`. The activity-log entry is marked `CLIENT:cli-aster`; Moru's log does not show it.
 

@@ -43,7 +43,7 @@ Public layer. A bill before the National Assembly, with its stage history.
 | `summary` | text | yes |  |
 | `billType` | enum(lawmaker / government / committee_alternative) | yes |  |
 | `stage` | enum(public_comment / submitted / committee_referred / committee_review / subcommittee / subcommittee_passed / committee_passed / lj_review / plenary_pending / passed / merged_alternative / withdrawn) | yes |  |
-| `stageHistory` | json | yes | [{stage, date, institutionId?}] in date order; last entry equals stage. |
+| `stageHistory` | json | yes | [{stage, date, institutionId?, sourceId?}] in date order; last entry equals stage. |
 | `proposedDate` | date | yes |  |
 | `mergedInto` | ref -> Bill |  | Set when stage is merged_alternative (대안반영폐기). |
 
@@ -174,6 +174,20 @@ Company layer. One company's filing of a collected item: filed under an issue, s
 | `evidenceIds` | ref[] -> Evidence |  | Evidence this filing created; returning the item rejects only these. |
 | `triagedBy` | string | yes |  |
 
+### `ImpactAssessment`
+
+Company layer. How strongly an issue touches the company, with the reasons for it and who approved it. Response levels and risk scores read it.
+
+| Property | Type | Required | Note |
+|---|---|---|---|
+| `clientId` | ref -> Client | yes |  |
+| `issueId` | ref -> Issue | yes |  |
+| `level` | enum(high / medium / low) | yes |  |
+| `rationale` | text | yes |  |
+| `assessedBy` | string | yes |  |
+| `approvedBy` | string |  |  |
+| `assessedAt` | date | yes |  |
+
 ### `ClientPosition`
 
 Company layer. The company's stance on an issue or bill.
@@ -184,6 +198,7 @@ Company layer. The company's stance on an issue or bill.
 | `targetId` | ref -> Issue/Bill | yes |  |
 | `stance` | enum(support / oppose / amend / monitor) | yes |  |
 | `rationale` | text | yes |  |
+| `ask` | string |  | The demand in a few words, for headlines: 'a fixed review period'. |
 | `setBy` | string | yes |  |
 | `approvedBy` | string |  |  |
 
@@ -232,6 +247,7 @@ Company layer. A business call for company leadership: question, recommendation 
 | `followUp` | string |  | The short task title created if leadership approves. |
 | `targetId` | ref -> Person/StakeholderOrg |  | The person the recommendation is about. |
 | `premiseStance` | enum(supportive / neutral / opposed / unconfirmed) |  | The target's assessed stance when the decision was raised. A different stance now makes the decision out of date. |
+| `premise` | json |  | {meetingId, meetingDate, positionId, positionStance, impact} when raised; any change makes the decision out of date. |
 | `openedAt` | datetime | yes |  |
 | `resolution` | enum(approve / alternative / reject / withdraw) |  | withdraw: the premise changed and the decision no longer applies. |
 | `resolutionNote` | text |  |  |
@@ -345,15 +361,16 @@ Cardinality reads from source to target. `requiredFrom` / `requiredTo` list obje
 | `referred_to` | Bill | Institution | many-to-one | public | yes |  |  |
 | `amends` | Bill | Provision | many-to-many | public | yes |  |  |
 | `about` | Bill, Event, Signal | Issue | many-to-many | public | yes | Bill (from) |  |
-| `agenda_item` | Event | Bill | many-to-many | public | yes |  |  |
+| `agenda_item` | Event | Bill | many-to-many | public | yes |  | purpose: enum(introduction / review / vote / wording / plenary) |
 | `testifies_at` | Person, StakeholderOrg | Event | many-to-many | public | yes |  |  |
 | `advises` | Person | Institution | many-to-many | public | yes |  | since: date |
 | `coalition_with` | StakeholderOrg | StakeholderOrg | many-to-many | public | yes |  | issueId: ref -> Issue |
 | `regulates` | Institution | Provision | many-to-many | public | yes |  |  |
 | `mentions` | Signal | Bill, Person, Institution, StakeholderOrg | many-to-many | public | yes |  |  |
-| `affects` | Issue | Client | many-to-many | client | no |  | impact: enum(high / medium / low) |
+| `affects` | Issue | Client | many-to-many | client | no |  |  |
 | `watches` | Engagement | Issue, Bill | many-to-many | client | no |  |  |
 | `produced_for` | Deliverable | Engagement | many-to-one | client | no | Deliverable (from) |  |
+| `derived_from` | Decision | Event, StakeholderAssessment, ClientPosition, ImpactAssessment | many-to-many | client | no |  |  |
 | `raised_by` | Decision | Task, Deliverable, Signal | many-to-one | client | no | Decision (from) |  |
 
 ## Action types
@@ -387,11 +404,12 @@ File a new Signal for one company under an Issue and/or Bill with a relevance sc
 
 ### `linkEvidence`
 
-Create a public-layer link (if absent) and attach one Evidence record to it.
+Create a public-layer link (if absent) and attach one Evidence record to it. The collector files it for everyone; a company user files it for that company only.
 
-- Allowed roles: `agent`, `consultant`, `principal`
+- Allowed roles: `agent`, `consultant`, `principal`, `system`
 - Approval: not required
 - Rule: from and to must be object types the link type allows.
+- Rule: Only the collector (system) writes PUBLIC links. Any other caller names clientId, and the link and its Evidence carry that company's marking, so one company's filing is never shown to another.
 - Rule: Evidence.method is set from the caller role (agent or system = rule, human roles = human); callers cannot choose it.
 - Effect: Creates the link and an Evidence record
 - Effect: Agent evidence below 0.8 confidence: Evidence.reviewStatus = review
@@ -401,6 +419,7 @@ Create a public-layer link (if absent) and attach one Evidence record to it.
 | `linkType` | enum(sponsors / cosponsors / member_of / referred_to / amends / about / agenda_item / testifies_at / advises / coalition_with / regulates / mentions) | yes |  |
 | `from` | ref | yes |  |
 | `to` | ref | yes |  |
+| `clientId` | ref -> Client |  |  |
 | `excerpt` | text | yes |  |
 | `signalId` | ref -> Signal |  |  |
 | `confidence` | number [0..1] | yes |  |
@@ -457,6 +476,7 @@ Record a stage change collected from the official bill tracker.
 | `institutionId` | ref -> Institution |  |  |
 | `mergedInto` | ref -> Bill |  |  |
 | `billNo` | string |  | The number the Assembly assigns on submission. |
+| `signalId` | ref -> Signal |  | The collected record the change was read from; kept on the history entry. |
 
 ### `setClientPosition`
 
@@ -473,6 +493,7 @@ Set or replace the company's stance on an issue or bill.
 | `targetId` | ref -> Issue/Bill | yes |  |
 | `stance` | enum(support / oppose / amend / monitor) | yes |  |
 | `rationale` | text | yes |  |
+| `ask` | string |  |  |
 
 ### `logInteraction`
 
@@ -570,7 +591,7 @@ Put a business call in front of company leadership with a recommendation.
 
 - Allowed roles: `agent`, `consultant`, `principal`
 - Approval: not required
-- Effect: Creates a Decision (status open) and a raised_by link
+- Effect: Creates a Decision (status open), a raised_by link and a derived_from link to each basis record
 
 | Property | Type | Required | Note |
 |---|---|---|---|
@@ -579,6 +600,8 @@ Put a business call in front of company leadership with a recommendation.
 | `recommendation` | text | yes |  |
 | `alternatives` | string[] | yes |  |
 | `raisedById` | ref -> Task/Deliverable/Signal | yes |  |
+| `basisIds` | ref[] -> Event/StakeholderAssessment/ClientPosition/ImpactAssessment |  | Linked with derived_from. |
+| `premise` | json |  | The values the decision rests on when raised; a change makes it out of date. |
 | `subjectId` | ref |  |  |
 | `dueDate` | date |  |  |
 | `followUp` | string |  |  |
@@ -629,6 +652,22 @@ Mark a task done.
 | Property | Type | Required | Note |
 |---|---|---|---|
 | `taskId` | ref -> Task | yes |  |
+
+### `assessImpact`
+
+Rate how strongly an issue touches the company, with reasons.
+
+- Allowed roles: `consultant`, `principal`
+- Approval: required from `principal` before it runs
+- Effect: Creates or replaces the ImpactAssessment (CLIENT marking)
+- Effect: Analyst ratings wait for approval by the head of government affairs
+
+| Property | Type | Required | Note |
+|---|---|---|---|
+| `clientId` | ref -> Client | yes |  |
+| `issueId` | ref -> Issue | yes |  |
+| `level` | enum(high / medium / low) | yes |  |
+| `rationale` | text | yes |  |
 
 ### `assessStakeholder`
 
@@ -803,7 +842,7 @@ yes = may run it; approval = may request it, the head of government affairs must
 | Action | system | agent | consultant | principal |
 |---|---|---|---|---|
 | `triageSignal` | - | yes | yes | yes |
-| `linkEvidence` | - | yes | yes | yes |
+| `linkEvidence` | yes | yes | yes | yes |
 | `reopenSignal` | - | - | yes | yes |
 | `reviewEvidence` | - | - | yes | yes |
 | `updateBillStage` | yes | - | - | - |
@@ -818,6 +857,7 @@ yes = may run it; approval = may request it, the head of government affairs must
 | `resolveDecision` | - | - | - | yes |
 | `createTask` | - | yes | yes | yes |
 | `completeTask` | - | - | yes | yes |
+| `assessImpact` | - | - | approval | yes |
 | `assessStakeholder` | - | - | yes | yes |
 | `addRiskOpportunity` | - | approval | approval | yes |
 | `updateStrategy` | - | - | approval | yes |

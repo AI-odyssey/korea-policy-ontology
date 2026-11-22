@@ -82,7 +82,7 @@ export const objectTypes = {
       summary: req('text'),
       billType: req('enum', { values: ['lawmaker', 'government', 'committee_alternative'] }),
       stage: req('enum', { values: BILL_STAGES }),
-      stageHistory: req('json', { note: '[{stage, date, institutionId?}] in date order; last entry equals stage.' }),
+      stageHistory: req('json', { note: '[{stage, date, institutionId?, sourceId?}] in date order; last entry equals stage.' }),
       proposedDate: req('date'),
       mergedInto: opt('ref', { refTypes: ['Bill'], note: 'Set when stage is merged_alternative (대안반영폐기).' }),
     },
@@ -189,6 +189,19 @@ export const objectTypes = {
       triagedBy: req('string'),
     },
   },
+  ImpactAssessment: {
+    layer: 'client',
+    description: 'How strongly an issue touches the company, with the reasons for it and who approved it. Response levels and risk scores read it.',
+    properties: {
+      clientId: req('ref', { refTypes: ['Client'] }),
+      issueId: req('ref', { refTypes: ['Issue'] }),
+      level: req('enum', { values: ['high', 'medium', 'low'] }),
+      rationale: req('text'),
+      assessedBy: req('string'),
+      approvedBy: opt('string'),
+      assessedAt: req('date'),
+    },
+  },
   ClientPosition: {
     layer: 'client',
     description: "The company's stance on an issue or bill.",
@@ -197,6 +210,7 @@ export const objectTypes = {
       targetId: req('ref', { refTypes: ['Issue', 'Bill'] }),
       stance: req('enum', { values: ['support', 'oppose', 'amend', 'monitor'] }),
       rationale: req('text'),
+      ask: opt('string', { note: "The demand in a few words, for headlines: 'a fixed review period'." }),
       setBy: req('string'),
       approvedBy: opt('string'),
     },
@@ -242,6 +256,7 @@ export const objectTypes = {
       followUp: opt('string', { note: 'The short task title created if leadership approves.' }),
       targetId: opt('ref', { refTypes: ['Person', 'StakeholderOrg'], note: 'The person the recommendation is about.' }),
       premiseStance: opt('enum', { values: STANCES, note: "The target's assessed stance when the decision was raised. A different stance now makes the decision out of date." }),
+      premise: opt('json', { note: '{meetingId, meetingDate, positionId, positionStance, impact} when raised; any change makes the decision out of date.' }),
       openedAt: req('datetime'),
       resolution: opt('enum', { values: ['approve', 'alternative', 'reject', 'withdraw'], note: 'withdraw: the premise changed and the decision no longer applies.' }),
       resolutionNote: opt('text'),
@@ -389,6 +404,7 @@ export const linkTypes = {
   agenda_item: {
     description: 'A bill on the agenda of an event.',
     from: ['Event'], to: ['Bill'], cardinality: 'many-to-many', layer: 'public', evidenceRequired: true,
+    props: { purpose: opt('enum', { values: ['introduction', 'review', 'vote', 'wording', 'plenary'], note: 'What the meeting does to the bill, from the agenda notice. Without it, the step is inferred from the meeting kind and the bill stage.' }) },
   },
   testifies_at: {
     description: 'A person or organization speaking at an event.',
@@ -415,7 +431,6 @@ export const linkTypes = {
   affects: {
     description: 'How strongly an issue touches a company (a company-layer judgment, so no public evidence).',
     from: ['Issue'], to: ['Client'], cardinality: 'many-to-many', layer: 'client', evidenceRequired: false,
-    props: { impact: req('enum', { values: ['high', 'medium', 'low'] }) },
   },
   watches: {
     description: "What the team's monitoring setup tracks.",
@@ -424,6 +439,10 @@ export const linkTypes = {
   produced_for: {
     description: 'The monitoring setup a deliverable belongs to.',
     from: ['Deliverable'], to: ['Engagement'], cardinality: 'many-to-one', layer: 'client', evidenceRequired: false, requiredFrom: ['Deliverable'],
+  },
+  derived_from: {
+    description: 'The records a decision rests on: the meeting, the assessment of the person to persuade, the company position and the impact assessment.',
+    from: ['Decision'], to: ['Event', 'StakeholderAssessment', 'ClientPosition', 'ImpactAssessment'], cardinality: 'many-to-many', layer: 'client', evidenceRequired: false,
   },
   raised_by: {
     description: 'What prompted a decision.',
@@ -478,17 +497,18 @@ export const actionTypes = {
     sideEffects: ['Creates or updates the SignalTriage for this company and signal (CLIENT marking); the Signal itself is unchanged', 'Creates about / mentions links, each with an Evidence record (method rule for agent, human for an analyst or the head of government affairs)', 'Agent evidence below 0.8 confidence lands in the review queue'],
   },
   linkEvidence: {
-    description: 'Create a public-layer link (if absent) and attach one Evidence record to it.',
+    description: 'Create a public-layer link (if absent) and attach one Evidence record to it. The collector files it for everyone; a company user files it for that company only.',
     params: {
       linkType: req('enum', { values: EVIDENCED_LINKS }),
       from: req('ref'),
       to: req('ref'),
+      clientId: opt('ref', { refTypes: ['Client'] }),
       excerpt: req('text'),
       signalId: opt('ref', { refTypes: ['Signal'] }),
       confidence: req('number', { min: 0, max: 1 }),
     },
-    allowedRoles: ANY_USER, requiresApproval: false,
-    constraints: ['from and to must be object types the link type allows.', 'Evidence.method is set from the caller role (agent or system = rule, human roles = human); callers cannot choose it.'],
+    allowedRoles: [...ANY_USER, 'system'], requiresApproval: false,
+    constraints: ['from and to must be object types the link type allows.', 'Only the collector (system) writes PUBLIC links. Any other caller names clientId, and the link and its Evidence carry that company\'s marking, so one company\'s filing is never shown to another.', 'Evidence.method is set from the caller role (agent or system = rule, human roles = human); callers cannot choose it.'],
     sideEffects: ['Creates the link and an Evidence record', 'Agent evidence below 0.8 confidence: Evidence.reviewStatus = review'],
   },
   reopenSignal: {
@@ -514,6 +534,7 @@ export const actionTypes = {
       institutionId: opt('ref', { refTypes: ['Institution'] }),
       mergedInto: opt('ref', { refTypes: ['Bill'] }),
       billNo: opt('string', { note: 'The number the Assembly assigns on submission.' }),
+      signalId: opt('ref', { refTypes: ['Signal'], note: 'The collected record the change was read from; kept on the history entry.' }),
     },
     allowedRoles: ['system'], requiresApproval: false,
     constraints: ['Stage must move forward along the lifecycle (or to a terminal stage).', 'A bill that is passed, merged_alternative or withdrawn cannot change stage.', 'date must not precede the last history entry.', 'merged_alternative requires mergedInto.', 'Leaving legislative notice requires a billNo if the bill has none.'],
@@ -526,6 +547,7 @@ export const actionTypes = {
       targetId: req('ref', { refTypes: ['Issue', 'Bill'] }),
       stance: req('enum', { values: ['support', 'oppose', 'amend', 'monitor'] }),
       rationale: req('text'),
+      ask: opt('string'),
     },
     allowedRoles: HUMANS, requiresApproval: true, approverRole: 'principal',
     sideEffects: ['Creates or replaces the ClientPosition (CLIENT marking)', 'Analyst requests wait for approval by the head of government affairs'],
@@ -592,6 +614,8 @@ export const actionTypes = {
       recommendation: req('text'),
       alternatives: req('string[]'),
       raisedById: req('ref', { refTypes: ['Task', 'Deliverable', 'Signal'] }),
+      basisIds: opt('ref[]', { refTypes: ['Event', 'StakeholderAssessment', 'ClientPosition', 'ImpactAssessment'], note: 'Linked with derived_from.' }),
+      premise: opt('json', { note: 'The values the decision rests on when raised; a change makes it out of date.' }),
       subjectId: opt('ref'),
       dueDate: opt('date'),
       followUp: opt('string'),
@@ -599,7 +623,7 @@ export const actionTypes = {
       premiseStance: opt('enum', { values: STANCES }),
     },
     allowedRoles: ANY_USER, requiresApproval: false,
-    sideEffects: ['Creates a Decision (status open) and a raised_by link'],
+    sideEffects: ['Creates a Decision (status open), a raised_by link and a derived_from link to each basis record'],
   },
   resolveDecision: {
     description: "Record leadership's call: approve, choose an alternative, decline or withdraw.",
@@ -630,6 +654,17 @@ export const actionTypes = {
     allowedRoles: HUMANS, requiresApproval: false,
     preconditions: [{ param: 'taskId', field: 'status', in: ['open'], message: 'Task is already done' }],
     sideEffects: ['Task.status = done'],
+  },
+  assessImpact: {
+    description: 'Rate how strongly an issue touches the company, with reasons.',
+    params: {
+      clientId: req('ref', { refTypes: ['Client'] }),
+      issueId: req('ref', { refTypes: ['Issue'] }),
+      level: req('enum', { values: ['high', 'medium', 'low'] }),
+      rationale: req('text'),
+    },
+    allowedRoles: HUMANS, requiresApproval: true, approverRole: 'principal',
+    sideEffects: ['Creates or replaces the ImpactAssessment (CLIENT marking)', 'Analyst ratings wait for approval by the head of government affairs'],
   },
   assessStakeholder: {
     description: "Record the company's read of a person or organization on an issue: stance, influence, relevance and what the stance rests on.",

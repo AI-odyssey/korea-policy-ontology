@@ -1,5 +1,5 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
-// Secondary screens: Reports, Activity log, AI work log, Ontology.
+// Secondary screens: Reports, Audit log, Ontology.
 import { useEffect, useState } from 'react';
 import { Button } from '@blueprintjs/core';
 import { weeklyBrief } from '../../agent/index.ts';
@@ -8,7 +8,6 @@ import type { ObjectRecord } from '../../ontology/index.ts';
 import type { ActionTypeDef, AuditEntry, LinkTypeDef, ObjectTypeDef } from '../../ontology/index.ts';
 import { Empty, Markdown, POSITION, Section, T, cap, md, nameOf, person, pretty, prose } from './ui.tsx';
 import type { App } from './ui.tsx';
-import { Pending } from './week.tsx';
 
 const KIND: Record<string, string> = { weekly_report: 'Weekly report', issue_brief: 'Issue brief', comment_letter: 'Comment letter', meeting_prep: 'Meeting notes' };
 const STATUS: Record<string, string> = { draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' };
@@ -82,7 +81,7 @@ export function Reports({ app }: { app: App }) {
   );
 }
 
-// ---------------- Activity log ----------------
+// ---------------- Audit log ----------------
 const RESULT: Record<string, string> = { executed: 'Done', pending_approval: 'Waiting for review', rejected: 'Declined', denied: 'Refused' };
 
 function describe(app: App, a: AuditEntry): string {
@@ -118,39 +117,6 @@ function describe(app: App, a: AuditEntry): string {
   }
 }
 
-export function ActivityLog({ app }: { app: App }) {
-  const all = app.store.auditEntries(app.ctx);
-  // A request that waited for approval shows its outcome on its own row; the entry written when it was decided is folded in.
-  const outcome = new Map(all.filter((a) => a.pendingId && a.status !== 'pending_approval').map((a) => [a.pendingId!, a]));
-  const entries = all.filter((a) => !(a.pendingId && a.status !== 'pending_approval')).reverse();
-  return (
-    <div className="page">
-      <h1 className="headline">Activity log</h1>
-      {!entries.length && <Empty>No activity yet.</Empty>}
-      <div className="table-wrap">
-        <table className="tbl log">
-          <thead><tr><th>When</th><th>Who</th><th>What</th><th>Result</th><th>Decided by</th></tr></thead>
-          <tbody>
-            {entries.map((a) => {
-              const done = a.status === 'pending_approval' ? outcome.get(a.pendingId!) : undefined;
-              return (
-                <tr key={a.id}>
-                  <td className="nowrap sub">{app.when(a)}</td>
-                  <td className="nowrap">{WHO[a.role]}</td>
-                  <td>{prose(describe(app, a))}</td>
-                  <td className="nowrap">{done ? (done.status === 'executed' ? 'Approved' : 'Declined') : RESULT[a.status]}{a.error && <div className="sub">{a.error.replace(/^[A-Z_]+: /, '')}</div>}</td>
-                  <td className="nowrap">{done ? <>{person(done.approvedBy)}<div className="sub">{app.when(done)}</div></> : person(a.approvedBy)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ---------------- AI work log ----------------
 const STEP: Record<string, string> = {
   'query.signals': 'Read new items', proposeTriage: 'Sort new items', triageSignal: 'File clear matches', whatChanged: 'Check what changed',
   responseLevel: 'Rank followed bills', stageGates: 'Find who decides next', raiseDecision: 'Raise a decision', addRiskOpportunity: 'Propose a risk',
@@ -158,40 +124,69 @@ const STEP: Record<string, string> = {
   submitForReview: 'Send for review', stop: 'Stop for approval',
 };
 
-export function AssistantRun({ app }: { app: App }) {
+const FILTERS = [['all', 'Everything'], ['people', 'People'], ['agent', 'Assistant'], ['system', 'Collector']] as const;
+
+/**
+ * One record of every change to the company's data, by the team, the rule-based assistant or the collector, with who
+ * approved it. The assistant's weekly run is part of it; its working steps open under the run.
+ */
+export function AuditLog({ app }: { app: App }) {
+  const [filter, setFilter] = useState<string>('all');
+  const [steps, setSteps] = useState(false);
   const [busy, setBusy] = useState(false);
   const run = app.runs[app.clientId];
+  const all = app.store.auditEntries(app.ctx);
+  // A request that waited for approval shows its outcome on its own row; the entry written when it was decided is folded in.
+  const outcome = new Map(all.filter((x) => x.pendingId && x.status !== 'pending_approval').map((x) => [x.pendingId!, x]));
+  const keep = (x: AuditEntry) => filter === 'all' || (filter === 'people' ? ['consultant', 'principal'].includes(x.role) : x.role === filter);
+  const entries = all.filter((x) => !(x.pendingId && x.status !== 'pending_approval')).filter(keep).reverse();
   const go = async () => {
     setBusy(true);
     await app.runAgent();
     setBusy(false);
   };
-  const decisions = app.view.list('Decision', (d) => d.clientId === app.clientId && d.status === 'open').sort((a, b) => a.id.localeCompare(b.id));
   return (
     <div className="page">
-      <h1 className="headline">AI work log</h1>
-      <div className="row"><Button intent="primary" loading={busy} text="Run the weekly assistant" onClick={go} /></div>
-      {!run && <Empty>No run yet for {app.client.name}.</Empty>}
-      {run && (
-        <>
-          <p className="lead">Week of {md(run.since)} to {md(run.asOf)}. The assistant took {run.steps.length} steps and stopped where your review is needed.</p>
-          <Pending app={app} empty="Nothing to review." />
-          <Section title="Decisions for leadership">
-            {!decisions.length && <Empty>Nothing for leadership to decide this week.</Empty>}
-            {decisions.map((d) => <div key={d.id} className="item"><a onClick={() => app.go('week')}>{prose(clip(nameOf(d), 140))}</a></div>)}
-          </Section>
-          <Section title="Steps">
-            <ol className="run">
-              {run.steps.map((s) => (
-                <li key={s.n} className={s.kind === 'gate' ? 'gate' : s.kind === 'action' ? 'action' : ''}>
-                  <div className="run-head"><b>{STEP[s.name] ?? cap(pretty(s.name))}</b></div>
-                  <div className="sub">{prose(s.output)}</div>
-                </li>
-              ))}
-            </ol>
-          </Section>
-        </>
+      <h1 className="headline">Audit log</h1>
+      <p className="sub">Every change goes through a typed action and lands here: who did it, what changed, and who approved it. The assistant is rule-based, with no language model in this demo.</p>
+      <div className="row">
+        <Button intent="primary" loading={busy} text="Run the weekly assistant" onClick={go} />
+        {run && <span className="sub">Last run: week of {md(run.since)} to {md(run.asOf)}, {run.steps.length} steps, stopped where a person has to approve</span>}
+        {run && <Button size="small" variant="minimal" text={steps ? 'Hide the steps' : 'Show the steps'} onClick={() => setSteps(!steps)} />}
+      </div>
+      {run && steps && (
+        <ol className="run">
+          {run.steps.map((x) => (
+            <li key={x.n} className={x.kind === 'gate' ? 'gate' : x.kind === 'action' ? 'action' : ''}>
+              <div className="run-head"><b>{STEP[x.name] ?? pretty(x.name)}</b></div>
+              <div className="sub">{prose(x.output)}</div>
+            </li>
+          ))}
+        </ol>
       )}
+      <nav className="seg" aria-label="Who">
+        {FILTERS.map(([id, label]) => <button key={id} className={filter === id ? 'on' : ''} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}</button>)}
+      </nav>
+      {!entries.length && <Empty>Nothing recorded.</Empty>}
+      <div className="table-wrap">
+        <table className="tbl log">
+          <thead><tr><th>When</th><th>Who</th><th>What</th><th>Result</th><th>Approved by</th></tr></thead>
+          <tbody>
+            {entries.map((x) => {
+              const done = x.status === 'pending_approval' ? outcome.get(x.pendingId!) : undefined;
+              return (
+                <tr key={x.id}>
+                  <td className="nowrap sub">{app.when(x)}</td>
+                  <td className="nowrap">{WHO[x.role]}</td>
+                  <td>{prose(describe(app, x))}</td>
+                  <td className="nowrap">{done ? (done.status === 'executed' ? 'Approved' : 'Declined') : RESULT[x.status]}{x.error && <div className="sub">{x.error.replace(/^[A-Z_]+: /, '')}</div>}</td>
+                  <td className="nowrap">{done ? <>{person(done.approvedBy)}<div className="sub">{app.when(done)}</div></> : person(x.approvedBy)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -207,7 +202,12 @@ export function Ontology() {
   return (
     <div className="page">
       <h1 className="headline">Ontology</h1>
-      <p className="lead">{objs.length} object types, {LINK_TYPE_NAMES.length} link types, {ACTION_NAMES.length} action types, {functionTypes.length} functions.</p>
+      <dl className="kv terms">
+        <div><dt>{objs.length} object types</dt><dd>The things the team works with: bills, lawmakers, meetings, the company's positions, decisions, tasks.</dd></div>
+        <div><dt>{LINK_TYPE_NAMES.length} link types</dt><dd>How they connect: sponsors, sits on, on the agenda of. Public links need a source record behind them.</dd></div>
+        <div><dt>{ACTION_NAMES.length} action types</dt><dd>The only way data changes. Each says who may run it, whether it needs approval, and what it writes to the audit log.</dd></div>
+        <div><dt>{functionTypes.length} functions</dt><dd>The judgments the screens show, computed from the objects and links: response level, who decides next, risk.</dd></div>
+      </dl>
       {(['public', 'client'] as const).map((layer) => (
         <Section key={layer} title={layer === 'public' ? 'Public layer' : 'Confidential company layer'}>
           <div className="types">

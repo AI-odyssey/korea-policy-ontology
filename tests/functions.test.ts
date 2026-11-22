@@ -55,7 +55,7 @@ describe('functions', () => {
     const v = s.as(principal);
     const bills = clientBills(v, 'cli-aster').map((b) => b.id);
     const score = billRiskScore(v, 'bill-023', 'cli-aster').score;
-    const res = s.applyAction(ctx('agent', ['cli-aster']), 'linkEvidence', { linkType: 'about', from: 'bill-023', to: 'iss-01', excerpt: 'maybe', confidence: 0.3 });
+    const res = s.applyAction(ctx('agent', ['cli-aster']), 'linkEvidence', { linkType: 'about', from: 'bill-023', to: 'iss-01', clientId: 'cli-aster', excerpt: 'maybe', confidence: 0.3 });
     const evId = res.created.find((id) => id.startsWith('ev-'))!;
     const after = s.as(principal);
     expect(after.links({ type: 'about', from: 'bill-023', to: 'iss-01' })).toHaveLength(1); // stored and visible

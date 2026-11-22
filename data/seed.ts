@@ -420,7 +420,7 @@ export function generateWorld(): World {
   });
 
   // ---- Bills ----
-  interface HistEntry { stage: string; date: string; institutionId?: string }
+  interface HistEntry { stage: string; date: string; institutionId?: string; sourceId?: string }
   const hist = new Map<number, HistEntry[]>();
   const chainOf = (b: BillSpec): string[] => {
     // An alternative is born at the full committee vote; lawmaker bills start at submission.
@@ -520,9 +520,11 @@ export function generateWorld(): World {
     if (!events.has(key)) events.set(key, newEvent(meetingName(inst), KIND_OF[byId.get(inst)!.kind], date, { institutionId: inst }));
     return events.get(key)!;
   };
+  const purposeOf = (e: ObjectRecord, bill: ObjectRecord): string =>
+    e.institutionId === 'inst-ljc' ? 'wording' : e.kind === 'plenary' ? 'plenary' : e.kind === 'subcommittee' ? 'review' : ['submitted', 'committee_referred'].includes(bill.stage) ? 'introduction' : 'vote';
   const agenda = (e: ObjectRecord, billNs: number[], note = 'The meeting agenda lists') => {
     for (const n of billNs) {
-      link('agenda_item', e.id, billId(n), undefined, { excerpt: `${note} ${billRef(billId(n))}.`, sourceType: 'public_notice' });
+      link('agenda_item', e.id, billId(n), { purpose: purposeOf(e, byId.get(billId(n))!) }, { excerpt: `${note} ${billRef(billId(n))}.`, sourceType: 'public_notice' });
       for (const i of billSpec(billId(n)).iss) if (!links.some((l) => l.type === 'about' && l.from === e.id && l.to === i)) link('about', e.id, i, undefined, { excerpt: `The agenda concerns ${byId.get(i)!.title.toLowerCase()}.` });
     }
   };
@@ -586,7 +588,7 @@ export function generateWorld(): World {
 
   rnd(); // one draw fewer in the meeting records than in earlier worlds; keeps every signal below where it was
   // ---- Signals ----
-  interface SigSpec { sourceType: string; title: string; rawText: string; at: string; issueId?: string; billIds: string[]; mentionIds: string[]; kind: 'bill_update' | 'filler' | 'noise' | 'near'; conf: number }
+  interface SigSpec { sourceType: string; title: string; rawText: string; at: string; issueId?: string; billIds: string[]; mentionIds: string[]; kind: 'bill_update' | 'filler' | 'noise' | 'near'; conf: number; stageOf?: HistEntry }
   const sigs: SigSpec[] = [];
   const time = () => ({ h: int(7, 21), m: int(0, 59) });
 
@@ -597,11 +599,11 @@ export function generateWorld(): World {
       const t = b.then && h === hist.get(b.n)!.at(-1) ? (added++, { h: 19, m: 30 }) : time(); // a stage added after generation draws no random time
       const no = b.st === 'public_comment' ? undefined : billNo(b.n);
       const inst = h.institutionId ? byId.get(h.institutionId)!.name : 'the National Assembly';
-      sigs.push(h.stage === 'public_comment' ? {
+      sigs.push(h.stage === 'public_comment' ? { stageOf: h,
         sourceType: 'public_notice', kind: 'bill_update', conf: 0.97, at: iso(h.date, 9 + (t.h % 3), t.m), billIds: [billId(b.n)], issueId: b.iss[0], mentionIds: [minister(b)],
         title: `Legislative notice: ${b.s}`,
         rawText: `The ${inst} gives notice of ${b.t}. Written opinions are accepted for 40 days from ${monthDay(h.date)}.`,
-      } : {
+      } : { stageOf: h,
         sourceType: 'bill_update', kind: 'bill_update', conf: 0.97, at: iso(h.date, 18 + (t.h % 3), t.m), billIds: [billId(b.n)], issueId: b.iss[0],
         mentionIds: h.institutionId ? [h.institutionId] : [],
         title: `Bill ${no} ${STAGE_LABEL[h.stage]}`,
@@ -671,6 +673,7 @@ export function generateWorld(): World {
   const weak = new Set(sigs.map((s, i) => (s.kind === 'filler' && s.at.slice(0, 10) <= WEEK_START && s.mentionIds.some((m) => m.startsWith('per-')) ? i : -1)).filter((i) => i >= 0).filter((_, j) => j % 6 === 0).slice(0, 8));
   sigs.forEach((s, i) => {
     const id = `sig-${pad(i + 1)}`;
+    if (s.stageOf) s.stageOf.sourceId = id;
     const thisWeek = s.at.slice(0, 10) > WEEK_START;
     const triaged = !thisWeek && s.kind !== 'noise';
     const dismissed = !thisWeek && s.kind === 'noise';
@@ -748,6 +751,20 @@ export function generateWorld(): World {
     ['cli-moru', 'Moru Foods', 'Cultivated protein foods', 'Monitoring and advocacy on novel food ingredient approval, labeling terms and the food-tech sandbox.'],
     ['cli-wren', 'Wrenfield Pay', 'Cross-border payments (foreign fintech entering Korea)', 'Monitoring and advocacy on electronic financial registration, prepaid balance protection, remittance limits and data transfer.'],
   ];
+  // The team's reasons for each impact rating: the record a response level traces back to.
+  const IMPACT_WHY: Record<string, string> = {
+    "iss-01": "Every city route runs on sidewalks; a stop duty would halt most of them.",
+    "iss-02": "No new model can launch until it is certified.",
+    "iss-03": "Insurance adds cost per robot but does not stop operations.",
+    "iss-04": "Pilot zones open new cities; current routes do not depend on them.",
+    "iss-05": "No product reaches the market until its ingredient is approved.",
+    "iss-06": "A ban on meat terms would force a relabel of every product.",
+    "iss-07": "The sandbox brings sales forward but is not the only route to market.",
+    "iss-08": "Registration is the license to operate in Korea at all.",
+    "iss-09": "Safeguarding rules change treasury practice, not the product.",
+    "iss-10": "Remittance limits cap the volume the core product can carry.",
+    "iss-11": "Transfer conditions add compliance work to processing done abroad."
+  };
   const AFFECTS: Record<string, [string, string][]> = {
     'cli-aster': [['iss-01', 'high'], ['iss-02', 'high'], ['iss-03', 'medium'], ['iss-04', 'medium']],
     'cli-moru': [['iss-05', 'high'], ['iss-06', 'high'], ['iss-07', 'medium']],
@@ -760,29 +777,30 @@ export function generateWorld(): World {
     add('Engagement', `eng-${key}`, { clientId: id, scope, team: [`consultant-${key}-1`, `consultant-${key}-2`], startDate: '2026-03-02' });
     const m = clientMarking(id);
     for (const [iss, impact] of AFFECTS[id]) {
-      link('affects', iss, id, { impact }, false, m);
+      link('affects', iss, id, undefined, false, m);
+      add('ImpactAssessment', `imp-${key}-${iss.slice(4)}`, { clientId: id, issueId: iss, level: impact, rationale: IMPACT_WHY[iss], assessedBy: `consultant-${key}-1`, approvedBy: 'principal-1', assessedAt: '2026-10-05' }, m);
       link('watches', `eng-${key}`, iss, undefined, false, m);
     }
     for (const n of WATCHED_BILLS[id]) link('watches', `eng-${key}`, billId(n), undefined, false, m);
   }
 
   // Position rationales name the company; "we" on screen is the company's government-affairs team.
-  const P = (clientKey: string, n: number, target: string, stance: string, rationale: string) =>
-    add('ClientPosition', `pos-${clientKey}-${n}`, { clientId: `cli-${clientKey}`, targetId: target, stance, rationale, setBy: `consultant-${clientKey}-1`, approvedBy: 'principal-1' });
-  P('aster', 1, 'bill-001', 'amend', 'Aster Robotics backs sidewalk access for cargo-class robots and wants the stop rule replaced by a duty to slow to walking pace and give way.');
-  P('aster', 2, 'iss-02', 'support', 'Aster Robotics prefers one national certification path to separate city rules.');
-  P('aster', 3, 'iss-03', 'amend', 'Aster Robotics accepts mandatory insurance if the minimum coverage scales with robot weight.');
-  P('aster', 5, 'bill-008', 'amend', 'Aster Robotics accepts mandatory insurance if the minimum coverage scales with robot weight. The committee alternative on operator insurance leaves coverage amounts out, so this bill is where the point is still open.');
+  const P = (clientKey: string, n: number, target: string, stance: string, rationale: string, ask?: string) =>
+    add('ClientPosition', `pos-${clientKey}-${n}`, { clientId: `cli-${clientKey}`, targetId: target, stance, rationale, ...(ask ? { ask } : {}), setBy: `consultant-${clientKey}-1`, approvedBy: 'principal-1' });
+  P('aster', 1, 'bill-001', 'amend', 'Aster Robotics backs sidewalk access for cargo-class robots and wants the stop rule replaced by a duty to slow to walking pace and give way.', 'a slow-and-yield duty in place of the stop rule');
+  P('aster', 2, 'iss-02', 'support', 'Aster Robotics prefers one national certification path to separate city rules.', 'one national certification path');
+  P('aster', 3, 'iss-03', 'amend', 'Aster Robotics accepts mandatory insurance if the minimum coverage scales with robot weight.', 'coverage scaled to robot weight');
+  P('aster', 5, 'bill-008', 'amend', 'Aster Robotics accepts mandatory insurance if the minimum coverage scales with robot weight. The committee alternative on operator insurance leaves coverage amounts out, so this bill is where the point is still open.', 'coverage scaled to robot weight');
   P('aster', 6, 'bill-031', 'monitor', 'The committee has adopted this alternative, so its substance is settled. The Legislation and Judiciary Committee checks wording and can hold the bill back. Aster Robotics only tracks it and presses the coverage amounts on the weight-class bill, which is a separate text.');
-  P('aster', 4, 'bill-011', 'support', 'Aster Robotics wants pilot zones to test new routes before national rules change.');
-  P('moru', 1, 'iss-05', 'support', 'Moru Foods needs a fixed review period for novel ingredients more than any other change.');
-  P('moru', 2, 'bill-013', 'amend', 'Moru Foods supports the recognition procedure and wants a statutory review deadline added.');
-  P('moru', 3, 'bill-018', 'oppose', 'Moru Foods opposes a blanket ban on meat terms because it would block accurate descriptive labels.');
-  P('moru', 4, 'iss-07', 'support', 'Moru Foods wants a sandbox that allows limited sales while review is pending.');
-  P('wren', 1, 'bill-023', 'oppose', 'Wrenfield Pay cannot open a local office before launch and asks that a registered local agent meet the requirement instead.');
+  P('aster', 4, 'bill-011', 'support', 'Aster Robotics wants pilot zones to test new routes before national rules change.', 'pilot zones');
+  P('moru', 1, 'iss-05', 'support', 'Moru Foods needs a fixed review period for novel ingredients more than any other change.', 'a fixed review period');
+  P('moru', 2, 'bill-013', 'amend', 'Moru Foods supports the recognition procedure and wants a statutory review deadline added.', 'a statutory review deadline');
+  P('moru', 3, 'bill-018', 'oppose', 'Moru Foods opposes a blanket ban on meat terms because it would block accurate descriptive labels.', 'a blanket ban on meat terms');
+  P('moru', 4, 'iss-07', 'support', 'Moru Foods wants a sandbox that allows limited sales while review is pending.', 'a sandbox for limited sales');
+  P('wren', 1, 'bill-023', 'oppose', 'Wrenfield Pay cannot open a local office before launch and asks that a registered local agent meet the requirement instead.', 'the local office requirement');
   P('wren', 2, 'iss-09', 'monitor', 'Wrenfield Pay already keeps prepaid funds in a segregated trust account and is waiting for the final standard.');
-  P('wren', 3, 'bill-028', 'amend', 'Wrenfield Pay supports a higher limit and wants reporting handled automatically.');
-  P('wren', 4, 'iss-11', 'amend', 'Wrenfield Pay needs standard contract clauses recognized as a lawful transfer route.');
+  P('wren', 3, 'bill-028', 'amend', 'Wrenfield Pay supports a higher limit and wants reporting handled automatically.', 'automatic reporting');
+  P('wren', 4, 'iss-11', 'amend', 'Wrenfield Pay needs standard contract clauses recognized as a lawful transfer route.', 'standard contract clauses as a transfer route');
 
   const I = (key: string, n: number, kind: string, date: string, who: number[], summary: string, targets: string[]) =>
     add('Interaction', `int-${key}-${n}`, { clientId: `cli-${key}`, kind, date, participantIds: who.map((w) => `per-${pad(w)}`), summary, targetIds: targets });

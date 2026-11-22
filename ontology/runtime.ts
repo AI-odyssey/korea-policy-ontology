@@ -170,7 +170,9 @@ const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
     if (!def.from.includes(from.type) || !def.to.includes(to.type)) {
       throw bad(`${p.linkType} links ${def.from.join('|')} to ${def.to.join('|')}, not ${from.type} to ${to.type}`);
     }
-    fx.attach(p.linkType, from.id, to.id, { signalId: p.signalId, excerpt: p.excerpt, confidence: p.confidence, method: methodOf(fx.role) });
+    // The public layer has one writer, the collector. Everyone else files the link for one company.
+    if (fx.role !== 'system' && !p.clientId) throw bad('clientId is required: only the collector writes public links');
+    fx.attach(p.linkType, from.id, to.id, { signalId: p.signalId, excerpt: p.excerpt, confidence: p.confidence, method: methodOf(fx.role) }, fx.role === 'system' ? undefined : clientOf(p));
   },
 
   reopenSignal(fx, p) {
@@ -200,12 +202,19 @@ const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
     if (p.date < last.date) throw bad(`date precedes the last history entry (${last.date})`);
     if (p.stage === 'merged_alternative' && !p.mergedInto) throw bad('merged_alternative requires mergedInto');
     if (!bill.billNo && !p.billNo && p.stage !== 'public_comment') throw bad(`${bill.id} leaves legislative notice and needs the billNo the Assembly assigned`);
-    const entry = { stage: p.stage, date: p.date, ...(p.institutionId ? { institutionId: p.institutionId } : {}) };
+    const entry = { stage: p.stage, date: p.date, ...(p.institutionId ? { institutionId: p.institutionId } : {}), ...(p.signalId ? { sourceId: p.signalId } : {}) };
     fx.update(bill.id, { stage: p.stage, stageHistory: [...history, entry], ...(p.mergedInto ? { mergedInto: p.mergedInto } : {}), ...(p.billNo ? { billNo: p.billNo } : {}) });
   },
 
+  assessImpact(fx, p) {
+    const props = { clientId: p.clientId, issueId: p.issueId, level: p.level, rationale: p.rationale, assessedBy: fx.actor, approvedBy: fx.approvedBy, assessedAt: fx.baseDate };
+    const existing = fx.find('ImpactAssessment', (r) => r.clientId === p.clientId && r.issueId === p.issueId);
+    if (existing) fx.update(existing.id, props);
+    else fx.create('ImpactAssessment', 'imp', props, clientOf(p));
+  },
+
   setClientPosition(fx, p) {
-    const props = { clientId: p.clientId, targetId: p.targetId, stance: p.stance, rationale: p.rationale, setBy: fx.actor, approvedBy: fx.approvedBy };
+    const props = { clientId: p.clientId, targetId: p.targetId, stance: p.stance, rationale: p.rationale, ...(p.ask ? { ask: p.ask } : {}), setBy: fx.actor, approvedBy: fx.approvedBy };
     const existing = fx.find('ClientPosition', (r) => r.clientId === p.clientId && r.targetId === p.targetId);
     if (existing) fx.update(existing.id, props);
     else fx.create('ClientPosition', 'pos', props, clientOf(p));
@@ -237,9 +246,10 @@ const effects: Record<ActionName, (fx: Fx, p: any) => void> = {
   },
 
   raiseDecision(fx, p) {
-    const { raisedById, ...props } = p;
+    const { raisedById, basisIds, ...props } = p;
     const d = fx.create('Decision', 'dec', { ...props, status: 'open', openedAt: fx.now() }, clientOf(p));
     fx.link('raised_by', d.id, raisedById, undefined, clientOf(p));
+    for (const id of new Set<string>(basisIds ?? [])) fx.link('derived_from', d.id, id, undefined, clientOf(p));
   },
 
   resolveDecision(fx, p) {
@@ -579,6 +589,13 @@ export class Store {
         touched.push(old);
       },
       link(type, from, to, props, markings = [PUBLIC]) {
+        const def = linkTypes[type as keyof typeof linkTypes] as LinkTypeDef | undefined;
+        if (!def) throw bad(`unknown link type ${type}`);
+        const propErrors = checkProps(def.props ?? {}, props ?? {}, (id) => store.byId.get(id)?.type);
+        if (propErrors.length) throw bad(`${type}: ${propErrors.join('; ')}`);
+        const one = (xs: LinkRecord[] | undefined) => (xs ?? []).some((x) => x.type === type);
+        if ((def.cardinality === 'many-to-one' || def.cardinality === 'one-to-one') && one(store.out.get(from))) throw bad(`${from} already has a ${type} link`);
+        if ((def.cardinality === 'one-to-many' || def.cardinality === 'one-to-one') && one(store.inc.get(to))) throw bad(`${to} already has a ${type} link`);
         const l: LinkRecord = { id: store.nextId('lnk'), type, from, to, ...(props ? { props } : {}), markings, evidence: [], synthetic: true };
         store.putLink(l);
         created.push(l.id);

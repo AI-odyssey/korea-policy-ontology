@@ -5,7 +5,7 @@ import type { ObjectRecord, Store, View } from '../ontology/runtime.ts';
 import type { Ctx, GateConfig } from '../ontology/markings.ts';
 import { ProviderGateError, defaultGate } from '../ontology/markings.ts';
 import { REVIEW_THRESHOLD } from '../ontology/schema.ts';
-import { clientBills, confirmedView, issueExposure, responseFacts, responseLevel, signalQueue, stageGates, stepKind, upcomingDeadlines, whatChanged, cmp } from '../ontology/functions.ts';
+import { clientBills, confirmedView, issueExposure, responseFacts, responseLevel, signalQueue, stageGates, stepKind, upcomingDeadlines, whatChanged, cmp, impactOf } from '../ontology/functions.ts';
 import type { Decider, StageGate, StepKind } from '../ontology/functions.ts';
 import { addDays, monthDay, nextWorkday, workdaysBefore } from '../ontology/dates.ts';
 import { disabledLlm, guardedComplete, LlmDisabledError } from './llm.ts';
@@ -115,7 +115,7 @@ export function decisionCandidates(view: View, clientId: string, since: string):
       .filter(({ decider, assessment: a }) => a && a.influence === 'high' && (!opposing || ['opposed', 'unconfirmed'].includes(a.stance)) && !covered.has(decider.id))
       .sort((x, y) => REACH_RANK[x.reach] - REACH_RANK[y.reach] || Number(x.assessment.stance !== 'opposed') - Number(y.assessment.stance !== 'opposed'))[0];
     if (!target) continue;
-    out.push({ bill, meeting: f.decisive, step: stepKind(f.decisive, bill), daysToMeeting: f.daysToDecisive!, ...(f.change ? { change: f.change } : {}), position: f.position, gate, target });
+    out.push({ bill, meeting: f.decisive, step: stepKind(view, f.decisive, bill), daysToMeeting: f.daysToDecisive!, ...(f.change ? { change: f.change } : {}), position: f.position, gate, target });
   }
   return out;
 }
@@ -172,8 +172,15 @@ export function decisionParams(view: View, clientId: string, c: DecisionCandidat
     followUp: `Meet ${d.name} before the ${monthDay(c.meeting.date)} ${forum}`,
     targetId: d.id,
     premiseStance: a.stance,
+    // What the decision rests on, linked and remembered, so a change to any of them shows it is out of date.
+    basisIds: [c.meeting.id, a.id, c.position.id, ...view.targets(c.bill.id, 'about').map((i) => impactOf(view, i.id, clientId)?.id).filter((x): x is string => !!x)],
+    premise: { meetingId: c.meeting.id, meetingDate: c.meeting.date, positionId: c.position.id, positionStance: c.position.stance, impact: strongestImpact(view, c.bill.id, clientId) },
   };
 }
+
+/** The strongest impact rating among a bill's issues for one company. */
+const strongestImpact = (view: View, billId: string, clientId: string): string | undefined =>
+  view.targets(billId, 'about').map((i) => impactOf(view, i.id, clientId)?.level as string | undefined).filter(Boolean).sort((a, b) => ['high', 'medium', 'low'].indexOf(a!) - ['high', 'medium', 'low'].indexOf(b!))[0];
 
 
 export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<AgentRun> {
@@ -256,7 +263,7 @@ export async function runWeeklyAgent(store: Store, opts: RunOptions): Promise<Ag
     const forum = forumOf(view, f.decisive);
     const res = store.applyAction(ctx, 'addRiskOpportunity', {
       clientId, kind: 'risk', title: `${billName(r.bill)} at the ${forum}`,
-      summary: `The ${lower1(billName(r.bill))} is on the ${forum} agenda for ${stepKind(f.decisive, r.bill) === 'vote' ? 'a vote' : 'review'}, where its text can still change. ${f.position.rationale}`,
+      summary: `The ${lower1(billName(r.bill))} is on the ${forum} agenda for ${stepKind(view, f.decisive, r.bill) === 'vote' ? 'a vote' : 'review'}, where its text can still change. ${f.position.rationale}`,
       impact: f.impact === 'high' ? 'high' : 'medium', urgency: 'imminent', subjectIds: [r.bill.id],
     });
     if (res.pendingId) run.riskRequests.push(res.pendingId);
@@ -399,10 +406,20 @@ export function refreshWeeklyReport(store: Store, ctx: Ctx, clientId: string, si
 
 /** Why an open decision no longer holds, if it does not: the stance it rests on has changed. */
 export function decisionStale(view: View, d: ObjectRecord): string | undefined {
-  if (d.status !== 'open' || !d.targetId || !d.premiseStance) return undefined;
-  const issues = new Set(view.targets(d.subjectId, 'about').map((i) => i.id));
-  const now = view.list('StakeholderAssessment', (a) => a.clientId === d.clientId && a.subjectId === d.targetId && issues.has(a.issueId))[0];
-  return now && now.stance !== d.premiseStance ? 'stance changed' : undefined;
+  if (d.status !== 'open') return undefined;
+  if (d.targetId && d.premiseStance) {
+    const issues = new Set(view.targets(d.subjectId, 'about').map((i) => i.id));
+    const now = view.list('StakeholderAssessment', (a) => a.clientId === d.clientId && a.subjectId === d.targetId && issues.has(a.issueId))[0];
+    if (now && now.stance !== d.premiseStance) return 'stance changed';
+  }
+  const p = d.premise as { meetingId?: string; meetingDate?: string; positionId?: string; positionStance?: string; impact?: string } | undefined;
+  if (!p) return undefined;
+  const meeting = p.meetingId ? view.get(p.meetingId) : undefined;
+  if (meeting && (meeting.date !== p.meetingDate || meeting.status === 'cancelled')) return 'meeting moved';
+  const pos = p.positionId ? view.get(p.positionId) : undefined;
+  if (pos && pos.stance !== p.positionStance) return 'company position changed';
+  if (p.impact && d.subjectId && strongestImpact(view, d.subjectId, d.clientId) !== p.impact) return 'impact rating changed';
+  return undefined;
 }
 
 /**

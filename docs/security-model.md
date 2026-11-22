@@ -63,7 +63,7 @@ The optional language-model adapter (`agent/llm.ts`) is the only path by which d
 - The assistant uses the adapter for one thing: a two-sentence summary at the top of the weekly report, built from the company object and the top three bills. Because the company object is company-marked, any provider not on the list is blocked. A block appears in the assistant's trace as a gate step and the summary is written from the week's records instead.
 - The shipped demo uses the disabled adapter (`provider: 'none'`). Its trace says "The summary is written from this week's records, without a language model." The demo makes no network calls.
 
-## 5. Activity log
+## 5. Audit log
 
 Every action writes an entry, whether it ran, waited, was rejected or was refused (`ontology/runtime.ts`, `AuditEntry`):
 

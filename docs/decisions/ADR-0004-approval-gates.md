@@ -12,7 +12,7 @@ An assistant that drafts saves hours. An assistant that sends, sets the company'
 - The assistant may triage, link evidence, draft and submit deliverables, raise decisions and create tasks. A person can undo any triage with `reopenSignal`.
 - External sending is simulated.
 
-In the demo the principal is shown as the head of government affairs, and the viewer is always that person, so there is no role switch. When the demo opens, two items already wait for the head of government affairs at Aster under **To review**: a risk the assistant proposed and a position change an analyst asked for, each labeled with who proposed it.
+In the demo the principal is shown as the head of government affairs, and the viewer is always that person, so there is no role switch. When the demo opens, two items already wait for the head of government affairs at Aster, each shown next to what it changes and labeled with who proposed it: a risk the assistant proposed, at the top of the risks on This week, and a position change an analyst asked for, under the issue on Issues & bills.
 
 ## Consequences
 - A person is in the loop where it is slowest, by design.

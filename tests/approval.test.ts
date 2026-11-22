@@ -125,7 +125,7 @@ describe('stage and evidence actions', () => {
     const s = freshStore();
     const agent = ctx('agent', ['cli-aster']);
     const before = s.reviewQueue(agent).length;
-    const res = s.applyAction(agent, 'linkEvidence', { linkType: 'about', from: 'bill-002', to: 'iss-04', excerpt: 'Maybe related', confidence: 0.55 });
+    const res = s.applyAction(agent, 'linkEvidence', { linkType: 'about', from: 'bill-002', to: 'iss-04', clientId: 'cli-aster', excerpt: 'Maybe related', confidence: 0.55 });
     const evId = res.created.find((id) => id.startsWith('ev-'))!;
     expect(s.reviewQueue(agent)).toHaveLength(before + 1);
     expect(s.as(agent).links({ type: 'about', from: 'bill-002', to: 'iss-04' })).toHaveLength(1);
@@ -141,7 +141,7 @@ describe('stage and evidence actions', () => {
   it('evidence method comes from the role: an agent cannot mark its own low-confidence link as human-checked', () => {
     const s = freshStore();
     const agent = ctx('agent', ['cli-aster']);
-    const claim = { linkType: 'about', from: 'bill-020', to: 'iss-01', excerpt: 'x', confidence: 0.1 };
+    const claim = { linkType: 'about', from: 'bill-020', to: 'iss-01', clientId: 'cli-aster', excerpt: 'x', confidence: 0.1 };
     expect(codeOf(() => s.applyAction(agent, 'linkEvidence', { ...claim, method: 'human' }))).toBe('INVALID_PARAMS');
     const ev = s.as(agent).get(s.applyAction(agent, 'linkEvidence', claim).created.find((id) => id.startsWith('ev-'))!)!;
     expect(ev).toMatchObject({ method: 'rule', reviewStatus: 'review' });

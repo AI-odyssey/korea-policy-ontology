@@ -10,33 +10,27 @@ import type { ObjectRecord } from '../../ontology/index.ts';
 import { Empty, LEVEL3, MemberOf, ObjLink, STANCE, Section, billName, cap, md, memberships, nameOf, roleOf } from './ui.tsx';
 import type { App } from './ui.tsx';
 
-// Hue = stance, lightness = relevance (high, medium, low).
+// Hue = stance, depth = relevance (high, medium, low). The three steps are far apart so they read at a glance.
 const SHADE: Record<string, string[]> = {
-  supportive: ['#1F3A5F', '#5F7899', '#AFBDD0'],
-  neutral: ['#59616B', '#979EA7', '#CDD1D6'],
-  opposed: ['#97391C', '#C2795C', '#E5BCAA'],
+  supportive: ['#10264A', '#5A7BAA', '#D3DDEB'],
+  neutral: ['#2F363E', '#8D959F', '#E3E6EA'],
+  opposed: ['#7A220A', '#CC6E48', '#F4D8CB'],
   unconfirmed: ['#FFFFFF', '#FFFFFF', '#FFFFFF'],
 };
 const REL = ['high', 'medium', 'low'];
-const SIZE: Record<string, number> = { high: 46, medium: 32, low: 22 };
-// Shape = actor type, so the mix of lawmakers, officials and groups reads at a glance.
+const SIZE: Record<string, number> = { high: 64, medium: 38, low: 20 }; // influence, in clearly different steps
 const ACTOR: Record<ActorType, string> = { lawmaker: 'Lawmaker', official: 'Official', association: 'Association', civic: 'Civic group', academic: 'Academic' };
-const SHAPE: Record<ActorType, string> = { lawmaker: 'ellipse', official: 'round-rectangle', association: 'hexagon', civic: 'triangle', academic: 'diamond' };
-const CLIP: Record<ActorType, string> = {
-  lawmaker: '', official: '', association: 'polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%)',
-  civic: 'polygon(50% 0, 100% 100%, 0 100%)', academic: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
-};
-// Six kinds of tie, drawn in four line styles. The kind itself shows in the line's tooltip and in the person panel.
+// Six kinds of tie in four groups, one per kind of record the tie rests on: a bill, a seat, a duty, a public act.
 const KIND_LABEL: Record<RelationKind, string> = {
-  cosponsor: 'Co-sponsored a bill', committee: 'Same committee', oversight: 'Oversight', advises: 'Advises', appeared: 'Testified or spoke together', coalition: 'Joint statement',
+  cosponsor: 'Co-sponsored a bill', committee: 'Same committee', oversight: 'Oversight', advises: 'Advises', appeared: 'Spoke at the same event', coalition: 'Joint statement',
 };
-type TieGroup = 'legislative' | 'oversight' | 'appeared' | 'coalition';
-const TIE: Record<RelationKind, TieGroup> = { cosponsor: 'legislative', committee: 'legislative', oversight: 'oversight', advises: 'oversight', appeared: 'appeared', coalition: 'coalition' };
+type TieGroup = 'bill' | 'seat' | 'duty' | 'public';
+const TIE: Record<RelationKind, TieGroup> = { cosponsor: 'bill', committee: 'seat', oversight: 'duty', advises: 'duty', appeared: 'public', coalition: 'public' };
 const TIE_STYLE: Record<TieGroup, { line: string; width: number; label: string }> = {
-  legislative: { line: 'solid', width: 1.4, label: 'Legislative tie' },
-  oversight: { line: 'dashed', width: 1.4, label: 'Oversight or advice' },
-  appeared: { line: 'dotted', width: 1.8, label: 'Testified or spoke together' },
-  coalition: { line: 'solid', width: 3.4, label: 'Joint statement' },
+  bill: { line: 'solid', width: 3, label: 'Co-sponsorship' },
+  seat: { line: 'solid', width: 1.2, label: 'Same committee' },
+  duty: { line: 'dashed', width: 1.4, label: 'Oversight or advice' },
+  public: { line: 'dotted', width: 1.8, label: 'Joint statement or same event' },
 };
 const fill = (a: ObjectRecord) => SHADE[a.stance][REL.indexOf(a.relevance)];
 
@@ -72,7 +66,7 @@ function workday(date: string, n: number): string {
 export function Stakeholders({ app, path }: { app: App; path?: string }) {
   const { view, clientId } = app;
   const mine = view.list('StakeholderAssessment', (a) => a.clientId === clientId);
-  const impact = new Map(view.links({ type: 'affects', to: clientId }).map((l) => [l.from, l.props?.impact as string]));
+  const impact = new Map(view.list('ImpactAssessment', (a) => a.clientId === clientId).map((a) => [a.issueId, a.level as string]));
   const issues = view.sources(clientId, 'affects').filter((i) => mine.some((a) => a.issueId === i.id))
     .sort((a, b) => REL.indexOf(impact.get(a.id)!) - REL.indexOf(impact.get(b.id)!) || a.id.localeCompare(b.id));
   const [first, second] = (path ?? '').split('/');
@@ -121,7 +115,7 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
     // Start on a circle so the force layout has no random seed: the same data always gives the same picture.
     const elements = [
       ...net.nodes.map(({ assessment: a, subject: s, actor }, i) => ({
-        data: { id: s.id, label: nameOf(s), shape: SHAPE[actor], color: fill(a), size: SIZE[a.influence], border: a.stance === 'unconfirmed' ? SHADE.neutral[REL.indexOf(a.relevance)] : fill(a) },
+        data: { id: s.id, label: nameOf(s), role: detailOf(app.view, s, actor) || ACTOR[actor], color: fill(a), size: SIZE[a.influence], border: a.stance === 'unconfirmed' ? SHADE.neutral[1] : fill(a) },
         position: { x: 200 + 160 * Math.cos((2 * Math.PI * i) / n), y: 200 + 160 * Math.sin((2 * Math.PI * i) / n) },
       })),
       ...net.edges.map((e) => ({ data: { id: `${e.a}~${e.b}`, source: e.a, target: e.b, line: TIE_STYLE[TIE[e.kind]].line, w: TIE_STYLE[TIE[e.kind]].width, tip: `${nameOf(app.view.get(e.a))} and ${nameOf(app.view.get(e.b))}: ${KIND_LABEL[e.kind]}${basisNote(app.view, e.basisIds) ? ` (${basisNote(app.view, e.basisIds)})` : ''}` } })),
@@ -134,23 +128,37 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
       maxZoom: 2,
       layout: {
         name: 'cose', randomize: false, animate: false, nodeDimensionsIncludeLabels: true, padding: 24,
-        idealEdgeLength: (e: cytoscape.EdgeSingular) => (e.data('w') > 3 ? 45 : 80), nodeRepulsion: () => 12000, edgeElasticity: (e: cytoscape.EdgeSingular) => (e.data('w') > 3 ? 300 : 80), gravity: 1, numIter: 2500, componentSpacing: 40, nodeOverlap: 24,
+        idealEdgeLength: (e: cytoscape.EdgeSingular) => (e.data('w') > 2 ? 50 : 75), nodeRepulsion: () => 9000, edgeElasticity: (e: cytoscape.EdgeSingular) => (e.data('w') > 2 ? 200 : 80), gravity: 1, numIter: 2500, componentSpacing: 40, nodeOverlap: 24,
       } as cytoscape.LayoutOptions,
       style: [
         { selector: 'node', style: {
-          'background-color': 'data(color)', shape: 'data(shape)' as never, width: 'data(size)', height: 'data(size)', 'border-width': 1.5, 'border-color': 'data(border)',
-          label: 'data(label)', color: '#1B2430', 'font-size': narrow ? 22 : 11, 'font-family': 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif', 'text-valign': 'bottom', 'text-margin-y': 5,
-          'text-wrap': 'wrap', 'text-max-width': narrow ? '150px' : '96px', 'text-background-color': '#F7F6F2', 'text-background-opacity': 0.85, 'text-background-padding': '1px',
+          'background-color': 'data(color)', shape: 'ellipse', width: 'data(size)', height: 'data(size)', 'border-width': 1.5, 'border-color': 'data(border)',
+          label: 'data(label)', color: '#1B2430', 'font-size': narrow ? 22 : 11, 'font-weight': 600, 'font-family': 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif', 'text-valign': 'bottom', 'text-margin-y': 5,
+          'text-wrap': 'wrap', 'text-max-width': narrow ? '220px' : '140px', 'text-background-color': '#F7F6F2', 'text-background-opacity': 0.85, 'text-background-padding': '1px',
         } },
-        { selector: 'node.sel', style: { 'border-width': 3, 'border-color': '#1B2430', 'font-weight': 600 } },
+        { selector: 'node.sel', style: { 'border-width': 3, 'border-color': '#1B2430' } },
+        // The seat under each name: a label-only node, smaller and lighter than the name.
+        { selector: 'node[?cap]', style: { width: 1, height: 1, 'background-opacity': 0, 'border-width': 0, 'text-valign': 'center', 'text-margin-y': 0, color: '#6B7380', 'font-weight': 400, 'text-background-opacity': 0 } },
         { selector: 'edge', style: { width: 'data(w)', 'line-color': '#8E97A3', 'line-style': 'data(line)' as never, 'curve-style': 'straight' } },
         { selector: 'edge.near', style: { 'line-color': '#1B2430' } },
       ],
     });
     cy.on('mouseover', 'edge', (e) => { if (ref.current) ref.current.title = e.target.data('tip'); });
     cy.on('mouseout', 'edge', () => { if (ref.current) ref.current.title = ''; });
-    cy.on('tap', 'node', (e) => pick.current(e.target.id()));
+    cy.on('tap', 'node', (e) => pick.current(e.target.data('of') ?? e.target.id()));
     cy.on('tap', (e) => e.target === cy && pick.current(undefined));
+    // The fit zooms out when the graph is wide; grow the labels so the name stays about 11px on screen.
+    const z = cy.zoom();
+    const nameFs = z < 1 ? Math.min(narrow ? 30 : 20, (narrow ? 22 : 11) / z) : narrow ? 22 : 11;
+    const capFs = Math.round(nameFs * 0.82);
+    // The seat goes under the name's own label box, so a name that wraps onto two lines does not run into it.
+    // The seat goes under the name. Labels wrap at a fixed width, so estimate each label's line count; the seat label is centered on its point.
+    const lines = (text: string, fs: number, width: number) => Math.max(1, Math.ceil((text.length * fs * 0.56) / width));
+    const capY = (n: cytoscape.NodeSingular) => n.position('y') + n.data('size') / 2 + 5 + lines(String(n.data('label')), nameFs, narrow ? 220 : 140) * nameFs * 1.3 + (lines(String(n.data('role')), capFs, 150) * capFs * 1.25) / 2 + 2;
+    cy.style().selector('node[!cap]').style('font-size', nameFs).selector('node[?cap]').style({ 'font-size': capFs, 'text-max-width': '150px' }).update();
+    cy.add(cy.nodes().map((n) => ({ group: 'nodes' as const, data: { id: `cap:${n.id()}`, cap: true, of: n.id(), label: n.data('role'), color: '#F7F6F2', border: '#F7F6F2', size: 1 }, position: { x: n.position('x'), y: capY(n) }, grabbable: false, selectable: false })));
+    cy.fit(cy.elements(), 20); // the seat labels hang below the lowest names, so fit again with them in
+    cy.on('position', 'node[!cap]', (e) => cy.getElementById(`cap:${e.target.id()}`).position({ x: e.target.position('x'), y: capY(e.target) }));
     cyRef.current = cy;
     return () => cy.destroy();
   }, [net, narrow, app.view]);
@@ -162,7 +170,7 @@ function Graph({ app, issueId, selected, onSelect }: { app: App; issueId: string
     if (selected) cy.getElementById(selected).addClass('sel').connectedEdges().addClass('near');
   }, [selected, net]);
 
-  return <div ref={ref} className="graph" aria-label="Stakeholder network" />;
+  return <div ref={ref} className="graph" aria-label="Stakeholder map" />;
 }
 
 /** The same people as the graph, as a list a phone can read: stance, impact and role. */
@@ -189,12 +197,7 @@ function Legend() {
       <span className="lg-group">
         {(['supportive', 'neutral', 'opposed', 'unconfirmed'] as const).map((s) => <span key={s}><i className={`sw dot-${s}`} />{STANCE[s]}</span>)}
       </span>
-      <span className="lg-group"><span>Circle size: impact</span><span>Shade: relevance</span></span>
-      <span className="lg-group">
-        {(Object.keys(ACTOR) as ActorType[]).map((t) => (
-          <span key={t}><i className="sw" style={{ borderRadius: t === 'lawmaker' ? '50%' : t === 'official' ? 2 : 0, clipPath: CLIP[t] || undefined, background: '#59616B' }} />{ACTOR[t]}</span>
-        ))}
-      </span>
+      <span className="lg-group"><span>Circle size: influence</span><span>Shade: relevance</span></span>
       <span className="lg-group">
         {(Object.keys(TIE_STYLE) as TieGroup[]).map((g) => <span key={g}><i className="ln" style={{ borderTopStyle: TIE_STYLE[g].line as 'solid', borderTopWidth: Math.round(TIE_STYLE[g].width) }} />{TIE_STYLE[g].label}</span>)}
       </span>
@@ -277,7 +280,7 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
     <div className="panel">
       <div className="sub">{ACTOR[actor]}</div>
       <h2 className="panel-name">{nameOf(s)}</h2>
-      <h3 className="label">Properties</h3>
+      <h3 className="label">Profile</h3>
       <dl className="kv">
         <div><dt>Role</dt><dd>{roleOf(view, s)}</dd></div>
         {ministry && <div><dt>Organization</dt><dd><ObjLink id={ministry.id} app={app} /></dd></div>}
@@ -287,7 +290,7 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
         {a?.interests && <div><dt>Interests</dt><dd>{a.interests}</dd></div>}
         {a?.basisIds?.length > 0 && <div><dt>Based on</dt><dd>{list(a.basisIds)}</dd></div>}
       </dl>
-      <h3 className="label">Links</h3>
+      <h3 className="label">Ties and activity</h3>
       <dl className="kv">
         {allBills.length > 0 && <div><dt>Bills</dt><dd>{list(sponsored)}{otherBills > 0 && <span className="sub">{sponsored.length ? ' · ' : ''}{otherBills} other {otherBills === 1 ? 'bill' : 'bills'}</span>}</dd></div>}
         {seats.length > 0 && <div><dt>Member of</dt><dd><MemberOf app={app} personId={subjectId} /></dd></div>}
@@ -296,7 +299,7 @@ function Panel({ app, issueId, subjectId, onSelect }: { app: App; issueId: strin
         <div><dt>Contacts</dt><dd>{contacts.length ? contacts.map((c, i) => <span key={c.id}>{i ? ', ' : ''}<ObjLink id={c.id} app={app} label={`${c.kind === 'call' ? 'Call' : 'Meeting'} ${md(c.date)}`} /></span>) : 'None yet'}</dd></div>
         {ties.length > 0 && <div><dt>Connected to</dt><dd>{ties.map((t) => <div key={t.id}><a onClick={() => onSelect(t.id)}>{nameOf(view.get(t.id))}</a> <span className="sub">{KIND_LABEL[t.kind].toLowerCase()}</span></div>)}</dd></div>}
       </dl>
-      <h3 className="label">Actions</h3>
+      <h3 className="label">To do</h3>
       <div className="row">
         {planned
           ? <Button size="small" text="Meeting already planned" disabled title={`${planned.title}, by ${md(planned.dueDate)}`} />

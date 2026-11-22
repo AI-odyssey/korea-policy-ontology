@@ -97,7 +97,7 @@ describe('stored records cannot be changed from outside', () => {
     const id = s.applyAction(asterConsultant, 'createTask', { clientId: 'cli-aster', title: 'T', dueDate: '2026-11-20', owner: 'human' }).created[0];
     const task = s.as(asterConsultant).get(id)!;
     expect(() => { task.status = 'done'; }).toThrow(TypeError);
-    const res = s.applyAction(ctx('agent', ['cli-aster']), 'linkEvidence', { linkType: 'about', from: 'bill-002', to: 'iss-04', excerpt: 'x', confidence: 0.9 });
+    const res = s.applyAction(ctx('agent', ['cli-aster']), 'linkEvidence', { linkType: 'about', from: 'bill-002', to: 'iss-04', clientId: 'cli-aster', excerpt: 'x', confidence: 0.9 });
     const link = s.as(principal).links({ type: 'about', from: 'bill-002', to: 'iss-04' })[0];
     expect(link.evidence).toEqual(res.created.filter((x) => x.startsWith('ev-')));
     expect(Object.isFrozen(link.evidence)).toBe(true);
@@ -151,5 +151,29 @@ describe('audit log isolation', () => {
     expect(hidden).toEqual(missing);
     expect(hidden.grew).toBe(1);
     expect(s.auditEntries(moruConsultant)).toEqual([]);
+  });
+});
+
+describe('the public layer has one writer', () => {
+  it("a company's filing stays with that company; only the collector writes public links", () => {
+    const s = freshStore();
+    const claim = { linkType: 'about', from: 'bill-002', to: 'iss-04', excerpt: 'x', confidence: 0.9 };
+    expect(codeOf(() => s.applyAction(ctx('consultant', ['cli-aster']), 'linkEvidence', claim))).toBe('INVALID_PARAMS');
+    s.applyAction(ctx('consultant', ['cli-aster']), 'linkEvidence', { ...claim, clientId: 'cli-aster' });
+    expect(s.as(ctx('consultant', ['cli-aster'])).links({ type: 'about', from: 'bill-002', to: 'iss-04' })).toHaveLength(1);
+    expect(s.as(ctx('consultant', ['cli-moru'])).links({ type: 'about', from: 'bill-002', to: 'iss-04' })).toHaveLength(0);
+    s.applyAction(ctx('system', []), 'linkEvidence', claim);
+    expect(s.as(ctx('consultant', ['cli-moru'])).links({ type: 'about', from: 'bill-002', to: 'iss-04' })).toHaveLength(1);
+  });
+
+  it('link rules hold on every write: required link properties and one-to-many limits', () => {
+    const s = freshStore();
+    const sys = ctx('system', []);
+    const v = s.as(principal);
+    const inst = v.list('Institution', (i) => !v.links({ type: 'member_of', from: 'per-001', to: i.id }).length)[0];
+    expect(codeOf(() => s.applyAction(sys, 'linkEvidence', { linkType: 'member_of', from: 'per-001', to: inst.id, excerpt: 'x', confidence: 0.9 }))).toBe('INVALID_PARAMS');
+    const sponsor = s.as(principal).links({ type: 'sponsors', to: 'bill-001' })[0];
+    const other = s.as(principal).list('Person', (p) => p.kind === 'lawmaker' && p.id !== sponsor.from)[0];
+    expect(codeOf(() => s.applyAction(sys, 'linkEvidence', { linkType: 'sponsors', from: other.id, to: 'bill-001', excerpt: 'x', confidence: 0.9 }))).toBe('INVALID_PARAMS');
   });
 });

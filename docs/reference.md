@@ -8,11 +8,11 @@ The app is used directly by a company's in-house government-affairs team, and th
 
 | This week | Issues & bills |
 |---|---|
-| ![This week: headline, items to review, the decision for leadership](img/this-week.png) | ![Issues and bills with response levels and next steps](img/issues-bills.png) |
+| ![This week: the judgment headline, how it was worked out, and the week in four numbers](img/this-week.png) | ![Issues and bills with response levels and next steps](img/issues-bills.png) |
 
 | Stakeholders | Strategy |
 |---|---|
-| ![Stakeholder map by actor type, with who decides at each stage and Baek Siwoo selected](img/stakeholders.png) | ![Strategy for one issue: outcome, position, messages, who to persuade, allies, plan](img/strategy.png) |
+| ![Stakeholder map by stance, influence and tie, with Baek Siwoo selected](img/stakeholders.png) | ![Strategy for one issue: outcome, position, messages, who to persuade, allies, plan](img/strategy.png) |
 
 | Ontology | This week at phone width |
 |---|---|
@@ -33,7 +33,7 @@ Objects become screens, actions become buttons, and approvals become entries in 
 | On screen | In the ontology |
 |---|---|
 | This week: headline | `responseLevel` on the bills the team follows; the most pressing one leads |
-| **To review** | What the assistant or an analyst changed or drafted: pending requests (`addRiskOpportunity` from the assistant, `setClientPosition` or `updateStrategy` from an analyst, each saying who proposed it) and reports in review. The head of government affairs approves or declines. The AI work log screen shows the same list |
+| **Approvals** | What the assistant or an analyst proposed waits next to what it changes: a proposed risk (`addRiskOpportunity`) at the top of Risks, a position change (`setClientPosition`) under its issue or bill on Issues & bills, a report in review on Reports. The four numbers under the headline count them and link to each. The head of government affairs approves or declines in place |
 | **Decisions for leadership**: **Approve**, **Choose an alternative**, **Decline**, **Source** | Open `Decision` objects and the meeting notice they were raised from; `resolveDecision`, which creates a short follow-up `Task` due before the meeting. A decision whose premise changed (the stance of the person it names) is marked **Out of date** and can be regenerated |
 | **Risks** and **Opportunities** | `RiskOpportunity`, tagged high or medium impact and imminent, in progress or ongoing, in the order of the bills they concern |
 | **Timeline and actions** | Everything dated from the as-of date through the next 30 days, none cut: scheduled `Event`s, open `Task`s (the team's, the assistant's and the ones needed from other teams) and the due date of each open `Decision`. The report's Coming up lists the same window and leaves out the team's own work and open decisions |
@@ -49,8 +49,7 @@ Objects become screens, actions become buttons, and approvals become entries in 
 | Object panel: Properties, Links, Actions | The selected object, its links, and **Request meeting** (`createTask`), **Update stance** (`assessStakeholder`), **Log contact** (`logInteraction`) |
 | Strategy, **Edit** | `Strategy` with targets (`StakeholderAssessment`), allies (`StakeholderOrg`) and plan (`Task`); `updateStrategy` |
 | Reports: **Send for review**, **Approve**, **Send to leadership** | `Deliverable`; `submitForReview`, `approveDeliverable`, `sendDeliverable` (simulated). The weekly report renders the same brief as This week and is rebuilt after every approval (`redraftDeliverable`); an approved report that changes goes back to review, so a stale one cannot be sent |
-| Activity log | The audit log: when, who (collector, assistant, analyst, head of government affairs), what, result, decided by. A request that waited for approval shows its outcome, who decided and when on its own row |
-| AI work log | The steps of `runWeeklyAgent` in plain words, and what still waits for review |
+| Audit log | Every change: when, who (collector, assistant, analyst, head of government affairs), what, result, decided by. A request that waited for approval shows its outcome, who decided and when on its own row | The assistant's weekly run sits at the top, with its steps in plain words. |
 | Settings: **Objectives**, **Keywords**, **Coverage** | `MonitoringProfile`: objectives with priority 1 to 3, keywords with priority, synonyms and exclusions, committees, agencies and source types; `updateMonitoringProfile` (an analyst's change waits for the head of government affairs). Triage scores each new item for the company with `profileMatch` |
 | Settings: **Trial** | `PilotEvaluation`: the team's must-catch list (`addExpectedItem`), what the profile caught in the window (`startPilot`), **Relevant** / **Irrelevant** (`markRelevance`), targets (`setPilotCriteria`), `pilotMetrics` against them, `closePilot` |
 | Ontology | `ontology/schema.ts`, rendered |
@@ -112,7 +111,7 @@ flowchart LR
   AG["Assistant"]
   ACT["Actions: role-checked, validated"]
   LEAD["Head of government affairs"]
-  LOG[("Activity log")]
+  LOG[("Audit log")]
   GATE["Provider gate"]
   LLM["Language model adapter (off)"]
   S1 & S2 & S3 & S4 & S5 & S6 --> SIG

@@ -3,7 +3,7 @@
 // so the page and the report say the same things in the same order.
 import type { ObjectRecord, View } from '../ontology/runtime.ts';
 import { addDays, monthDay } from '../ontology/dates.ts';
-import { cmp, confirmedSignals, confirmedView, daysToStep, responseFacts, responseLevel, stepKind, upcomingDeadlines } from '../ontology/functions.ts';
+import { clientBills, cmp, confirmedSignals, confirmedView, daysToStep, responseFacts, responseLevel, stepKind, upcomingDeadlines } from '../ontology/functions.ts';
 import type { ResponseFacts, ResponseLevel } from '../ontology/functions.ts';
 
 export const LEVEL_RANK: Record<ResponseLevel, number> = { act_now: 0, engage: 1, monitor: 2, watch: 3 };
@@ -46,18 +46,57 @@ export function rankedBills(view: View, clientId: string, since: string): Ranked
     .sort((x, y) => LEVEL_RANK[x.level] - LEVEL_RANK[y.level] || (daysToStep(x.facts) ?? 99) - (daysToStep(y.facts) ?? 99) || cmp(x.bill.id, y.bill.id));
 }
 
-/** The week in one line and a sentence, written from the most pressing followed bill. */
-export function headline(view: View, clientId: string, top?: RankedBill): { headline: string; lead: string } {
-  if (!top) return { headline: 'No followed bill moves this week', lead: '' };
+/** The meeting in two or three words for a headline. */
+const STEP_NAME: Record<string, string> = { introduction: 'committee introduction', review: 'subcommittee review', vote: 'full committee vote', wording: 'Legislation and Judiciary review', plenary: 'plenary vote' };
+const firstSentences = (text: string, n: number) => text.split(/(?<=\.)\s+/).slice(0, n).join(' ');
+
+/**
+ * The week in one line and a short paragraph, from the company's side. The line is a judgment: what this week means for
+ * the company's demand on its most pressing bill. The paragraph gives the grounds: the meeting, what is left after it,
+ * what is at stake, the next item on another issue, and the decisions asked of leadership.
+ */
+export function headline(view: View, clientId: string, bills: RankedBill[], decisions: ObjectRecord[] = []): { headline: string; lead: string } {
+  const top = bills[0];
+  if (!top) return { headline: 'No followed bill moves this week', lead: decisionsLine(decisions.length) };
   const { bill, facts: f } = top;
-  const name = `The ${lower1(billName(bill))}`;
-  const goes = f.slotKind === 'introduction' ? 'is introduced at the' : f.slotKind === 'wording' ? 'goes for wording review to the' : 'goes to the';
-  const h = f.slot ? `${name} ${goes} ${forumOf(view, f.slot)} on ${monthDay(f.slot.date)}` : `${name} is ${NOW[bill.stage] ?? 'pending'}`;
-  const lead = f.change ? `It ${PAST[f.change.to] ?? 'moved'} on ${monthDay(f.change.date)}.` : f.position ? `${view.get(clientId)!.name} ${WANTS[f.position.stance]}.` : '';
-  return { headline: h, lead };
+  const name = lower1(billName(bill));
+  const stance = f.position?.stance ?? 'monitor';
+  const ask = String(f.position?.ask ?? (stance === 'oppose' ? `the ${name}` : `changes to the ${name}`));
+  const noticeFirst = !!f.notice && (!f.slot || f.notice.date < f.slot.date);
+  const when = (d: string) => (d <= addDays(view.baseDate, 6) ? "this week's" : `the ${monthDay(d)}`);
+  const step = f.slot ? STEP_NAME[f.slotKind!] : '';
+  const decisive = !!f.slot && f.textOpen && (f.slotKind === 'review' || f.slotKind === 'vote');
+  let h: string;
+  if (noticeFirst) h = stance === 'oppose' ? `Objections to ${ask} have to be filed before the notice period closes on ${monthDay(f.notice!.date)}` : stance === 'amend' ? `The case for ${ask} has to be filed before the notice period closes on ${monthDay(f.notice!.date)}` : `The notice period on the ${name} closes on ${monthDay(f.notice!.date)}`;
+  else if (decisive && stance === 'amend') h = `${cap(when(f.slot!.date))} ${step} is the last real chance to get ${ask} into the bill`;
+  else if (decisive && stance === 'oppose') h = `${cap(when(f.slot!.date))} ${step} is the last real chance to stop ${ask}`;
+  else if (f.slot && stance === 'support') h = `Whether the ${name} passes is settled at ${when(f.slot.date)} ${step}`;
+  else if (f.slot) h = `The ${name} goes to ${when(f.slot.date)} ${step}${f.textOpen ? '' : ', with little room left to change the text'}`;
+  else h = `The ${name} is ${NOW[bill.stage] ?? 'pending'}`;
+
+  const lead: string[] = [];
+  if (noticeFirst) lead.push(`Written comments on the ${name} close on ${monthDay(f.notice!.date)}.`);
+  else if (f.slot) {
+    const ours = new Set(clientBills(view, clientId).map((b) => b.id));
+    const others = view.targets(f.slot.id, 'agenda_item').filter((b) => b.id !== bill.id && ours.has(b.id)).slice(0, 2).map((b) => `the ${lower1(billName(b))}`);
+    lead.push(`The ${forumOf(view, f.slot)} takes up the ${name}${others.length ? ` with ${others.join(' and ')}` : ''} on ${monthDay(f.slot.date)}.`);
+    if (decisive) lead.push(f.slotKind === 'review' ? 'After that the full committee only adjusts wording.' : 'After the vote only the Legislation and Judiciary wording review is left.');
+  }
+  const risk = view.list('RiskOpportunity', (r) => r.clientId === clientId && r.kind === 'risk' && (r.subjectIds as string[]).includes(bill.id))[0];
+  if (risk) lead.push(firstSentences(risk.summary, 1));
+  else if (f.position && stance !== 'monitor') lead.push(firstSentences(f.position.rationale, 1));
+  const topIssues = new Set(view.targets(bill.id, 'about').map((i) => i.id));
+  const next = bills.slice(1).find((r) => !view.targets(r.bill.id, 'about').some((i) => topIssues.has(i.id)) && (r.facts.notice || r.facts.slot));
+  if (next) {
+    const nf = next.facts;
+    const nNotice = !!nf.notice && (!nf.slot || nf.notice.date < nf.slot.date);
+    lead.push(nNotice ? `Comments on the ${lower1(billName(next.bill))} close on ${monthDay(nf.notice!.date)}.` : `The ${lower1(billName(next.bill))} goes to the ${forumOf(view, nf.slot!)} on ${monthDay(nf.slot!.date)}.`);
+  }
+  lead.push(decisionsLine(decisions.length));
+  return { headline: h, lead: lead.join(' ') };
 }
 
-export const decisionsLine = (n: number) => (n === 0 ? 'No decision for leadership this week.' : `${countWord(n)} decision${n === 1 ? '' : 's'} for leadership this week.`);
+export const decisionsLine = (n: number) => (n === 0 ? 'No open decision for leadership this week.' : `${countWord(n)} decision${n === 1 ? '' : 's'} for leadership this week.`);
 
 /** Risks or opportunities in the order of the bills they concern: response level, then impact, then urgency. */
 export function orderedRiskOpportunities(view: View, clientId: string, since: string, kind: 'risk' | 'opportunity'): ObjectRecord[] {
@@ -110,7 +149,7 @@ const STEP_NOTE: Record<string, string> = { introduction: 'introduction only, no
 /** "Full committee: A, B; C (introduction only, no vote)". Bills whose step is a review or a vote are listed plainly. */
 function meetingTitle(view: View, what: string, e: ObjectRecord, billIds: string[]): string {
   const groups = new Map<string, string[]>();
-  for (const id of billIds) { const k = stepKind(e, view.get(id)!); const g = k === 'review' || k === 'vote' ? '' : STEP_NOTE[k]; groups.set(g, [...(groups.get(g) ?? []), billName(view.get(id))]); }
+  for (const id of billIds) { const k = stepKind(view, e, view.get(id)!); const g = k === 'review' || k === 'vote' ? '' : STEP_NOTE[k]; groups.set(g, [...(groups.get(g) ?? []), billName(view.get(id))]); }
   const plain = groups.get('') ?? [];
   const rest = [...groups].filter(([g]) => g).map(([g, names]) => `${names.join(', ')} (${g})`);
   if (!plain.length && groups.size === 1) return `${what} (${[...groups.keys()][0]}): ${groups.get([...groups.keys()][0])!.join(', ')}`;
@@ -210,10 +249,9 @@ export function weeklyBrief(view: View, clientId: string, opts: { since?: string
   view = confirmedView(view);
   const since = opts.since ?? addDays(view.baseDate, -7);
   const bills = rankedBills(view, clientId, since);
-  const h = headline(view, clientId, bills[0]);
+  const decisions = view.list('Decision', (d) => d.clientId === clientId && d.status === 'open').sort((a, b) => cmp(String(a.dueDate ?? '9'), String(b.dueDate ?? '9')) || cmp(a.id, b.id));
   return {
-    since, ...h, bills,
-    decisions: view.list('Decision', (d) => d.clientId === clientId && d.status === 'open').sort((a, b) => cmp(String(a.dueDate ?? '9'), String(b.dueDate ?? '9')) || cmp(a.id, b.id)),
+    since, ...headline(view, clientId, bills, decisions), bills, decisions,
     risks: orderedRiskOpportunities(view, clientId, since, 'risk'),
     opportunities: orderedRiskOpportunities(view, clientId, since, 'opportunity'),
     timeline: timeline(view, clientId, { ...opts, since }),

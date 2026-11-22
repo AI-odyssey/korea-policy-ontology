@@ -10,7 +10,7 @@ import type { App } from './ui.tsx';
 
 export function Strategy({ app }: { app: App }) {
   const { view, clientId } = app;
-  const impact = new Map(view.links({ type: 'affects', to: clientId }).map((l) => [l.from, l.props?.impact as string]));
+  const impact = new Map(view.list('ImpactAssessment', (a) => a.clientId === clientId).map((a) => [a.issueId, a.level as string]));
   const order = ['high', 'medium', 'low'];
   const strategies = view.list('Strategy', (s) => s.clientId === clientId)
     .sort((a, b) => order.indexOf(impact.get(a.issueId)!) - order.indexOf(impact.get(b.issueId)!) || a.issueId.localeCompare(b.issueId));

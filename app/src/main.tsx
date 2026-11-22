@@ -17,7 +17,7 @@ import { ThisWeek } from './week.tsx';
 import { Issues } from './issues.tsx';
 import { Stakeholders } from './stakeholders.tsx';
 import { Strategy } from './strategy.tsx';
-import { ActivityLog, AssistantRun, Ontology, Reports } from './more.tsx';
+import { AuditLog, Ontology, Reports } from './more.tsx';
 import { Settings } from './settings.tsx';
 
 const world = worldJson as unknown as World;
@@ -70,12 +70,13 @@ const loadStore = (): Store => {
 const hhmm = () => new Date().toTimeString().slice(0, 5);
 
 const LEFT = [['week', 'This week'], ['issues', 'Issues & bills'], ['stakeholders', 'Stakeholders'], ['strategy', 'Strategy']] as const;
-const RIGHT = [['reports', 'Reports'], ['activity', 'Activity log'], ['assistant', 'AI work log'], ['settings', 'Settings'], ['ontology', 'Ontology']] as const;
+const RIGHT = [['reports', 'Reports'], ['log', 'Audit log'], ['settings', 'Settings'], ['ontology', 'Ontology']] as const;
 const SCREENS: string[] = [...LEFT, ...RIGHT].map(([id]) => id);
 
 const parseHash = () => {
   const [screen, ...rest] = decodeURIComponent(location.hash.slice(1)).split('/');
-  return { screen: SCREENS.includes(screen) ? screen : 'week', rest: rest.join('/') || undefined };
+  const s = screen === 'activity' || screen === 'assistant' ? 'log' : screen; // old links to the two logs
+  return { screen: SCREENS.includes(s) ? s : 'week', rest: rest.join('/') || undefined };
 };
 
 // When the demo opens it is Monday morning: the weekly assistant has filed clear matches, raised decisions and drafted
@@ -196,7 +197,7 @@ function Root() {
       <div className="wrap">
         <header className="top">
           <b className="brand">Korea Policy Ontology <span className="demo-tag">Demo</span></b>
-          <span className="sub nowrap asof">As of {md(store.baseDate)}, {store.baseDate.slice(0, 4)}</span>
+          <span className="sub nowrap asof" title="The demo runs on a fixed date so every visit opens on the same week.">As of {md(store.baseDate)}, {store.baseDate.slice(0, 4)} (fixed demo date)</span>
           <HTMLSelect minimal value={clientId} onChange={(e) => (setClientId(e.target.value), setNotice(undefined), setInspect(undefined))} options={clients.map((c) => ({ value: c.id, label: `${c.name} (fictional company)` }))} aria-label="Fictional company" className="client" />
           <MarkTag m={clientMarking(clientId)} app={app} />
           <span className="spacer" />
@@ -214,8 +215,7 @@ function Root() {
           {route.screen === 'stakeholders' && <Stakeholders app={app} path={route.rest} />}
           {route.screen === 'strategy' && <Strategy app={app} />}
           {route.screen === 'reports' && <Reports key={clientId} app={app} />}
-          {route.screen === 'activity' && <ActivityLog app={app} />}
-          {route.screen === 'assistant' && <AssistantRun app={app} />}
+          {route.screen === 'log' && <AuditLog app={app} />}
           {route.screen === 'settings' && <Settings key={clientId} app={app} tab={route.rest} />}
           {route.screen === 'ontology' && <Ontology />}
         </main>

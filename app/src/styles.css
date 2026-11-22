@@ -142,7 +142,7 @@ ul.plain li { margin: 3px 0; }
 .seg button { border: 1px solid var(--hair-2); background: var(--surface); color: var(--ink-2); border-radius: 999px; padding: 3px 12px; font-size: 13px; cursor: pointer; }
 .seg button.on { background: var(--navy); border-color: var(--navy); color: #fff; }
 .split { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 44px; margin-top: 18px; }
-.graph { width: 100%; height: 470px; }
+.graph { width: 100%; height: 500px; }
 .people { list-style: none; margin: 14px 0 0; padding: 0; columns: 2 260px; column-gap: 28px; font-size: 13.5px; }
 .people li { break-inside: avoid; padding: 4px 0; border-bottom: 1px solid var(--hair); }
 .people li.on b { text-decoration: underline; text-underline-offset: 2px; }
@@ -309,3 +309,22 @@ button.pp:hover { border-color: var(--ink-2); }
   body.on-reports .colophon { margin-top: 24px; font-size: 9px; }
   body.on-reports a { color: inherit; text-decoration: none; }
 }
+
+/* This week in four numbers */
+.counts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 4px 0 18px; font-size: 13.5px; color: var(--muted, #59616B); }
+.counts b { color: var(--ink, #1B2430); font-size: 15px; margin-right: 2px; }
+
+/* How the headline was worked out */
+.trace { margin: -8px 0 14px; }
+.trace-list { margin: 6px 0 0; font-size: 13.5px; }
+
+/* Issues: impact in three bars, the company position by color, a pending change in place */
+.judge { margin: 6px 0 10px; }
+.bars { display: inline-flex; gap: 3px; vertical-align: middle; margin-right: 6px; }
+.bars i { width: 14px; height: 9px; border-radius: 2px; background: #e3e1dc; }
+.bars-high i.on { background: var(--amber); }
+.bars-medium i.on { background: #c9a35a; }
+.bars-low i.on { background: #b9bfc7; }
+.bars-label { margin-right: 6px; }
+.pending-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; padding: 6px 8px; background: var(--amber-soft); border-radius: 4px; font-size: 13.5px; }
+.item.proposed { border-left: 0; background: var(--amber-soft); padding: 8px 10px; border-radius: 4px; margin-bottom: 8px; }

@@ -2,6 +2,8 @@
 
 All companies, people, bills and events in this repository are fictional, and numbers refer to the synthetic world. No company or employer data or documents were used: the world is generated from a seed.
 
+This is a self-directed proof of concept. It has not been deployed or piloted, and it has no users or results. I built it to test how my government-affairs experience translates into designing an operational system.
+
 The app is a tool that a company's in-house government-affairs (대관) team uses directly. I designed it as the person who would build and deploy such a system for that team, not as its daily user. The three fictional companies (Aster Robotics, Moru Foods, Wrenfield Pay) are three example deployments of the same system.
 
 ## 1. The problem I kept running into
@@ -82,15 +84,15 @@ The split I was after: rules first, the assistant where rules can move work forw
 
 The decision it raises is a good example. A generic "request a meeting with the chair" is a template an analyst would throw away. The assistant instead looks at the bill's next meeting, takes the people who control that agenda from `stageGates`, and picks the one the company rates high influence whose stance is opposed or unknown, skipping anyone a plan step already covers. For Aster that is Baek Siwoo, the lead sponsor, because the committee chair and the subcommittee chair already have plan steps. The question names him, the recommendation says why he matters and what Aster wants, and one alternative states the real trade: accept the stop rule as passed to keep the cargo class. The follow-up task is due before the meeting, with a working day left to act.
 
-The page keeps two queues apart. **To review** is what the assistant or an analyst changed or drafted, which the head of government affairs approves or declines. **Decisions for leadership** are business calls, such as who from the company meets a lawmaker, which the head of government affairs puts to leadership and records.
+Two kinds of item wait for a person, and they are kept apart. Approvals are what the assistant or an analyst changed or drafted; each sits next to what it changes (a proposed risk among the risks, a position change under its issue, a report on Reports), and the head of government affairs approves or declines it there. **Decisions for leadership** are business calls, such as who from the company meets a lawmaker, which the head of government affairs puts to leadership and records.
 
-When the demo opens, two items already wait in To review for the head of government affairs at Aster, each labeled with who prepared it: a risk the assistant proposed and a position change an analyst asked for. Approving one runs it as the requester, with the head of government affairs recorded as approver in the activity log.
+When the demo opens, two items already wait for the head of government affairs at Aster, each labeled with who prepared it: a risk the assistant proposed and a position change an analyst asked for. Approving one runs it as the requester, with the head of government affairs recorded as approver in the audit log.
 
 ## 5. Deploying it for an in-house team
 
 I would start with one workflow and one team: shadow two analysts through a Monday, agree the issue list and the one-page leadership view with the head of government affairs, run the public layer read-only with rules and measure how many proposals analysts accept, then add the company's layer and make the weekly report the first deliverable. The report is frequent, templated and low-risk, because a person approves every one. A second deployment comes only after the first one's report time and miss rate improve, since it is the real test of the markings. Before any company layer goes live, the company's confidentiality and vendor rules have to be written into the provider allow-list; that conversation with security and legal takes longer than the engineering.
 
-### What I would measure
+### What a pilot would measure
 
 | Metric | Why |
 |---|---|
@@ -102,7 +104,7 @@ I would start with one workflow and one team: shadow two analysts through a Mond
 | Share of stances backed by a record less than 60 days old | Whether the stakeholder map is kept honest |
 | Access attempts across company layers blocked, and any leak found | Must stay at zero leaks |
 
-Baselines have to be measured by hand first. I would not promise targets before measuring.
+None of these has been measured. Baselines have to be measured by hand first, and I would not promise targets before measuring.
 
 ## 6. What failed along the way
 
@@ -117,6 +119,15 @@ Baselines have to be measured by hand first. I would not promise targets before 
 **A report that duplicated a tracker.** The first weekly report was a bill table with risk scores and a "Who matters" list cited to ontology ids. It repeated the tracker instead of the brief, and I expect a leader who has read This week to skip a table like that. The report now renders the same brief and cites source documents.
 
 **Synthetic data that did not match the law.** An early version of the world had robots seeking sidewalk access that Korean law already granted in 2023, insurance bills in the wrong committee, a committee alternative existing before the committee adopted it, and committee chairs in their first term. A reader who knows the Assembly would stop trusting the demo at the first of these, so the generator now follows jurisdiction, seniority and procedure.
+
+### What an outside review changed
+
+I had the model reviewed from two sides, an ontology architect's and a hiring panel's. Four changes came out of it:
+
+- **One writer for the public layer.** A company user could attach evidence that landed in the shared public layer, so one company's filing showed in another's view. Now only the collector writes public links; anyone else files a link for one company, under that company's marking.
+- **Link rules enforced on every write.** Required link properties and one-to-many limits were checked only by the offline validator. They now run in the write path, so an action cannot create a membership without a role or a second lead sponsor.
+- **Judgments as records.** How strongly an issue touches a company was a property on a link with no author or reason, yet it drives the response level. It is now an ImpactAssessment with a rationale, an assessor and an approver, changed only through an action that needs approval. The purpose of an agenda item (introduction, review, vote) is recorded from the notice instead of inferred from the bill's current stage, and each collected stage change keeps the record it was read from.
+- **Decisions that know what they rest on.** A decision now links to the meeting, the assessment of the person to persuade, the company position and the impact rating, and remembers their values. If the meeting moves or the position changes, it shows as out of date. The This week screen opens that chain from the headline.
 
 ### Features I dropped
 

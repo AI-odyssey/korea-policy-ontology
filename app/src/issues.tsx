@@ -2,7 +2,7 @@
 // Issues & bills: the issues the team follows, then one bill's profile.
 import { useState } from 'react';
 import { Button, HTMLSelect, InputGroup } from '@blueprintjs/core';
-import { addDays, responseFacts, responseLevel, stageGates } from '../../ontology/index.ts';
+import { addDays, impactOf, responseFacts, responseLevel, stageGates } from '../../ontology/index.ts';
 import type { ObjectRecord, ResponseFacts } from '../../ontology/index.ts';
 import { countWord, forumOf, subcommitteeName } from '../../agent/index.ts';
 import { Empty, LEVEL, LEVEL3, ObjLink, POSITION, SOURCE, STAGE, Section, T, billName, cap, md } from './ui.tsx';
@@ -36,7 +36,7 @@ export function Issues({ app, billId }: { app: App; billId?: string }) {
 function IssueList({ app }: { app: App }) {
   const { view, clientId } = app;
   const since = addDays(view.baseDate, -7);
-  const impact = new Map(view.links({ type: 'affects', to: clientId }).map((l) => [l.from, l.props?.impact as string]));
+  const impact = new Map(view.list('ImpactAssessment', (a) => a.clientId === clientId).map((a) => [a.issueId, a.level as string]));
   const eng = view.list('Engagement', (e) => e.clientId === clientId)[0];
   const watchedBills = new Set(eng ? view.targets(eng.id, 'watches').filter((o) => o.type === 'Bill').map((o) => o.id) : []);
   const issues = view.sources(clientId, 'affects').sort((a, b) => ['high', 'medium', 'low'].indexOf(impact.get(a.id)!) - ['high', 'medium', 'low'].indexOf(impact.get(b.id)!) || a.id.localeCompare(b.id));
@@ -46,19 +46,22 @@ function IssueList({ app }: { app: App }) {
   return (
     <div className="page">
       <h1 className="headline">Issues and bills</h1>
-      <p className="lead">{countWord(issues.length)} issues affect {app.client.name}. We follow {countWord(watchedBills.size).toLowerCase()} bills closely and list every bill on these issues below ({allBills} in all).</p>
+      <p className="sub">{issues.length} issues, {allBills} bills on them, {watchedBills.size} followed closely</p>
       {issues.map((issue) => {
         const bills = view.sources(issue.id, 'about').filter((o) => o.type === 'Bill')
           .sort((a, b) => Number(watchedBills.has(b.id)) - Number(watchedBills.has(a.id)) || Number(CLOSED.includes(a.stage)) - Number(CLOSED.includes(b.stage)) || a.id.localeCompare(b.id));
         const pos = issuePosition(app, issue.id, bills, watchedBills);
         return (
           <Section key={issue.id} title={issue.title} className="issue">
-            <div className="row">
-              <T tone={impact.get(issue.id) === 'high' ? 'hi' : 'md'}>{LEVEL3[impact.get(issue.id)!]} impact</T>
-              <T tone="navy">Company position: {POSITION[pos.stance]}</T>
-              {pos.bill && <span className="sub nowrap">Position set on the {billName(pos.bill).toLowerCase()}.</span>}
-              <span className="sub">{issue.summary}</span>
-            </div>
+            <p className="sub">{issue.summary}</p>
+            <dl className="kv judge">
+              <ImpactLine app={app} issueId={issue.id} />
+              <div><dt>Company position</dt><dd>
+                <T tone={POS_TONE[pos.stance]}>{POSITION[pos.stance]}</T>
+                {pos.bill && <span className="sub"> set on the {billName(pos.bill).toLowerCase()}</span>}
+                <PendingPosition app={app} targetId={issue.id} />
+              </dd></div>
+            </dl>
             <div className="table-wrap">
               <table className="tbl bills">
                 <colgroup><col className="c-bill" /><col className="c-stage" /><col className="c-resp" /><col className="c-next" /></colgroup>
@@ -169,10 +172,11 @@ function BillProfile({ app, bill }: { app: App; bill: ObjectRecord }) {
         <Section title="Company position">
           {pos ? (
             <div className="item">
-              <div className="item-title"><T tone="navy">{POSITION[pos.stance]}</T>{pos.targetId !== bill.id && <span className="sub">set on the issue: {view.get(pos.targetId)?.title}</span>}</div>
+              <div className="item-title"><T tone={POS_TONE[pos.stance]}>{POSITION[pos.stance]}</T>{pos.targetId !== bill.id && <span className="sub">set on the issue: {view.get(pos.targetId)?.title}</span>}</div>
               <p className="sub">{pos.rationale}</p>
             </div>
-          ) : <div className="item"><div className="item-title"><T tone="navy">No position</T></div></div>}
+          ) : <div className="item"><div className="item-title"><T tone="plain">No position</T></div></div>}
+          <PendingPosition app={app} targetId={bill.id} />
           {!editing ? <Button size="small" text="Change position" onClick={() => setEditing(true)} /> : (
             <div className="row">
               <HTMLSelect value={stance} onChange={(e) => setStance(e.target.value)} options={Object.entries(POSITION).map(([value, label]) => ({ value, label }))} aria-label="Position" />
@@ -206,4 +210,37 @@ function BillProfile({ app, bill }: { app: App; bill: ObjectRecord }) {
       </Section>
     </div>
   );
+}
+
+/** Stance colors: support green, amend amber, oppose rust, no position grey. */
+const POS_TONE: Record<string, 'op' | 'hi' | 'rust' | 'plain'> = { support: 'op', amend: 'hi', oppose: 'rust', monitor: 'plain' };
+
+/** How strongly the issue touches the company: three bars, the rating, and the reason the team gave. */
+function ImpactLine({ app, issueId }: { app: App; issueId: string }) {
+  const a = impactOf(app.view, issueId, app.clientId);
+  if (!a) return null;
+  const n = ({ high: 3, medium: 2, low: 1 } as Record<string, number>)[a.level] ?? 0;
+  return (
+    <div><dt>Impact on {app.client.name}</dt><dd>
+      <span className={`bars bars-${a.level}`} aria-label={`${LEVEL3[a.level]} impact`}>{[1, 2, 3].map((i) => <i key={i} className={i <= n ? 'on' : ''} />)}</span>
+      <b className="bars-label">{LEVEL3[a.level]}</b> <span className="sub">{a.rationale}</span> <ObjLink id={a.id} app={app} label="Rating record" />
+    </dd></div>
+  );
+}
+
+/** An analyst's request to change the company's position on this issue or bill, approved or declined right here. */
+function PendingPosition({ app, targetId }: { app: App; targetId: string }) {
+  const req = app.store.pendingApprovals(app.ctx).filter((p) => p.action === 'setClientPosition' && (p.params as { targetId: string }).targetId === targetId);
+  if (!req.length) return null;
+  const decide = (fn: () => void, msg: string) => { try { fn(); app.notify(msg, 'success'); } catch (e) { app.notify((e as Error).message, 'danger'); } };
+  return <>{req.map((p) => {
+    const x = p.params as { stance: string; rationale: string };
+    return (
+      <div key={p.id} className="pending-inline">
+        <T tone="hi">Change requested</T> <span>An analyst asks to change the position to {POSITION[x.stance]}. {x.rationale}</span>
+        <Button size="small" intent="primary" text="Approve" onClick={() => decide(() => app.store.approve(app.ctx, p.id), 'Position change approved.')} />
+        <Button size="small" variant="minimal" text="Decline" onClick={() => decide(() => app.store.reject(app.ctx, p.id), 'Position change declined.')} />
+      </div>
+    );
+  })}</>;
 }

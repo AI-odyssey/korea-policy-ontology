@@ -1,13 +1,15 @@
 // Copyright (c) 2026 AI-odyssey. All rights reserved. korea-policy-ontology
 // This week: the page the head of government affairs works from. It renders the weekly brief (agent/brief.ts), the same model the report uses.
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Button, HTMLSelect } from '@blueprintjs/core';
-import { REVIEW_THRESHOLD, signalQueue } from '../../ontology/index.ts';
+import { impactOf, responseLevel, REVIEW_THRESHOLD, signalQueue } from '../../ontology/index.ts';
 import type { ObjectRecord } from '../../ontology/index.ts';
-import { decisionsLine, decisionStale, proposeTriage, regenerateDecision, triageParams, weeklyBrief } from '../../agent/index.ts';
+import { decisionStale, proposeTriage, regenerateDecision, sourceFor, triageParams, weeklyBrief } from '../../agent/index.ts';
+import type { Brief } from '../../agent/index.ts';
 import { TIMELINE_DAYS } from '../../agent/index.ts';
 import type { TimelineItem } from '../../agent/index.ts';
-import { Empty, ObjLink, POSITION, Section, T, md, nameOf, person, prose, roleOf, wmd } from './ui.tsx';
+import { Empty, LEVEL, LEVEL3, ObjLink, POSITION, STAGE, STANCE, Section, T, md, nameOf, person, prose, roleOf, wmd } from './ui.tsx';
 import type { App } from './ui.tsx';
 import { PublicRecords } from './live.tsx';
 
@@ -16,9 +18,9 @@ export function ThisWeek({ app }: { app: App }) {
   return (
     <div className="page">
       <h1 className="headline">{b.headline}</h1>
-      <p className="lead">{[b.lead, decisionsLine(b.decisions.length)].filter(Boolean).join(' ')}</p>
-
-      <Pending app={app} />
+      {b.lead && <p className="lead">{b.lead}</p>}
+      <Counts app={app} decisions={b.decisions.length} risks={b.risks.length} />
+      <Trace app={app} brief={b} />
 
       <Section title="Decisions for leadership">
         {!b.decisions.length && <Empty>Nothing for leadership to decide this week.</Empty>}
@@ -26,7 +28,7 @@ export function ThisWeek({ app }: { app: App }) {
       </Section>
 
       <div className="g2">
-        <Section title="Risks"><RoList app={app} items={b.risks} /></Section>
+        <Section title="Risks"><Proposed app={app} /><RoList app={app} items={b.risks} /></Section>
         <Section title="Opportunities"><RoList app={app} items={b.opportunities} /></Section>
       </div>
 
@@ -132,11 +134,90 @@ function RoList({ app, items }: { app: App; items: ObjectRecord[] }) {
   );
 }
 
+/**
+ * How the headline was worked out, one record per step: the meeting and the notice it comes from, the bill's stage and
+ * where it was read, the response level and its rules, the company position, the impact rating, and the decision with
+ * the records it rests on. Every name opens the record.
+ */
+function Trace({ app, brief }: { app: App; brief: Brief }) {
+  const [open, setOpen] = useState(false);
+  const top = brief.bills[0];
+  if (!top) return null;
+  const { view, clientId } = app;
+  const { bill, facts: f } = top;
+  const last = (bill.stageHistory as { stage: string; date: string; sourceId?: string }[]).at(-1)!;
+  const notice = f.slot ? sourceFor(view, f.slot.id) : undefined;
+  const impacts = view.targets(bill.id, 'about').map((i) => impactOf(view, i.id, clientId)).filter((x): x is ObjectRecord => !!x);
+  const decision = brief.decisions.find((d) => d.subjectId === bill.id);
+  const basis = decision ? view.targets(decision.id, 'derived_from') : [];
+  const who = (actor?: string) => (actor ? person(actor) : '');
+  const rows: [string, ReactNode][] = [
+    ...(f.slot ? [['Meeting', <><ObjLink id={f.slot.id} app={app} label={`${f.slot.name}, ${md(f.slot.date)}`} />{notice && <> from <ObjLink id={notice} app={app} label="the agenda notice" /></>}</>] as [string, ReactNode]] : []),
+    ['Bill stage', <><ObjLink id={bill.id} app={app} label={STAGE[bill.stage]} /> since {md(last.date)}{last.sourceId && <>, read from <ObjLink id={last.sourceId} app={app} label="the bill tracker" /></>}</>],
+    ['Response level', <>{LEVEL[top.level]}: {prose(responseLevel(view, bill.id, clientId, brief.since).reasons.join('; ').replace(/Moved to ([a-z_]+) on/, (_m, k: string) => `${STAGE[k] ?? k} on`).replace(/[a-z]+(?:_[a-z]+)+/g, (k) => STAGE[k] ?? k.replace(/_/g, ' ')))}</>],
+    ...(f.position ? [['Company position', <><ObjLink id={f.position.id} app={app} label={POSITION[f.position.stance]} />, set by {who(f.position.setBy)}{f.position.approvedBy && `, approved by ${who(f.position.approvedBy)}`}</>] as [string, ReactNode]] : []),
+    ...impacts.map((i) => ['Impact rating', <><ObjLink id={i.id} app={app} label={`${LEVEL3[i.level]} on ${view.get(i.issueId)?.title}`} />: {i.rationale} Rated by {who(i.assessedBy)}{i.approvedBy && `, approved by ${who(i.approvedBy)}`}.</>] as [string, ReactNode]),
+    ...(decision ? [['Decision', <><ObjLink id={decision.id} app={app} label={prose(decision.question)} /> rests on {basis.map((o, k) => <span key={o.id}>{k ? ', ' : ''}<ObjLink id={o.id} app={app} label={o.type === 'StakeholderAssessment' ? `${nameOf(view.get(o.subjectId))} (${STANCE[o.stance]})` : o.type === 'Event' ? 'the meeting' : o.type === 'ClientPosition' ? 'the position' : 'the impact rating'} /></span>)}</>] as [string, ReactNode]] : []),
+  ];
+  return (
+    <div className="trace">
+      <Button size="small" variant="minimal" icon={open ? 'chevron-down' : 'chevron-right'} text="How this was worked out" onClick={() => setOpen(!open)} />
+      {open && <dl className="kv trace-list">{rows.map(([k, v], i) => <div key={i}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>}
+    </div>
+  );
+}
+
+/** Risks the assistant proposes this week, approved or declined in the Risks list itself. */
+function Proposed({ app }: { app: App }) {
+  const req = app.store.pendingApprovals(app.ctx).filter((p) => p.action === 'addRiskOpportunity');
+  const decide = (fn: () => void, msg: string) => { try { fn(); app.notify(msg, 'success'); } catch (e) { app.notify((e as Error).message, 'danger'); } };
+  return <>{req.map((p) => {
+    const x = p.params as { title: string; summary: string; impact: string };
+    return (
+      <div key={p.id} className="item proposed">
+        <div className="item-title"><T tone="hi">Proposed</T> <T>{x.impact === 'high' ? 'High impact' : 'Medium impact'}</T> {x.title} <span className="sub">by the assistant; once approved it joins the risks and the report</span></div>
+        <p className="sub">{x.summary}</p>
+        <div className="row">
+          <Button size="small" intent="primary" text="Approve" onClick={() => decide(() => app.store.approve(app.ctx, p.id), 'Added to the risks.')} />
+          <Button size="small" variant="minimal" text="Decline" onClick={() => decide(() => app.store.reject(app.ctx, p.id), 'Proposal declined.')} />
+        </div>
+      </div>
+    );
+  })}</>;
+}
+
+/** The week in four numbers, read before anything else. */
+function Counts({ app, decisions, risks }: { app: App; decisions: number; risks: number }) {
+  const pending = app.store.pendingApprovals(app.ctx);
+  const reports = app.view.list('Deliverable', (d) => d.clientId === app.clientId && d.status === 'in_review').length;
+  const risks_ = pending.filter((p) => p.action === 'addRiskOpportunity').length;
+  const positions = pending.filter((p) => p.action === 'setClientPosition').length;
+  const where = [
+    reports ? <a key="r" onClick={() => app.go('reports')}>{reports} {reports === 1 ? 'report' : 'reports'}</a> : null,
+    risks_ ? <span key="k">{risks_} proposed {risks_ === 1 ? 'risk' : 'risks'}</span> : null,
+    positions ? <a key="p" onClick={() => app.go('issues')}>{positions} position {positions === 1 ? 'change' : 'changes'}</a> : null,
+  ].filter(Boolean);
+  const approvals = pending.length + reports;
+  const unsure = signalQueue(app.view).filter((s) => { const p = proposeTriage(app.view, s, app.clientId); return p.action === 'link' && p.relevantToClient; }).length;
+  return (
+    <div className="counts">
+      <span><b>{decisions}</b> {decisions === 1 ? 'decision' : 'decisions'} for leadership</span>
+      <span><b>{risks}</b> {risks === 1 ? 'risk' : 'risks'}</span>
+      <span><b>{approvals}</b> awaiting your approval{where.length > 0 && <> ({where.map((w, i) => <span key={i}>{i ? ', ' : ''}{w}</span>)})</>}</span>
+      <span><b>{unsure}</b> new {unsure === 1 ? 'item' : 'items'} to confirm</span>
+    </div>
+  );
+}
+
+const TIMELINE_SHOWN = 5;
+
 function Timeline({ app, items }: { app: App; items: TimelineItem[] }) {
+  const [all, setAll] = useState(false);
   if (!items.length) return <Empty>Nothing scheduled in the next {TIMELINE_DAYS} days.</Empty>;
   return (
+    <>
     <ol className="tl">
-      {items.map((x, i) => (
+      {(all ? items : items.slice(0, TIMELINE_SHOWN)).map((x, i) => (
         <li key={x.id} className={i === 0 ? 'now' : ''}>
           <div className="tl-date">{wmd(x.date)}</div>
           <div className="tl-title"><ObjLink id={x.id} app={app} label={x.title} /></div>
@@ -144,6 +225,8 @@ function Timeline({ app, items }: { app: App; items: TimelineItem[] }) {
         </li>
       ))}
     </ol>
+    {items.length > TIMELINE_SHOWN && <Button size="small" variant="minimal" text={all ? 'Show fewer' : `Show all ${items.length}`} onClick={() => setAll(!all)} />}
+    </>
   );
 }
 
@@ -200,50 +283,6 @@ function AutoFiled({ app }: { app: App }) {
         </div>
       ))}
       {filed.length > 4 && <Button size="small" variant="minimal" text={all ? 'Show fewer' : `Show all ${filed.length}`} onClick={() => setAll(!all)} />}
-    </Section>
-  );
-}
-
-/** Changes the assistant or an analyst proposed, and reports in review, that wait for the head of government affairs. Hidden when empty. */
-export function Pending({ app, empty }: { app: App; empty?: string }) {
-  const pending = app.store.pendingApprovals(app.ctx);
-  const reports = app.view.list('Deliverable', (d) => d.clientId === app.clientId && d.status === 'in_review').sort((a, b) => a.id.localeCompare(b.id));
-  if (!pending.length && !reports.length) return empty ? <Section title="To review"><Empty>{empty}</Empty></Section> : null;
-  const decide = (fn: () => void, msg: string) => {
-    try {
-      fn();
-      app.notify(msg, 'success');
-    } catch (e) {
-      app.notify((e as Error).message, 'danger');
-    }
-  };
-  const what = (p: (typeof pending)[number]) => {
-    const x = p.params as Record<string, any>;
-    if (p.action === 'setClientPosition') return { title: `Change the company position on the ${nameOf(app.view.get(x.targetId)).toLowerCase()} to ${POSITION[x.stance]}`, detail: x.rationale };
-    if (p.action === 'addRiskOpportunity') return { title: `New ${x.kind}: ${x.title}`, detail: x.summary };
-    if (p.action === 'updateStrategy') return { title: `Update the strategy on ${nameOf(app.view.get(x.issueId))}`, detail: (x.messages ?? []).join(' ') };
-    return { title: p.action, detail: '' };
-  };
-  return (
-    <Section title="To review">
-      {pending.map((p) => {
-        const w = what(p);
-        return (
-          <div key={p.id} className="item">
-            <div className="item-title">{w.title} <span className="sub">Proposed by {p.requesterRole === 'agent' ? 'the assistant' : 'an analyst'}</span></div>
-            {w.detail && <p className="sub">{w.detail}</p>}
-            <div className="row">
-              <Button size="small" intent="primary" text="Approve" onClick={() => decide(() => app.store.approve(app.ctx, p.id), 'Approved.')} />
-              <Button size="small" variant="minimal" text="Decline" onClick={() => decide(() => app.store.reject(app.ctx, p.id), 'Declined.')} />
-            </div>
-          </div>
-        );
-      })}
-      {reports.map((d) => (
-        <div key={d.id} className="item">
-          <div className="item-title"><a onClick={() => app.go('reports')}>Approve: {prose(d.title)}</a> <span className="sub">Prepared by the {person(d.createdBy).toLowerCase()}</span></div>
-        </div>
-      ))}
     </Section>
   );
 }

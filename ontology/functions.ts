@@ -107,7 +107,7 @@ export function billRiskScore(view: View, billId: string, clientId: string, asOf
   const pos = positions.find((p) => p.targetId === billId) ?? positions.find((p) => issues.some((i) => i.id === p.targetId));
 
   // Impact: the strongest impact among the bill's issues on this client.
-  const impacts = issues.flatMap((i) => view.links({ type: 'affects', from: i.id, to: clientId }).map((l) => l.props?.impact as string));
+  const impacts = issues.map((i) => impactOf(view, i.id, clientId)?.level as string);
   const impact = Math.max(0, ...impacts.map((i) => IMPACT_VALUE[i] ?? 0));
 
   const mk = (key: RiskComponent['key'], label: string, value: number, note: string): RiskComponent =>
@@ -136,12 +136,18 @@ const ACTION_STANCES = ['oppose', 'amend'];
  * plenary:      the plenary votes the text as it stands.
  */
 export type StepKind = 'introduction' | 'review' | 'vote' | 'wording' | 'plenary';
-export function stepKind(meeting: ObjectRecord, bill: ObjectRecord): StepKind {
+export function stepKind(view: View, meeting: ObjectRecord, bill: ObjectRecord): StepKind {
+  const recorded = view.links({ type: 'agenda_item', from: meeting.id, to: bill.id }).map((l) => l.props?.purpose).find(Boolean);
+  if (recorded) return recorded as StepKind;
   if (meeting.institutionId === 'inst-ljc') return 'wording';
   if (meeting.kind === 'plenary') return 'plenary';
   if (meeting.kind === 'subcommittee') return 'review';
   return ['submitted', 'committee_referred'].includes(bill.stage) ? 'introduction' : 'vote';
 }
+/** The team's rating of how strongly an issue touches a company, with its reasons and approval. */
+export const impactOf = (view: View, issueId: string, clientId: string): ObjectRecord | undefined =>
+  view.list('ImpactAssessment', (a) => a.clientId === clientId && a.issueId === issueId)[0];
+
 /** Steps where the text can still change: the subcommittee's review and the full committee's vote. */
 export const isDecisive = (k: StepKind) => k === 'review' || k === 'vote';
 
@@ -172,20 +178,20 @@ export function responseFacts(view: View, billId: string, clientId: string, sinc
     .filter((e) => SLOT_KINDS.includes(e.kind) && (e.date > asOf || (e.date === asOf && e.status === 'scheduled')))
     .sort((a, b) => cmp(a.date, b.date) || cmp(a.id, b.id));
   const slot = meetings[0];
-  const decisive = meetings.find((e) => isDecisive(stepKind(e, bill)));
+  const decisive = meetings.find((e) => isDecisive(stepKind(view, e, bill)));
   const notice = view.sources(billId, 'agenda_item')
     .filter((e) => e.kind === 'public_comment' && e.status === 'scheduled' && e.date >= asOf)
     .sort((a, b) => cmp(a.date, b.date) || cmp(a.id, b.id))[0];
   const issues = view.targets(billId, 'about');
   const positions = view.list('ClientPosition', (p) => p.clientId === clientId);
-  const impacts = issues.flatMap((x) => view.links({ type: 'affects', from: x.id, to: clientId }).map((l) => l.props?.impact as string));
+  const impacts = issues.map((x) => impactOf(view, x.id, clientId)?.level as string);
   const closed = TERMINAL.includes(bill.stage);
   const order = (s: string) => (STAGE_ORDER as readonly string[]).indexOf(s);
   return {
     closed,
     textOpen: !closed && order(bill.stage) < order('committee_passed'),
     ...(i >= 0 ? { change: { from: hist[i - 1]?.stage, to: hist[i].stage, date: hist[i].date } } : {}),
-    ...(slot ? { slot, slotKind: stepKind(slot, bill), daysToSlot: daysBetween(asOf, slot.date) } : {}),
+    ...(slot ? { slot, slotKind: stepKind(view, slot, bill), daysToSlot: daysBetween(asOf, slot.date) } : {}),
     ...(decisive ? { decisive, daysToDecisive: daysBetween(asOf, decisive.date) } : {}),
     ...(notice ? { notice, daysToNotice: daysBetween(asOf, notice.date) } : {}),
     position: positions.find((p) => p.targetId === billId) ?? positions.find((p) => issues.some((x) => x.id === p.targetId)),
@@ -333,7 +339,7 @@ export function issueExposure(view: View, clientId: string): Exposure[] {
     const maxRisk = billRisks[0]?.score ?? 0;
     // Exposure is the worst bill's risk plus 3 points for each further active bill, capped at 100.
     const exposure = billRisks.length ? Math.min(100, round(maxRisk + 3 * (billRisks.length - 1), 1)) : 0;
-    return { issueId: issue.id, title: issue.title, impact: l.props?.impact, activeBills: billRisks.length, maxRisk, topBillId: billRisks[0]?.billId, exposure, billRisks };
+    return { issueId: issue.id, title: issue.title, impact: impactOf(view, issue.id, clientId)?.level, activeBills: billRisks.length, maxRisk, topBillId: billRisks[0]?.billId, exposure, billRisks };
   }).sort((a, b) => b.exposure - a.exposure || cmp(a.issueId, b.issueId));
 }
 

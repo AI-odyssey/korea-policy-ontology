@@ -52,6 +52,7 @@ export function nameOf(o?: ObjectRecord): string {
   if (!o) return '';
   if (o.type === 'Interaction') return `${o.kind === 'call' ? 'Call' : 'Meeting'} on ${md(o.date)}`;
   if (o.type === 'Evidence') return o.excerpt;
+  if (o.type === 'ImpactAssessment') return `Impact rating: ${LEVEL3[o.level] ?? o.level}`;
   if (o.type === 'Event' && ['full_committee', 'subcommittee', 'plenary'].includes(o.kind)) return `${o.name}, ${md(o.date)}`; // these names repeat; the date tells them apart
   return String(o.shortTitle ?? o.name ?? o.title ?? o.question ?? kindLabel(o));
 }
@@ -184,7 +185,7 @@ const LINK_LABEL: Record<string, [string, string]> = {
   referred_to: ['Referred to', 'Bills referred'], amends: ['Amends', 'Amended by'], about: ['About', 'Related'],
   agenda_item: ['On the agenda', 'On the agenda of'], testifies_at: ['Spoke at', 'Speakers'], regulates: ['Administers', 'Administered by'],
   mentions: ['Names', 'Named in'], affects: ['Affects', 'Affected by'], watches: ['Follows', 'Followed by'],
-  produced_for: ['Prepared for', 'Reports'], raised_by: ['Raised by', 'Raised'], advises: ['Advises', 'Advisers'], coalition_with: ['Joint statement with', 'Joint statement with'],
+  produced_for: ['Prepared for', 'Reports'], raised_by: ['Raised by', 'Raised'], derived_from: ['Rests on', 'Behind decisions'], advises: ['Advises', 'Advisers'], coalition_with: ['Joint statement with', 'Joint statement with'],
 };
 // A 0-1 number reads better as a word.
 const strength = (n: number) => (n >= 0.8 ? 'High' : n >= 0.5 ? 'Medium' : 'Low');
